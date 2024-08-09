@@ -1,0 +1,4 @@
+py-cord==2.6.0
+py-cord[voice]==2.6.0
+openai==1.37.1
+python-dotenv==1.0.1
