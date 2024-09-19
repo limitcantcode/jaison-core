@@ -2,3 +2,11 @@ py-cord==2.6.0
 py-cord[voice]==2.6.0
 openai==1.37.1
 python-dotenv==1.0.1
+numpy<2
+tiktoken==0.7.0
+torch==2.4.1 --index-url https://download.pytorch.org/whl/cu124
+torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cu124
+torchaudio==2.4.1 --index-url https://download.pytorch.org/whl/cu124
+
+# YOU WILL NEED TO FOLLOW INSTRUCTIONS IN README FOR WINDOWS INSTALL
+unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git
