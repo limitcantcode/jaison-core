@@ -1,0 +1,3 @@
+{ "messages": [{"role": "user", "content": "Hey this is is the first conversation"}, {"role": "assistant", "content": "Welcome to the first conversation"}]}
+{ "messages": [{"role": "user", "content": "Hey this is is the second conversation"}, {"role": "assistant", "content": "Welcome to the second conversation"}, {"role": "user", "content": "It can be longer if you'd like."}, {"role": "assistant", "content": "I'm generally last to speak."}]}
+{ "messages": [{"role": "assistant", "content": "You may even have the bot first"}, { "messages": [{"role": "user", "content": "As long as your conversation is long enough, it won't be ignored."}, {"role": "assistant", "content": "Yay"}]}]}
