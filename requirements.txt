@@ -7,6 +7,10 @@ tiktoken==0.7.0
 torch==2.4.1 --index-url https://download.pytorch.org/whl/cu124
 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cu124
 torchaudio==2.4.1 --index-url https://download.pytorch.org/whl/cu124
+bitsandbytes==0.43.3
+xformers==0.0.28
+trl==0.11.0
+peft==0.12.0
 
 # YOU WILL NEED TO FOLLOW INSTRUCTIONS IN README FOR WINDOWS INSTALL
 unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git

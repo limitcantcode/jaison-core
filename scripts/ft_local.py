@@ -7,19 +7,23 @@ from transformers import TrainingArguments
 from unsloth import is_bfloat16_supported
 from unsloth.chat_templates import get_chat_template
 import argparse
-import json
+from datasets import load_dataset
 
+# Parse command line arguments
 args = argparse.ArgumentParser()
 args.add_argument('--train_file', type=str, required=True, help='jsonl file to train with.')
+args.add_argument('--model_name', type=str, default='lora_model', help='Name to save model as.')
+args.add_argument('--base_model', type=str, default="unsloth/llama-3-8b-Instruct-bnb-4bit", help='Model to finetune. If is a local checkpoint, you can add it here too.')
 args = args.parse_args()
 
+# Set model configuration
 max_seq_length = 2048
 dtype = None
 load_in_4bit = True
 
-# Fetch 4-bit quantized Llama 3.1 8B model
+# Fetch model
 model, tokenizer = FastLanguageModel.from_pretrained(
-    model_name = "unsloth/Meta-Llama-3.1-8B-bnb-4bit",
+    model_name = args.base_model, 
     max_seq_length = max_seq_length,
     dtype = dtype,
     load_in_4bit = load_in_4bit,
@@ -46,19 +50,15 @@ tokenizer = get_chat_template(
     chat_template = "llama-3",
 )
 
-def formatting_prompts_func(example):
-    convo = example["messages"]
-    text = tokenizer.apply_chat_template(convo, tokenize = False, add_generation_prompt = False)
-    return text
+def formatting_prompts_func(examples):
+    convos = examples["messages"]
+    texts = [tokenizer.apply_chat_template(convo, tokenize = False, add_generation_prompt = False) for convo in convos]
+    return { "text" : texts, }
+pass
 
-dataset = []
-with open(args.train_file, 'rb') as f:
-    while True:
-        msg_obj = f.readline()
-        if msg_obj is None or msg_obj == '':
-            break
-        dataset.append(json.loads(msg_obj))
-dataset = { "text": list(map(formatting_prompts_func, dataset)) }
+dataset = load_dataset("json", data_files=args.train_file, split="train")
+dataset = dataset.map(formatting_prompts_func, batched = True,)
+print(dataset)
 
 # Build model trainer
 trainer = SFTTrainer(
@@ -73,7 +73,6 @@ trainer = SFTTrainer(
         per_device_train_batch_size = 2,
         gradient_accumulation_steps = 4,
         warmup_steps = 5,
-        num_train_epochs = 3,
         max_steps = 60,
         learning_rate = 2e-4,
         fp16 = not is_bfloat16_supported(),
@@ -110,4 +109,4 @@ print(f"Peak reserved memory % of max memory = {used_percentage} %.")
 print(f"Peak reserved memory for training % of max memory = {lora_percentage} %.")
 
 # Save LoRa adapters to be loaded later
-model.save_pretrained("lora_model")
+model.save_pretrained(args.model_name)

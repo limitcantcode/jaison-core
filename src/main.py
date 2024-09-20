@@ -9,7 +9,7 @@ from jaison_bot import JAIsonBot
 
 llm_worker = T2TModelDict[args.t2t_ai](
     get_prompt_from_file(args.prompt_file),
-    model=args.open_model
+    **args
 )
 bot = JAIsonBot(llm_worker)
 
