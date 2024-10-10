@@ -14,16 +14,15 @@ class VoiceCog(commands.Cog):
 
     def __init__(self, bot: discord.Bot) -> None:
         self.bot = bot
-        self.vc = None
 
     def _check_connected(self) -> bool:
         '''Return whether bot is connected to a vc'''
-        return self.vc is not None and self.vc.is_connected()
+        return self.bot.vc is not None and self.bot.vc.is_connected()
     
     async def _disconnect_client_if_connected(self) -> bool:
         '''Disconnect bot from vc if in one and return whether bot performed a dc or not'''
         if self._check_connected():
-            await self.vc.disconnect()
+            await self.bot.vc.disconnect()
             return True
         else:
             return False
@@ -34,7 +33,7 @@ class VoiceCog(commands.Cog):
         '''Join bot to specified vc'''
         try:
             await self._disconnect_client_if_connected() # bot cannot connect if it is already in a vc
-            self.vc = await channel.connect()
+            self.bot.vc = await channel.connect()
             await ctx.respond(f"Joined {channel}!")
         except discord.ClientException as err:
             print(err)
@@ -64,24 +63,6 @@ class VoiceCog(commands.Cog):
             print(err)
             await ctx.respond(f"Failed to leave current voice channel...")
             return
-
-    @discord.slash_command(description="Play a sound.", name="play_sound", **default_params)
-    async def play_sound(self, ctx) -> None:
-        '''Play a preset sound in current vc'''
-        try:
-            if not self._check_connected():
-                raise NotInVCException()
-            source = discord.FFmpegPCMAudio('D:\\Projects\\LCC\\jaison\\src\\assets\\Baba Booey - Sound Effect (HD).ogg')
-            await self.vc.play(source, wait_finish=True)
-            await ctx.respond(f"Played sound in current channel!")
-        except NotInVCException as err:
-            print(err)
-            await ctx.respond(f"Not in a voice channel. Please have me join a voice channel to play into...")
-            return
-        except Exception as err:
-            print(err)
-            await ctx.respond(f"Failed to play sound in current channel...")
-            return
         
     async def _record_callback(self, sink: discord.sinks.Sink) -> None:
         '''
@@ -103,7 +84,7 @@ class VoiceCog(commands.Cog):
             if not self._check_connected():
                 raise NotInVCException()
             sink = discord.sinks.MP3Sink()
-            self.vc.start_recording(sink, self._record_callback, sync_start=True)
+            self.bot.vc.start_recording(sink, self._record_callback, sync_start=True)
             await ctx.respond(f"Started recording!")
         except NotInVCException as err:
             print(err)
@@ -123,7 +104,7 @@ class VoiceCog(commands.Cog):
         try:
             if not self._check_connected():
                 raise NotInVCException()
-            self.vc.stop_recording()
+            self.bot.vc.stop_recording()
             await ctx.respond(f"Stopped recording!")
         except NotInVCException as err:
             print(err)

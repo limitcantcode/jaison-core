@@ -6,9 +6,10 @@ This class isn't to be used as is, but rather implemeted by other classes such a
 '''
 
 class BaseT2TAIWorker():
-    def __init__(self, prompt, name='J.A.I.son', **kwargs):
-        self.prompt = prompt # prompt as it appears in the prompt file
-        self.name = name # Character name associated with the AI
+    def __init__(self, prompt_filepath=None, character_name='J.A.I.son', **kwargs):
+        with open(prompt_filepath, 'r') as f:
+            self.prompt = f.read() # prompt as it appears in the prompt file
+        self.name = character_name # Character name associated with the AI
         self.msg_history = [] # Recent chat history. Each message is of format { "author": <speaker name string>, "message": <message string> }
 
 

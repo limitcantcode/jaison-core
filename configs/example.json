@@ -1,0 +1,10 @@
+{
+    "character_name": "J.A.I.son",
+    "prompt_filepath": "/path/to/prompts/my_prompt.txt",
+    "t2t_host": "openai",
+    "t2t_model": "gpt-3.5-turbo",
+    "tts_host": "openai",
+    "tts_output_filepath": "/path/to/outputs/my_speech.wav",
+    "rvc_model": "RVC model name (no .pth)",
+    "rvc_url": "url to RVC webserver, usually http://localhost:7865"
+}
