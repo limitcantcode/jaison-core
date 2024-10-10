@@ -9,10 +9,10 @@ from openai import OpenAI
 from .base_worker import BaseT2TAIWorker
 
 class OpenAIWorker(BaseT2TAIWorker):
-    def __init__(self, prompt, model='gpt-3.5-turbo', **kwargs):
-        super().__init__(prompt, **kwargs)
+    def __init__(self, t2t_model='gpt-3.5-turbo', **kwargs):
+        super().__init__(**kwargs)
         self.client = OpenAI()
-        self.model = model
+        self.model = t2t_model
 
     def get_response(self, prompt: str, msg: str):
         chat_completion = self.client.chat.completions.create(
