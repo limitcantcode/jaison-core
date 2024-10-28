@@ -1,8 +1,11 @@
 import json
+import argparse
 
-def get_config(config_filepath: str):
-    with open(config_filepath, 'r') as f:
-        config = json.load(f)
+args = argparse.ArgumentParser()
+args.add_argument('--config', required=True, type=str, help='Filepath to your json config. See configs/example.json for example.')
+args = args.parse_args()
 
-    return config
+config = None
+with open(args.config, 'r') as f:
+    config = json.load(f)
 

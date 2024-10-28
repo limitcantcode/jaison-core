@@ -68,8 +68,10 @@ Change the values of the config under `./configs` to match your system. `example
 - t2t_model: (str) Name of OpenAI (checkpoint) model you want to use or name of Unsloth model as you trained it.
 - tts_host: (str) One of `old` or `openai` if you want to use old-school TTS synthesis like SAPI or espeak or if you want to use OpenAI's AI TTS service respectively.
 - tts_output_filepath: (str) Filepath to where bot should output latest generated TTS. Will be used as intermediate to generate speech initially and then to convert into desired voice. Requires directory to exist (file doesn't have to exist yet).
+- stt_output_filepath: (str) Filepath to most recent audio to be transcribed and sent to t2t.
 - rvc_model: (str) Name of RVC voice model. Is the name you chose when training (so name without the `.pth`).
 - rvc_url: (str) URL to your hosted RVC web UI. Typically http://localhost:7865
+- server_id: (null or number) Discord server/guild id.
 
 ### Step 3: Start running
 
