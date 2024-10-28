@@ -20,10 +20,11 @@ class BaseT2TAIWorker():
     Parameters:
     - new_msg: New message that was sent into chat triggering response
     - author: Name of person who sent that message
+    - retain_on_silence: (Optional) If True, new_msg will not be removed from history if AI responds with silence
     Returns: (str) AI's generated response without any template
     '''
-    def __call__(self, new_msg: str, author: str):
-        self._update_history(new_msg, author)
+    def __call__(self, new_msg: str, author: str, retain_on_silence: bool = True):
+        self._add_history(new_msg, author)
         user_in = self._build_script()
         if user_in is None or len(user_in) == 1:
             raise EmptyScriptException()
@@ -31,11 +32,17 @@ class BaseT2TAIWorker():
         try:
             response = self.get_response(self.prompt, user_in)
         except Exception as err:
-            print("Tell Limit there is a problem with my AI")
+            print("There is a problem with my AI")
             print(err)
             response = 'There is a problem with my AI...'
         
-        self._update_history(response, self.name )
+        if response == '<no response>' and not retain_on_silence:
+            self.msg_history = self.msg_history[:-1]
+        elif response != '<no response>':
+            self._add_history(response, self.name)
+
+        self._prune_history(20)
+
         return response
         
     '''
@@ -48,14 +55,17 @@ class BaseT2TAIWorker():
     def get_response(self, request: str):
         raise NotImplementedError
     
-    # Updates the msg_history attribute with the given new_msg from author as default
-    def _update_history(self, new_msg: str, author: str):
+    # Adds to the msg_history attribute with the given new_msg from author as default
+    def _add_history(self, new_msg: str, author: str):
         self.msg_history.append({
             "author": author,
             "message": new_msg if new_msg is not None else ''
         })
-        if len(self.msg_history) > 10:
-            self.msg_history.pop(0)
+
+    # Retains count most recent messages
+    def _prune_history(self, count):
+        if len(self.msg_history) > count:
+            self.msg_history[-count:]
 
     # Generates script from current msg_history to be used as request to model by default
     def _build_script(self):

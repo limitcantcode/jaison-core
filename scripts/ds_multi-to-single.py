@@ -11,6 +11,8 @@ Refer to dataset-template.jsonl in this dir for example.
 import argparse
 import os
 import json
+import copy
+import random
 
 # Parse command line arguments
 args = argparse.ArgumentParser()
@@ -50,6 +52,7 @@ with open(args.in_file, 'rb') as f_in:
 
                 # When most recent message in conversation is the model's output,
                 #   generate a new conversation instance
+                new_msg_obj = None
                 if msg_history[-1]['role'] == 'assistant':
                     # Generate script from current history
                     script = ""
@@ -72,7 +75,35 @@ with open(args.in_file, 'rb') as f_in:
                             }
                         ]
                     }
-                    # Save convo instance to output file
-                    f_out.write(json.dumps(new_msg_obj)+'\n')
+                else: # Create version with <no response>
+                    alt_history = copy.deepcopy(msg_history)
+                    words = alt_history[-1]['content'].split(' ')
+                    if len(words) <= 1:
+                        continue
+                    words = words[:random.randint(1,len(words)-1)]
+                    alt_history[-1]['content'] = ' '.join(words)
+                    script = ""
+                    for msg in alt_history:
+                        script += f"\n[{'friend' if msg['role'] == 'user' else 'J.A.I.son'}]: {msg['content']}"
+                    # Create new single-turn instance
+                    new_msg_obj = {
+                        "messages": [
+                            {
+                                "role": 'system',
+                                "content": PROMPT
+                            },
+                            {
+                                "role": 'user',
+                                "content": script
+                            },
+                            {
+                                "role": 'assistant',
+                                "content": '<no response>'
+                            }
+                        ]
+                    }
+
+                # Save convo instance to output file
+                f_out.write(json.dumps(new_msg_obj)+'\n')
 
             

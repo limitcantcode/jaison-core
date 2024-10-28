@@ -1,10 +1,12 @@
 {
     "character_name": "J.A.I.son",
-    "prompt_filepath": "/home/limit/Projects/J.A.I.son/prompts/production/example_3_local_ft.txt",
+    "prompt_filepath": "/home/limit/Projects/J.A.I.son/prompts/production/default_example.txt",
     "t2t_host": "openai",
-    "t2t_model": "ft:gpt-4o-mini-2024-07-18:lcc:jaison:A92WIYvZ",
+    "t2t_model": "ft:gpt-4o-mini-2024-07-18:lcc:jaison:AMd5Xl28",
     "tts_host": "openai",
     "tts_output_filepath": "/home/limit/Projects/J.A.I.son/output/audio/tts_raw.wav",
-    "rvc_model": "mi-test-pitch",
-    "rvc_url": "http://localhost:7865"
+    "stt_output_filepath": "/home/limit/Projects/J.A.I.son/output/audio/recorded_speech.wav",
+    "rvc_model": "my-voice-model",
+    "rvc_url": "http://0.0.0.0:7865",
+    "server_id": 1209930020881961090
 }
