@@ -15,6 +15,8 @@ pyttsx3==2.98.0
 gradio==3.34.0
 apscheduler==3.10.4
 openai-whisper==20240930
+websockets==13.1
+asyncio==3.4.3
 
 
 # YOU WILL NEED TO FOLLOW INSTRUCTIONS IN README FOR WINDOWS INSTALL

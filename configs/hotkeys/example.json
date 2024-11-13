@@ -1,0 +1,22 @@
+{
+    "set 1": { // This is default set. Will be used for idle hotkeys and emotions not found in any other set.
+        "emotions": [], // Emotions should be unique per set. That is an emotion here doesn't appear in any other sets'
+        "hotkeys": ["My Animation 2","My Animation 3"] // Hotkeys are names of hotkey actions in VTube Studio. These don't need to be unique. Random hotkey from this list will be played on match.
+    },
+    "set 2": {
+        "emotions": ["admiration","amusement","approval","caring","desire","excitement","gratitude","joy","love","optimism","pride"],
+        "hotkeys": ["My Animation 1","My Animation 2"]
+    },
+    "set 3": {
+        "emotions": ["anger","annoyance"],
+        "hotkeys": ["My Animation 2"]
+    },
+    "set 4": {
+        "emotions": ["disappointment","disapproval","embarrassment","fear","disgust","grief","nervousness","remorse","sadness"],
+        "hotkeys": ["My Animation 3"]
+    },
+    "set 5": {
+        "emotions": ["confusion","curiosity","realization","relief","surprise","neutral"],
+        "hotkeys": ["My Animation 4","My Animation 5"]
+    }
+}

@@ -1,15 +1,16 @@
-
 '''
 This class is the base class for all T2T AI models used by the bot to generate responses.
 Primary usage is to call the main function, that is BaseT2TAIWorker(new_msg, author) or whatever your new class is called.
 This class isn't to be used as is, but rather implemeted by other classes such as the existing OpenAIWorker.
 '''
 
+from config import config
+
 class BaseT2TAIWorker():
-    def __init__(self, prompt_filepath=None, character_name='J.A.I.son', **kwargs):
-        with open(prompt_filepath, 'r') as f:
+    def __init__(self, **kwargs):
+        with open(config['prompt_filepath'], 'r') as f:
             self.prompt = f.read() # prompt as it appears in the prompt file
-        self.name = character_name # Character name associated with the AI
+        self.name = config['character_name'] # Character name associated with the AI
         self.msg_history = [] # Recent chat history. Each message is of format { "author": <speaker name string>, "message": <message string> }
 
 

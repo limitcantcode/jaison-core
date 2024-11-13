@@ -1,0 +1,46 @@
+{
+    "idle": {
+        "emotions": [],
+        "hotkeys": ["idle1","idle2","idle3","idle4","idle5","idle6","idle7","idle8","idle9","idle10"]
+    },
+    "happy": {
+        "emotions": ["admiration","amusement","caring","gratitude","joy","love","optimism","pride"],
+        "hotkeys": ["happy1","happy2","happy3"]
+    },
+    "agree": {
+        "emotions": ["approval"],
+        "hotkeys": ["agree1","agree2","agree3"]
+    },
+    "anger": {
+        "emotions": ["anger","annoyance"],
+        "hotkeys": ["anger1","anger2"]
+    },
+    "sad": {
+        "emotions": ["disappointment","grief","remorse","sadness","embarrassment"],
+        "hotkeys": ["sad1","sad2","sad3"]
+    },
+    "disagree": {
+        "emotions": ["disapproval","disgust"],
+        "hotkeys": ["disagree1","disagree2"]
+    },
+    "scared": {
+        "emotions": ["fear","nervousness"],
+        "hotkeys": ["scared1","scared2","scared3"]
+    },
+    "confused": {
+        "emotions": ["confusion"],
+        "hotkeys": ["confused1","confused2"]
+    },
+    "curious": {
+        "emotions": ["curiosity"],
+        "hotkeys": ["curious1","curious2","curious3"]
+    },
+    "want": {
+        "emotions": ["realization","desire","excitement","surprise"],
+        "hotkeys": ["want1","want2","want3"]
+    },
+    "neutral": {
+        "emotions": ["relief","neutral"],
+        "hotkeys": ["neutral1","neutral2","neutral3","neutral4"]
+    }
+}

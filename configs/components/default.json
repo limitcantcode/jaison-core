@@ -1,0 +1,15 @@
+{
+    "character_name": "J.A.I.son",
+    "prompt_filepath": "prompts/production/default_example.txt",
+    "t2t_host": "openai",
+    "t2t_model": "ft:gpt-4o-mini-2024-07-18:lcc:jaison:AMd5Xl28",
+    "tts_host": "openai",
+    "tts_output_filepath": "/home/limit/Projects/J.A.I.son/output/audio/tts_raw.wav",
+    "rvc_model": "my-voice-model",
+    "rvc_url": "http://0.0.0.0:7865",
+    "rvc_output_filepath": "/home/limit/Projects/J.A.I.son/output/audio/tts.wav",
+    "stt_output_filepath": "/home/limit/Projects/J.A.I.son/output/audio/recorded_speech.wav",
+    "vts_api_address": "ws://192.168.2.114:8001",
+    "vts_hotkey_config_file": "configs/hotkeys/default.json",
+    "server_id": 1209930020881961090
+}
