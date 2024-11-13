@@ -1,0 +1,1 @@
+"admiration","amusement","approval","caring","desire","excitement","gratitude","joy","love","optimism","pride","anger","annoyance","disappointment","disapproval","embarrassment","fear","disgust","grief","nervousness","remorse","sadness","confusion","curiosity","realization","relief","surprise","neutral"

@@ -132,7 +132,7 @@ async def vc_reply(client: discord.Client, sink: BufferSink, called_channel: dis
         curr_buff = sink.buf[username][:idx]
 
         # Open, configure, and write to file the current audio buffer
-        f_path = config.stt_output_filepath
+        f_path = config['stt_output_filepath']
         f = wave.open(f_path, 'wb')
         f.setnchannels(sink.sample_width)
         f.setsampwidth(sink.sample_width)
@@ -160,8 +160,13 @@ async def vc_reply(client: discord.Client, sink: BufferSink, called_channel: dis
             sink.freshen(idx,username)
             try:
                 audio_file = client.tts_worker(speech_response)
+
+                # Play hotkey for controlling VTuber
+                client.vts_worker.play_hotkey_using_message(speech_response)
+
+                # Start speaking while hotkey is playing
                 source = discord.FFmpegPCMAudio(audio_file)
-                await client.vc.play(source)
+                client.vc.play(source)
             except Exception as err:
                 print(f"Error occured while playing TTS in response to text: {err}")
 

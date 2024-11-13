@@ -1,5 +1,6 @@
 from .base_worker import BaseT2TAIWorker
 from unsloth import FastLanguageModel
+from config import config
 
 '''
 Class implementing interface for locally-ran AI T2T models using unsloth.
@@ -11,10 +12,10 @@ the name you specified during creation. For example, we want to use the
 directory. Therefore we would pass "models/lora_model" as our "model" in runtime.
 '''
 class LlamaAIWorker(BaseT2TAIWorker):
-    def __init__(self, t2t_model="lora_model", **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.model, self.tokenizer = FastLanguageModel.from_pretrained(
-            model_name = t2t_model, # YOUR MODEL YOU USED FOR TRAINING
+            model_name = config['t2t_model'], # YOUR MODEL YOU USED FOR TRAINING
             max_seq_length = 2048,
             dtype = None,
             load_in_4bit = True

@@ -1,6 +1,7 @@
 # Custom
 recordings
-models
+vts_token_events.txt
+vts_token_main.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

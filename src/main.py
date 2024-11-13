@@ -8,8 +8,8 @@ from utils.models.tts import TTSAI
 from jaison_bot import JAIsonBot
 
 # Select models based on configuration
-t2t_worker = T2TModelDict[config['t2t_host']](**config)
-tts_worker = TTSAI(**config)
+t2t_worker = T2TModelDict[config['t2t_host']]()
+tts_worker = TTSAI()
 
 # Create the bot
 bot = JAIsonBot(t2t_worker, tts_worker)

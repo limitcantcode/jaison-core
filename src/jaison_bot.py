@@ -6,6 +6,7 @@ import discord
 from commands import add_commands, default_params
 from utils.models.t2t import BaseT2TAIWorker
 from utils.models.tts import TTSAI
+from utils.vts_plugin import VTSHotkeyPlugin
 
 class JAIsonBot(discord.Client):
 
@@ -13,6 +14,7 @@ class JAIsonBot(discord.Client):
         super().__init__(intents=discord.Intents.all())
         self.t2t_worker = t2t_worker
         self.tts_worker = tts_worker
+        self.vts_worker = VTSHotkeyPlugin()
         self.vc = None
 
         self.tree = add_commands(self)

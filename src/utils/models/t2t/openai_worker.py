@@ -7,12 +7,13 @@ Please ensure you have your openai token in your ".env" as specified in the ".en
 '''
 from openai import OpenAI
 from .base_worker import BaseT2TAIWorker
+from config import config
 
 class OpenAIWorker(BaseT2TAIWorker):
     def __init__(self, t2t_model='gpt-3.5-turbo', **kwargs):
         super().__init__(**kwargs)
         self.client = OpenAI()
-        self.model = t2t_model
+        self.model = config['t2t_model']
 
     def get_response(self, prompt: str, msg: str):
         chat_completion = self.client.chat.completions.create(

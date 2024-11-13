@@ -1,0 +1,15 @@
+{
+    "character_name": "J.A.I.son",
+    "prompt_filepath": "prompts/my_prompt.txt",
+    "t2t_host": "openai",
+    "t2t_model": "gpt-3.5-turbo",
+    "tts_host": "openai",
+    "tts_output_filepath": "/home/limit/Projects/J.A.I.son/output/audio/tts_raw.wav",
+    "rvc_model": "RVC model name (no .pth)",
+    "rvc_url": "url to RVC webserver, usually http://localhost:7865",
+    "rvc_output_filepath": "/home/limit/Projects/J.A.I.son/output/audio/tts.wav",
+    "stt_output_filepath": "/home/limit/Projects/J.A.I.son/output/audio/recorded_speech.wav",
+    "vts_api_address": "ws://192.168.2.114:8001",
+    "vts_hotkey_config_file": "configs/hotkeys/example.json",
+    "server_id": null // or your discord server/guild id
+}
