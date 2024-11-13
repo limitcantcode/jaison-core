@@ -145,7 +145,6 @@ async def vc_reply(client: discord.Client, sink: BufferSink, called_channel: dis
         
         # Send transcription as input to T2T AI and get response
         response = client.t2t_worker(trans_script, username, retain_on_silence=False)
-        print(response) # debug
         if response == '<no response>': # enable option for silence to continue listening for complete input
             return
         responses = [msg for msg in response.split('\\n') if len(msg)>0]
