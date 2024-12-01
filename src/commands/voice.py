@@ -7,6 +7,7 @@ import wave
 from .base import BaseCommandGroup
 from utils.models.stt.stt_worker import STTWorker
 from config import config
+from utils.logging import system_logger
 
 stt = STTWorker()
 
@@ -19,6 +20,8 @@ class VoiceCommandGroup(BaseCommandGroup):
             join_vc,
             leave_vc
         ]
+        
+        system_logger.debug("VoiceCommands added to Discord Bot")
 
 '''
 Custom audio sink for managing call audio and triggering callback during silence.
@@ -33,8 +36,8 @@ class BufferSink(voice_recv.AudioSink):
     def __init__(self, stale_callback):
         self.buf = {}
         self.sample_width = 2
-        self.sample_rate = 96000
-        self.bytes_ps = 192000
+        self.sample_rate = 48000
+        self.bytes_ps = 96000
 
         self.scheduler = AsyncIOScheduler()
         self.scheduler.start()
@@ -85,6 +88,7 @@ and respond to what they are saying when there is silence.
 '''
 @discord.app_commands.command(name="join_vc", description="Join a voice channel.")
 async def join_vc(interaction, channel: discord.VoiceChannel) -> None:
+    system_logger.debug(f"Joining VC: {channel}")
     async def vc_callback(buf: BufferSink):
         return await vc_reply(interaction.client, buf, interaction.channel)
     audio_buffer = BufferSink(vc_callback)
@@ -95,36 +99,38 @@ async def join_vc(interaction, channel: discord.VoiceChannel) -> None:
         interaction.client.vc.listen(audio_buffer)
         await interaction.response.send_message(f"Joined {channel}.")
     except discord.ClientException as err:
-        print(err)
+        system_logger.error(err)
         await interaction.response.send_message(f"Failed to change channels to {channel}. Try again...")
         return
     except asyncio.TimeoutError as err:
-        print(err)
+        system_logger.error(err)
         await interaction.response.send_message(f"Request to join {channel} timed out. Try again...")
         return
     except Exception as err:
-        print(err)
+        system_logger.error(err)
         await interaction.response.send_message(f"Failed to join {channel}...")
         return
 
 @discord.app_commands.command(description="Leave current voice channel.", name="leave_vc")
 async def leave_vc(interaction) -> None:
     '''Disconnect client from current vc'''
+    system_logger.debug("Leaving VC")
     try:
         if not await _disconnect_client_if_connected(interaction.client):
             raise NotInVCException()
         await interaction.response.send_message(f"Left voice channel")
     except NotInVCException as err:
-        print(err)
+        system_logger.error(err)
         await interaction.response.send_message(f"Not in a voice channel..")
         return
     except Exception as err:
-        print(err)
+        system_logger.error(err)
         await interaction.response.send_message(f"Failed to leave current voice channel...")
         return
 
 # Handler for speech pipeline
 async def vc_reply(client: discord.Client, sink: BufferSink, called_channel: discord.abc.GuildChannel):
+    system_logger.debug("Running speech pipeline")
     global stt
     for username in sink.buf:
         # Obtain current audio buffer
@@ -135,7 +141,7 @@ async def vc_reply(client: discord.Client, sink: BufferSink, called_channel: dis
         f_path = config['stt_output_filepath']
         f = wave.open(f_path, 'wb')
         f.setnchannels(sink.sample_width)
-        f.setsampwidth(sink.sample_width)
+        f.setsampwidth(int(sink.bytes_ps / sink.sample_rate))
         f.setframerate(sink.sample_rate)
         f.writeframes(curr_buff)
         f.close()
@@ -144,20 +150,22 @@ async def vc_reply(client: discord.Client, sink: BufferSink, called_channel: dis
         trans_script = stt(f_path)
         
         # Send transcription as input to T2T AI and get response
-        response = client.t2t_worker(trans_script, username, retain_on_silence=False)
-        if response == '<no response>': # enable option for silence to continue listening for complete input
-            return
+        response = client.t2t_worker(trans_script, username)
         responses = [msg for msg in response.split('\\n') if len(msg)>0]
         speech_response = ''
         if len(responses) == 0:
             responses = ['...']
         for msg in responses:
-            await called_channel.send(msg)
             speech_response += msg
 
         # If a response is received and to be outputted, clear processed bytes from buffer and speak in vc
         if len(speech_response) > 0:
             sink.freshen(idx,username)
+            
+            # skip speaking if it intends to be silent
+            if response == '<no response>':
+                return
+            
             try:
                 audio_file = client.tts_worker(speech_response)
 
@@ -168,5 +176,5 @@ async def vc_reply(client: discord.Client, sink: BufferSink, called_channel: dis
                 source = discord.FFmpegPCMAudio(audio_file)
                 client.vc.play(source)
             except Exception as err:
-                print(f"Error occured while playing TTS in response to text: {err}")
+                system_logger.error(f"Error occured while playing TTS in response to text: {err}")
 

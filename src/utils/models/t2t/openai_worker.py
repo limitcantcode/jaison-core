@@ -8,6 +8,7 @@ Please ensure you have your openai token in your ".env" as specified in the ".en
 from openai import OpenAI
 from .base_worker import BaseT2TAIWorker
 from config import config
+from utils.logging import system_logger
 
 class OpenAIWorker(BaseT2TAIWorker):
     def __init__(self, t2t_model='gpt-3.5-turbo', **kwargs):
@@ -15,7 +16,11 @@ class OpenAIWorker(BaseT2TAIWorker):
         self.client = OpenAI()
         self.model = config['t2t_model']
 
+        system_logger.debug(f"OpenAIWorker loaded with model: {config['t2t_model']}")
+
+
     def get_response(self, prompt: str, msg: str):
+        system_logger.debug(f"OpenAIWorker called with prompt: \"{prompt}\" and message: \"{msg}\"")
         chat_completion = self.client.chat.completions.create(
             messages=[
                 {
@@ -29,50 +34,12 @@ class OpenAIWorker(BaseT2TAIWorker):
             ],
             model=self.model,
         )
-        
+
+        system_logger.debug(f"OpenAIWorker finished with raw output: {chat_completion}")
+
         if len(chat_completion.choices) == 0:
             raise Exception("No response")
-
-        return chat_completion.choices[0].message.content
-
-# class old_OpenAIWorker:
-#     client = OpenAI()
-
-#     def get_response(self, query_str: str) -> str:
-#         try:
-#             chat_completion = self.client.chat.completions.create(
-#                 messages=[
-#                     {
-#                         "role": "user",
-#                         "content": query_str,
-#                     }
-#                 ],
-#                 model="gpt-3.5-turbo",
-#             )
-
-#             if len(chat_completion.choices) == 0:
-#                 raise Exception("No response")
-#         except Exception as err:
-#             print("Tell Limit there is a problem with my AI")
-#             print(err)
-#             raise err
-
-#         return chat_completion.choices[0].message.content
-
-#     def get_response_stream_generator(self, query_str: str):
-#         # Example usage of get_response_stream_generator
-#         # result = ""
-#         # for content in get_response_stream_generator():
-#         #     result += content
-#         #     print(result)
-#         #     # feed into tts
-
-#         # print(f"Finished with message: {result}")
-
-#         stream = self.client.chat.completions.create(
-#             model="gpt-3.5-turbo",
-#             messages=[{"role": "user", "content": query_str}],
-#             stream=True,
-#         )
-#         for chunk in stream:
-#             yield chunk.choices[0].delta.content or ""
+        output = chat_completion.choices[0].message.content
+        system_logger.debug(f"OpenAIWorker responding with final output: {output}")
+        
+        return output

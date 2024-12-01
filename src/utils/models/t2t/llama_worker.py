@@ -21,8 +21,10 @@ class LlamaAIWorker(BaseT2TAIWorker):
             load_in_4bit = True
         )
         FastLanguageModel.for_inference(self.model)
+        system_logger.debug(f"LlamaAIWorker loaded with model: {config['t2t_model']}")
 
     def get_response(self, prompt: str, msg: str):
+        system_logger.debug(f"LlamaAIWorker called with prompt: \"{prompt}\" and message \"{msg}\"")
         messages=[
             { "role": "system", "content": prompt},
             { "role": "user", "content": msg }
@@ -34,9 +36,12 @@ class LlamaAIWorker(BaseT2TAIWorker):
             add_generation_prompt = True,
             return_tensors = "pt",
         ).to("cuda")
+
         
         output = self.model.generate(input_ids = inputs, max_new_tokens = 64, use_cache = True)
+        system_logger.debug(f"LlamaAIWorker finished with raw output: {output}")
         output = self.tokenizer.batch_decode(output)[0].split('<|start_header_id|>assistant<|end_header_id|>\n\n')[1]
         output = output.removesuffix('<|eot_id|>')
+        system_logger.debug(f"LlamaAIWorker responding with final output: {output}")
 
         return output

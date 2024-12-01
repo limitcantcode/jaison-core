@@ -1,8 +1,10 @@
 import os
 from dotenv import load_dotenv
 load_dotenv()
-
 from config import config
+from utils.logging import system_logger
+system_logger.debug(f"Loaded config: {config}")
+
 from utils.models.t2t import model_dict as T2TModelDict
 from utils.models.tts import TTSAI
 from jaison_bot import JAIsonBot

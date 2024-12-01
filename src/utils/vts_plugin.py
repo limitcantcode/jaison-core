@@ -10,6 +10,8 @@ from config import config
 import copy
 import time
 
+from utils.logging import system_logger
+
 # Make sure VTube Studio is running API is enabled to port 8001
 class VTSHotkeyPlugin():
     def __init__(self):
@@ -43,12 +45,14 @@ class VTSHotkeyPlugin():
     # Setup and authenticate websocket to talk to VTube Studio instance API
     def _setup_ws(self, token_file: str, plugin_info: dict):
         try:
+            system_logger.debug(f"Setting up websocket with information: {plugin_info}")
             # Connect to VTS API
             ws = connect(config['vts_api_address'])
 
             # Authenticate this Plugin
             auth_token = None
             if os.path.isfile(token_file): # Get token from file if gotten and saved previously
+                system_logger.debug(f"Getting token for {plugin_info} from file {token_file}")
                 token_file = open(token_file, 'r')
                 auth_token = token_file.read()
                 token_file.close()
@@ -65,10 +69,12 @@ class VTSHotkeyPlugin():
                 ws.send(json.dumps(request))
                 response = json.loads(ws.recv())
                 if response['data']['authenticated']:
+                    system_logger.debug(f"{plugin_info} authenticated")
                     return ws
             
             # If no token file or authentication with saved token fails, reauthenticate
             # Authentication request (must accept on VTS GUI)
+            system_logger.debug(f"No token file found for {plugin_info}. Fetching from VTS.")
             request = {
                 "apiName": "VTubeStudioPublicAPI",
                 "apiVersion": "1.0",
@@ -83,6 +89,7 @@ class VTSHotkeyPlugin():
                 token_file = open(token_file, 'w')
                 token_file.write(auth_token)
                 token_file.close()
+                system_logger.debug(f"Fetched and saved token for {plugin_info} from VTS")
             else:
                 raise Exception("Did not get authenication token: {}".format(response))
 
@@ -102,10 +109,10 @@ class VTSHotkeyPlugin():
             if not response['data']['authenticated']:
                 raise Exception('Failed to authenticate VTS plugin: {}'.format(response))
             
-            print("{} connected to API {}!".format(plugin_info['pluginName'], config['vts_api_address']))
+            system_logger.info("{} connected to API {}!".format(plugin_info['pluginName'], config['vts_api_address']))
             return ws
         except Exception as err:
-            print(err)
+            system_logger.critical(err)
             raise err
 
     # Parse configured hotkeys configuration for use by this plugin
@@ -146,13 +153,13 @@ class VTSHotkeyPlugin():
             nonexist_emotions = nonexist_emotions | set(hotkey_dict[hotkey_set]['emotions']) - POSSIBLE_EMOTION_LABELS
             nonexist_hotkeys = nonexist_hotkeys | set(hotkey_dict[hotkey_set]['hotkeys']) - POSSIBLE_HOTKEYS
 
-        # Show potentiall missing or mistyped emotions and hotkeys
-        print("Finished parsing Hotkeys for VTS Plugin!")
-        print("{} ({}) {}".format(vts_info['model_name'], vts_info['model_id'], 'is ready!' if vts_info['model_ready'] else 'is not ready...'))
-        print("Emotions not assigned:   {}".format(unseen_emotions))
-        print("Hotkeys not assigned:   {}".format(unseen_hotkeys))
-        print("Emotions not found:   {}".format(nonexist_emotions))
-        print("Hotkeys not found:   {}".format(nonexist_hotkeys))
+        # Show potential missing or mistyped emotions and hotkeys
+        system_logger.debug("Finished parsing Hotkeys for VTS Plugin!")
+        system_logger.debug("{} ({}) {}".format(vts_info['model_name'], vts_info['model_id'], 'is ready!' if vts_info['model_ready'] else 'is not ready...'))
+        system_logger.debug("Emotions not assigned:   {}".format(unseen_emotions))
+        system_logger.debug("Hotkeys not assigned:   {}".format(unseen_hotkeys))
+        system_logger.debug("Emotions not found:   {}".format(nonexist_emotions))
+        system_logger.debug("Hotkeys not found:   {}".format(nonexist_hotkeys))
 
     # Get general info from VTS
     def _get_vts_info(self):
@@ -173,9 +180,9 @@ class VTSHotkeyPlugin():
                 "model_id": response['data']['modelID'],
                 "hotkeys": [(hotkey_obj['name'], hotkey_obj['type'] == "TriggerAnimation") for hotkey_obj in response['data']['availableHotkeys']], # hotkey[1] is True when hotkey triggers an animation
             }
+            system_logger.debug(f"Got the following info from VTS: {output}")
         except Exception as err:
-            print("VTS Plugin failed to get VTS info")
-            print(err)
+            system_logger.critical(f"VTS Plugin failed to get VTS info: {err}")
             raise err
 
         return output
@@ -206,16 +213,17 @@ class VTSHotkeyPlugin():
 
             if 'subscribedEventCount' not in response['data']:
                 raise Exception("VTS Hotkey Thread did not subscribe to event: {}".format(response))
-            print("VTS Hotkey Thread subscribed to event")
+            system_logger.debug("VTS Hotkey Thread subscribed to event")
         except Exception as err:
-            print("VTS Hotkey Thread failed to subscribe to animation end event")
-            print(err)
+            system_logger.critical(f"VTS Hotkey Thread failed to subscribe to animation end event: {err}")
             raise err
         
         # Event loop
         while True:
             event = json.loads(self.event_ws.recv())
+            system_logger.debug(f"VTS event listener got event: {event}")
             if event["data"]["animationEventType"] == "End":
+                system_logger.debug("Triggering idle animation.")
                 self._trigger_hotkey_event.set()
 
     # Hotkeyer that runs in a separate thread
@@ -231,6 +239,7 @@ class VTSHotkeyPlugin():
             # Request hotkey execution to VTS
             try:
                 hotkey = self.hotkey_queue.pop(0)
+                system_logger.debug(f"Hotkey Exec Loop triggering hotkey: {hotkey}")
                 request = json.dumps({
                     "apiName": "VTubeStudioPublicAPI",
                     "apiVersion": "1.0",
@@ -245,34 +254,38 @@ class VTSHotkeyPlugin():
                 response = json.loads(response)
 
                 if 'hotkeyID' not in response['data']:
-                    print(f"Hotkey on message failed: {response}")
+                    system_logger.warning(f"Hotkey on message failed: {response}")
             
                 # Wait for next call to run hotkey if hotkey was not an animation
                 # (non-animations are instant hotkeys that don't need to wait to finish)
                 if hotkey in self.animations:
+                    system_logger.debug("Hotkey was animation. Hotkey Exec Loop will now sleep.")
                     self._trigger_hotkey_event.wait()
                     self._trigger_hotkey_event.clear()
 
             except Exception as err:
-                print(f"Failed to play hotkey: {err}")
+                system_logger.error(f"Failed to play hotkey: {err}")
 
     # Interprets emotion of input message and queues the corresponding hotkey in front
     def play_hotkey_using_message(self, message: str):
         # Perform sentiment analysis on message to detect emotion
         sentences = [message]
         model_outputs = self.classifier(sentences)
-        result = model_outputs[0][0]['label']
+        emotion = model_outputs[0][0]['label']
 
         # Get hotkeys corresponding to emotion
         set_name = self.DEFAULT_HOTKEY_SET
         for set_key in self.emotion_map:
-            if result in self.emotion_map[set_key]:
+            if emotion in self.emotion_map[set_key]:
                 set_name = set_key
                 break
         
         # Select random hotkey from options
         hotkey = random.choice(self.hotkey_map[set_name])
+
+        system_logger.debug(f"On message: \"{message}\", detected emotion: {emotion}, playing hotkey: {hotkey}")
         
         # Add to hotkey queue
         self.hotkey_queue.insert(0,hotkey)
+        system_logger.debug("Triggering message animation.")
         self._trigger_hotkey_event.set()

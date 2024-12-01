@@ -11,5 +11,9 @@
     "stt_output_filepath": "/home/limit/Projects/J.A.I.son/output/audio/recorded_speech.wav",
     "vts_api_address": "ws://192.168.2.114:8001",
     "vts_hotkey_config_file": "configs/hotkeys/default.json",
-    "server_id": 1209930020881961090
+    "server_id": 1209930020881961090,
+    "sys_log_dir": "/home/limit/Projects/J.A.I.son/logs/sys",
+    "dialog_log_dir": "/home/limit/Projects/J.A.I.son/logs/dialog",
+    "response_log_dir": "/home/limit/Projects/J.A.I.son/logs/response",
+    "log_level": "DEBUG"
 }

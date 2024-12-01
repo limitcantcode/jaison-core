@@ -7,6 +7,7 @@ from commands import add_commands, default_params
 from utils.models.t2t import BaseT2TAIWorker
 from utils.models.tts import TTSAI
 from utils.vts_plugin import VTSHotkeyPlugin
+from utils.logging import system_logger
 
 class JAIsonBot(discord.Client):
 
@@ -22,7 +23,7 @@ class JAIsonBot(discord.Client):
     # handler for initially turning on
     async def on_ready(self):
         await self.tree.sync(**default_params)
-        print(f'Logged on as {self.user}!')
+        system_logger.info(f'Logged on as {self.user}!')
 
     # handler for raw messages appearing in chat
     # will speak response if in a vc
@@ -54,4 +55,4 @@ class JAIsonBot(discord.Client):
                 source = discord.FFmpegPCMAudio(audio_file)
                 await self.vc.play(source)
             except Exception as err:
-                print(f"Error occured while playing TTS in response to text: {err}")
+                system_logger.error(f"Error occured while playing TTS in response to text: {err}")

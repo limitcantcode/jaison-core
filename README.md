@@ -126,6 +126,10 @@ Change the values of the config under `./configs` to match your system. `example
 - stt_output_filepath: (str) Filepath to most recent audio to be transcribed and sent to t2t.
 - vts_api_address: (str) URL to VTube Studio Plugin API. If running from WSL and having issues, refer back to [the top of this section](#step-3-setting-up-the-vtuber)
 - server_id: (null or number) Discord server/guild id.
+- sys_log_dir: (str) Path to directory containing logs for system output
+- dialog_log_dir: (str) Path to directory containing logs for dialog output
+- response_log_dir: (str) Path to directory containing logs for response output
+- log_level: (str) Log level of system outputs to log
 
 ## Running bot
 ### Step 1: Ensure dependency apps are running

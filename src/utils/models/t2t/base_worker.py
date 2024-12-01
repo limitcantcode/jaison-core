@@ -5,6 +5,7 @@ This class isn't to be used as is, but rather implemeted by other classes such a
 '''
 
 from config import config
+from utils.logging import system_logger, save_dialogue, save_response
 
 class BaseT2TAIWorker():
     def __init__(self, **kwargs):
@@ -21,11 +22,11 @@ class BaseT2TAIWorker():
     Parameters:
     - new_msg: New message that was sent into chat triggering response
     - author: Name of person who sent that message
-    - retain_on_silence: (Optional) If True, new_msg will not be removed from history if AI responds with silence
     Returns: (str) AI's generated response without any template
     '''
-    def __call__(self, new_msg: str, author: str, retain_on_silence: bool = True):
+    def __call__(self, new_msg: str, author: str):
         self._add_history(new_msg, author)
+        save_dialogue(new_msg, author)
         user_in = self._build_script()
         if user_in is None or len(user_in) == 1:
             raise EmptyScriptException()
@@ -33,16 +34,13 @@ class BaseT2TAIWorker():
         try:
             response = self.get_response(self.prompt, user_in)
         except Exception as err:
-            print("There is a problem with my AI")
-            print(err)
+            system_logger.error(f"There is a problem with my AI: {err}")
             response = 'There is a problem with my AI...'
         
-        if response == '<no response>' and not retain_on_silence:
-            self.msg_history = self.msg_history[:-1]
-        elif response != '<no response>':
-            self._add_history(response, self.name)
-
-        self._prune_history(20)
+        save_dialogue(response, self.name)
+        save_response(self.prompt, user_in, response)
+        self._add_history(response, self.name)
+        self._prune_history(30)
 
         return response
         

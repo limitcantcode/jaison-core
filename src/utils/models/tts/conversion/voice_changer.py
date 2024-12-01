@@ -11,6 +11,7 @@ This is done by running the ./infer-web.py in that repo.
 
 from gradio_client import Client
 import os
+from utils.logging import system_logger
 
 class VoiceChangerAI():
     def __init__(
@@ -30,7 +31,7 @@ class VoiceChangerAI():
             0,
             api_name='/infer_change_voice'
         )
-        print(f"Connected to RVC server: {rvc_url}")
+        system_logger.info(f"Connected to RVC server: {rvc_url}")
 
     '''
     Converts voice in input file to the voice trained using the RVC model
@@ -40,6 +41,8 @@ class VoiceChangerAI():
     Returns (str) the filepath to the converted speech file
     '''
     def __call__(self):
+        system_logger.debug("VoiceChangerAI called.")
+
         # Convert on local RVC-Project webserver
         result = self.client.predict(
             0, # speaker id
@@ -64,4 +67,5 @@ class VoiceChangerAI():
         audio_file.close()
         output.close()
 
+        system_logger.debug("VoiceChangerAI finished.")
         return self.output_filepath
