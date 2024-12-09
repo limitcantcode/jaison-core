@@ -35,15 +35,15 @@ sys_console_handler = logging.StreamHandler(sys.stdout)
 sys_console_handler.setFormatter(CustomFormatter())
     
 sys_file_formatter = logging.Formatter("[%(asctime)s] [%(levelname)-5.5s] [%(funcName)s:%(lineno)d]: %(message)s")
-sys_file_handler = logging.FileHandler(os.path.join(config['sys_log_dir'], f"{curr_time}.txt"))
+sys_file_handler = logging.FileHandler(os.path.join(config['sys_log_dir'], f"{curr_time}.log"))
 sys_file_handler.setFormatter(sys_file_formatter)
 
 dialog_formatter = logging.Formatter("[%(asctime)s] %(message)s")
-dialog_file_handler = logging.FileHandler(os.path.join(config['dialog_log_dir'], f"{curr_time}.txt"))
+dialog_file_handler = logging.FileHandler(os.path.join(config['dialog_log_dir'], f"{curr_time}.log"))
 dialog_file_handler.setFormatter(dialog_formatter)
 
 response_formatter = logging.Formatter("%(message)s")
-response_file_handler = logging.FileHandler(os.path.join(config['response_log_dir'], f"{curr_time}.txt"))
+response_file_handler = logging.FileHandler(os.path.join(config['response_log_dir'], f"{curr_time}.log"))
 response_file_handler.setFormatter(response_formatter)
 
 # Create loggers
