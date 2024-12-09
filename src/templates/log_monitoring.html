@@ -1,0 +1,67 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>Flask-SocketIO Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO" crossorigin="anonymous"></script>
+    <script type="text/javascript" charset="utf-8">
+        $(document).ready(function() {
+            // Connect to the Socket.IO server.
+            // The connection URL has the following format, relative to the current page:
+            //     http[s]://<domain>:<port>[/<namespace>]
+            var socket = io();
+            var monitor_clock = null;
+
+            // Event handler for server sent data.
+            // The callback function is invoked whenever the server emits data
+            // to the client. The data is then displayed in the "Received"
+            // section of the page.
+            socket.on('open_file_response', function(msg, cb) {
+                if ('data' in msg) {
+                    init_log_str = msg.data.reduce((acc, curr) => acc + '<br>' + $('<div/>').text(curr).html(), '');
+                    $('#log').html(init_log_str);
+                } else if ('error' in msg) {
+                    $('#log').html('<br>' + $('<div/>').text('No such file').html());
+                }
+                if (cb)
+                    cb();
+            });
+
+            const open_file_interval = () => {
+                console.log("opening file")
+                socket.emit('open_file_request', {dir_name: $('#dir_name').val(),file_name: $('#file_name').val()});
+            }
+            
+            $('form#monitor').submit(function(event) {
+                console.log("hello")
+                console.log(monitor_clock)
+                if (monitor_clock) {
+                    clearInterval(monitor_clock)
+                }
+
+                monitor_clock = setInterval(function() {
+                    socket.emit('open_file_request', {dir_name: $('#dir_name').val(), file_name: $('#file_name').val()})
+                }, $('#freq').val())
+                return false;
+            });
+        });
+    </script>
+</head>
+<body>
+    <h1>Flask-SocketIO Test</h1>
+    <p>
+      Async mode is: <b>{{ async_mode }}</b><br>
+      Current transport is: <b><span id="transport"></span></b><br>
+      Average ping/pong latency: <b><span id="ping-pong"></span>ms</b>
+    </p>
+    <h2>Send:</h2>
+    <form id="monitor" method="POST" action='#'>
+        <input type="text" name="Directory" id="dir_name" placeholder="Some folder under logs/">
+        <input type="text" name="File" id="file_name" placeholder="Some file">
+        <input type="number" name="Frequency (ms)" id="freq" placeholder="500">
+        <input type="submit" value="Start">
+    </form>
+    <h2>Receive:</h2>
+    <div id="log"></div>
+</body>
+</html>

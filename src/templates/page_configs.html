@@ -1,0 +1,87 @@
+{% extends "base/base_page.html" %}
+{% block title %}Configs{% endblock %}
+{% block style_override %}{% endblock %}
+{% block content %}
+<script type="text/javascript" charset="utf-8">
+    $(document).ready(function() {
+        $("button#config-load").on("click", (event) => {
+            event.preventDefault()
+            console.log(`Loading config from file ${$("input#config-load-input").val()}...`)
+            // TODO
+        })
+
+        $("button#config-apply").on("click", () => {
+            event.preventDefault()
+            console.log(`Applying config...`)
+            // TODO
+        })
+
+        $("button#config-save").on("click", () => {
+            event.preventDefault()
+            console.log(`Saving config to file ${$("input#config-save-input").val()}...`)
+            // TODO
+        })
+    })
+</script>
+<div class="banner">
+    <form id="config">
+        {% call elements.Dropdown("General", "general") %}
+        <label for="general_character_name">Character Name</label>
+        <input type="text" id="character_name" placeholder="J.A.I.son"/><br/>
+        <label for="general_default_prompt_filepath">Default Prompt Filepath</label>
+        <input type="text" id="default_prompt_filepath" placeholder="prompts/production/default_example.txt"/><br/>
+        <label for="general_sys_log_level">System Logging Level</label>
+        <input type="text" id="general_sys_log_level" placeholder="DEBUG"/><br/>
+        <label for="general_sys_log_folder">System Logs Folder</label>
+        <input type="text" id="general_sys_log_folder" placeholder="logs/sys"/><br/>
+        <label for="general_dialog_log_folder">Dialog Logs Folder</label>
+        <input type="text" id="general_dialog_log_folder" placeholder="logs/dialog"/><br/>
+        <label for="general_response_log_folder">Response Logs Folder</label>
+        <input type="text" id="general_response_log_folder" placeholder="logs/response"/><br/>
+        {% endcall %}
+        {% call elements.Dropdown("T2T", "t2t") %}
+        <label for="t2t_host">Host</label>
+        <input type="text" id="t2t_host" placeholder="openai"/><br/>
+        <label for="t2t_model">Model</label>
+        <input type="text" id="t2t_model" placeholder="ft:gpt-4o-mini-..."/><br/>
+        {% endcall %}
+        {% call elements.Dropdown("TTS Generation", "ttsg") %}
+        <label for="ttsg_host">Host</label>
+        <input type="text" id="ttsg_host" placeholder="openai"/><br/>
+        <label for="ttsg_voice">Voice Name</label>
+        <input type="text" id="ttsg_voice" placeholder="nova"/><br/>
+        {% endcall %}
+        {% call elements.Dropdown("TTS Conversion", "ttsc") %}
+        <label for="ttsc_url">Server Address</label>
+        <input type="text" id="ttsc_url" placeholder="http://localhost:7865"/><br/>
+        <label for="ttsc_voice">Voice Name</label>
+        <input type="text" id="ttsc_voice" placeholder="my-voice-model"/><br/>
+        {% endcall %}
+        {% call elements.Dropdown("VTube Studio", "vts") %}
+        <label for="vts_url">Server Address</label>
+        <input type="text" id="vts_url" placeholder="ws://localhost:8001"/><br/>
+        <label for="vts_hotkey_config_file">Hotkey Config Filepath</label>
+        <input type="text" id="vts_hotkey_config_file" placeholder="configs/hotkeys/default.json"/><br/>
+        {% endcall %}
+        {% call elements.Dropdown("Discord", "discord") %}
+        <label for="discord_server_id">Server ID</label>
+        <input type="text" id="discord_server_id" placeholder="123456789"/><br/>
+        {% endcall %}
+    </form>  
+</div>
+{% endblock %}
+{% block footer %}
+<div class="footer">
+    <div style="width:70%; margin:0 auto; display:flex">
+        <div style="width:100%; display:flex; justify-content:left;">
+            {{ elements.PrimaryButton("Load","config-load")}}
+            <input type="text" id="config-load-input" placeholder="configs/components/example.json" style="height:30px; width:200px; margin:auto 0;" />
+            {{ elements.PrimaryButton("Apply","config-apply")}}
+        </div>
+        <div style="width:100%; display:flex; justify-content:right;">
+            {{ elements.PrimaryButton("Save","config-save")}}
+            <input type="text" id="config-save-input" placeholder="configs/components/example.json" style="height:30px; width:200px; margin:auto 0;" />
+        </div>
+    </div>
+</div>
+{% endblock %}

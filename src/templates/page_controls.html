@@ -1,0 +1,17 @@
+{% extends "base/base_page.html" %}
+{% block title %}Controls{% endblock %}
+{% block style_override %}{% endblock %}
+{% block content %}
+<div class="banner">
+    {{ controls.ResponsePreview() }}
+    <div style="display: flex">
+        <div style="width: 100%">
+            {{ controls.Prompter() }}
+        </div>
+        <div style="display:flex; flex-direction:column; width: 100%">
+            {{ controls.OneTimeRequest() }}
+            {{ controls.NameReplacer() }}
+        </div>
+    </div>
+</div>
+{% endblock %}

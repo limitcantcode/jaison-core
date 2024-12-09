@@ -1,0 +1,122 @@
+body {
+    background-color: #46494C;
+    font-family: 'Roboto';
+    margin: 0
+}
+
+.nav {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #1985A1;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 56px;
+    z-index: 100;
+
+    & ul {
+        list-style-type: none;
+        margin: 0;
+    }
+
+    & li {
+        float: left;
+    }
+    & a {
+        display: inline-block;
+        text-align: center;
+        text-decoration: none;
+        color: #fff;
+        padding: 15px;
+        font-size: 20px;
+    }
+}
+
+.footer {
+    margin: 0;
+    padding: 5px;
+    overflow: hidden;
+    background-color: #4C5C68;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 50px;
+    z-index: 101;
+}
+
+.banner {
+    background-color: #DCDCDD;
+    width: 70vw;
+    height: 100%;
+    margin: auto;
+    z-index: 0;
+    padding: 56px 15px 15px 15px;
+}
+
+.card {
+    background-color: #C5C3C6;
+    color: #000;
+    margin: 10px;
+    padding: 10px;
+}
+
+.primary-button {
+    padding: 0px;
+    margin: 4px;
+    border: none;
+
+    & div {
+        background-color: #1985A1;
+        margin: 0;
+        padding: 5px;
+        min-height: 30px;
+        min-width: 50px;
+        text-align: center;
+        vertical-align: center;
+        color: #fff;
+        font-size: 20px;
+        margin: 0;
+        line-height: 30px;
+    }
+}
+
+.primary-button:active {
+    margin: 5px;
+
+    & div {
+        background-color: #258FAA;
+        padding: 4px;
+    }
+}
+
+.secondary-button {
+    padding: 0px;
+    margin: 4px;
+    border: none;
+
+    & div {
+        background-color: #4C5C68;
+        margin: 0;
+        padding: 5px;
+        min-height: 30px;
+        min-width: 50px;
+        text-align: center;
+        vertical-align: center;
+        color: #fff;
+        font-size: 20px;
+        margin: 0;
+        line-height: 30px;
+    }
+}
+
+.secondary-button:active {
+    margin: 5px;
+
+    & div {
+        background-color: #5E6B74;
+        padding: 4px;
+    }
+}

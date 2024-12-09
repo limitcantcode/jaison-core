@@ -1,0 +1,197 @@
+{% import 'base/base_elements.html' as elements %}
+
+{% macro ResponsePreview() -%}
+{% call elements.Card("Response Preview") %}
+    <script type="text/javascript" charset="utf-8">
+        $(document).ready(function() {
+            var socket = io();
+
+            $('form#response-preview').submit(function(event) {
+                event.preventDefault()
+                if (event.originalEvent.submitter.id == "response-preview-stop") {
+                    console.log("Response Preview is stopping response...")
+                    // TODO
+                }
+            })
+
+            socket.on('jaison-response-full', function(msg, cb) {
+                if ('data' in msg) {
+                    $('#respond-preview-content').text(msg.data);
+                } else if ('error' in msg) {
+                    console.log("Failed to get J.A.I.son response in full")
+                    $('#respond-preview-content').text(msg.error);
+                }
+                if (cb)
+                    cb();
+            });
+        })
+    </script>
+    <form id="response-preview">
+        <div style="min-height:100px; width:100%; overflow-wrap:anywhere">
+            <span id="respond-preview-content">Hi, I'm response</span>
+        </div>
+        {{ elements.SecondaryButton("Stop", "response-preview-stop") }}
+    </form>
+{% endcall %}
+{%- endmacro %}
+
+{% macro Prompter() -%}
+{% call elements.Card("Prompter") %}
+    <script type="text/javascript" charset="utf-8">
+        $(document).ready(function() {
+            var socket = io();
+
+            $("textarea").each(function () {
+                this.style.height = this.scrollHeight + "px";
+                this.style.overflowY = "hidden";
+            }).on("input", function () {
+                this.style.height = "auto";
+                this.style.height = this.scrollHeight + "px";
+            });
+
+            $('form#prompter').submit(function(event) {
+                event.preventDefault()
+                if (event.originalEvent.submitter.id == "prompter-load") {
+                    console.log(`Prompter loading prompt ${$('select#prompter-load-drop').val()} ...`)
+                    // TODO
+                } else if (event.originalEvent.submitter.id == "prompter-save-as") {
+                    console.log(`Prompter saving prompt config to ${$('input#prompter-save').val()} ...`)
+                    // TODO
+                } else if (event.originalEvent.submitter.id == "prompter-apply") {
+                    console.log(`Prompter applying changes...`)
+                    // TODO
+                }
+            })
+        })
+    </script>
+    <form id="prompter">
+        {{ elements.PrimaryButton("Load", "prompter-load") }} <select id="prompter-load-drop" style="min-width:300px; height:30px; font-size:15px">
+            <option value="temp">REPLACE WITH PROMPT CONFIG OPTIONS</option>
+        </select><br/>
+        {{ elements.PrimaryButton("Save As", "prompter-save-as") }} <input type="text" id="prompter-save" style="min-width:300px; height:30px; font-size:15px"/><br/>
+        <br/>
+        <span>Main Prompt</span>
+        <textarea id="prompter-content" style="width:100%; min-height:100px;"></textarea><br/>
+        <br/>
+        <input type="checkbox" id="prompter-check-main-convo" /><span>Main Conversation Context</span><br/>
+        <input type="checkbox" id="prompter-check-twitch-chat" /><span>Twitch Chat Context</span><br/>
+        <input type="checkbox" id="prompter-check-twitch-events" /><span>Twitch Events Context</span><br/>
+        <input type="checkbox" id="prompter-check-rag" /><span>RAG Context</span><br/>
+        <input type="checkbox" id="prompter-check-audio-visual" /><span>Audio and Vision Context</span><br/>
+        <br/>
+        <div style="width:100%; display:flex; justify-content:right;">
+            {{ elements.PrimaryButton("Apply", "prompter-apply") }}
+        </div>
+    </form>
+{% endcall %}
+{%- endmacro %}
+
+{% macro OneTimeRequest() -%}
+{% call elements.Card("One-time Request") %}
+    <script type="text/javascript" charset="utf-8">
+        $(document).ready(function() {
+            var socket = io();
+
+            $("textarea").each(function () {
+                this.style.height = this.scrollHeight + "px";
+                this.style.overflowY = "hidden";
+            }).on("input", function () {
+                this.style.height = "auto";
+                this.style.height = this.scrollHeight + "px";
+            });
+
+            $('form#ot-request').submit(function(event) {
+                event.preventDefault()
+                if (event.originalEvent.submitter.id == "ot-request-send") {
+                    console.log(`One-time Request sending request ${$('textarea#ot-request-content').val()} ...`)
+                    // TODO
+                }
+            })
+        })
+    </script>
+    <form id="ot-request">
+        <textarea id="ot-request-content" style="width:100%; min-height:100px;"></textarea><br/>
+        <div style="width:100%; display:flex; justify-content:right;">
+            {{ elements.PrimaryButton("Send", "ot-request-send") }}
+        </div>
+    </form>
+{% endcall %}
+{%- endmacro %}
+
+{% macro NameReplacer() -%}
+{% call elements.Card("Name Replacer") %}
+    <script type="text/javascript" charset="utf-8">
+        $(document).ready(function() {
+            var socket = io();
+            var replace_count = 0;
+
+            const add_replace_entry = (entry_actual = null, entry_replacement = null) => {
+                replace_count += 1
+                var new_entry = (
+                    `<div id="name-replacer-entry-${replace_count}" style="outline: white solid 1px; padding:3px">
+                        <input type="text" id="name-replacer-actual-${replace_count}" placeholder="Actual" style="width:150px" />
+                        <input type="text" id="name-replacer-replaced-${replace_count}" placeholder="Replacement" style="width:150px" />
+                        <button type="submit" id="name-replacer-delete-${replace_count}">Delete</button>
+                        <br/>
+                    </div>`
+                )
+                $("div#name-replacer-content").append(new_entry)
+
+                if (entry_actual) {
+                    $(`input#name-replacer-actual-${replace_count}`).val(entry_actual)
+                    $(`input#name-replacer-replaced-${replace_count}`).val(entry_replacement)
+                }
+            }
+
+            const delete_replace_entry = (id) => {
+                $(`div#name-replacer-entry-${id}`).remove()
+            }
+            
+            const repopulate_entries = () => {
+                // TODO: get pre-init entries
+                entries = [{
+                    "actual": "test_actual",
+                    "replacement": "test_replacement"
+                }]
+                for (ind in entries) {
+                    entry = entries[ind]
+                    add_replace_entry(entry.actual, entry.replacement)
+                }
+            }
+
+            $('form#name-replacer').submit(function(event) {
+                event.preventDefault()
+                if (event.originalEvent.submitter.id == "name-replacer-add") {
+                    console.log(`Name Replacer adding new entry...`)
+                    add_replace_entry()
+                } else if (event.originalEvent.submitter.id.startsWith("name-replacer-delete-")) {
+                    console.log(`Name Replacer deleting entry...`)
+                    entry_id = event.originalEvent.submitter.id.slice("name-replacer-delete-".length)
+                    delete_replace_entry(entry_id)
+                } else if (event.originalEvent.submitter.id == "name-replacer-save") {
+                    console.log(`Name Replacer saving replacements...`)
+                    // TODO
+                } else if (event.originalEvent.submitter.id == "name-replacer-cancelling") {
+                    console.log(`Name Replacer undoing changes...`)
+                    repopulate_entries()
+                }
+            })
+
+            repopulate_entries()
+        })
+    </script>
+    <form id="name-replacer">
+        <div id="name-replacer-content">
+        </div>
+        <div style="width:100%; display:flex;">
+            <div style="width:100%; display:flex; justify-content:left;">
+                {{ elements.PrimaryButton("New", "name-replacer-add") }}
+                {{ elements.PrimaryButton("Save", "name-replacer-save") }}
+            </div>
+            <div style="width:100%; display:flex; justify-content:right;">
+                {{ elements.SecondaryButton("Cancel", "name-replacer-cancel") }}
+            </div>
+        </div>
+    </form>
+{% endcall %}
+{%- endmacro %}

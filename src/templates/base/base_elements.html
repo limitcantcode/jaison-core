@@ -1,0 +1,52 @@
+{% macro PrimaryButton(text, button_id) -%}
+<button class="primary-button" type="submit" id="{{ button_id }}"><div>{{ text }}</div></button>
+{%- endmacro %}
+
+{% macro SecondaryButton(text, button_id) -%}
+<button class="secondary-button" type="submit" id="{{ button_id }}"><div>{{ text }}</div></button>
+{%- endmacro %}
+
+{% macro Card(title) -%}
+<div class="card">
+    <h1>{{title}}</h1>
+    {{ caller() }}
+</div>
+{%- endmacro %}
+
+{% macro Dropdown(title, drop_id) -%}
+<script type="text/javascript" charset="utf-8">
+    $(document).ready(function() {
+        var dropdown_expanded = false
+        const ICON_EXPAND = `<img src="/static/chevron-down-solid.svg" height="30px" width="30px"/>`
+        const ICON_COLLAPSE = `<img src="/static/chevron-up-solid.svg" height="30px" width="30px"/>`
+
+        const handle_header_click = () => {
+            dropdown_expanded = !dropdown_expanded
+            $("div#{{ drop_id }}-header-icon").html(dropdown_expanded ? ICON_COLLAPSE : ICON_EXPAND)
+            $("tr#{{ drop_id }}-content").css("visibility", dropdown_expanded ? "visible" : "collapse")
+        }
+        $("tr#{{ drop_id }}-header").on("click", handle_header_click)
+    })
+</script>
+<div class="card">
+    <table style="width:100%">
+        <tr id="{{ drop_id }}-header">
+            <td>
+                <div style="display:flex; justify-content:left;">
+                    <h3 style="line-height:15px;">{{title}}</h3>
+                </div>
+            </td>
+            <td>
+                <div id="{{ drop_id }}-header-icon" style="display:flex; justify-content:right;">
+                   <img src="/static/chevron-down-solid.svg" height="30px" width="30px"/>
+                </div>
+            </td>
+        </tr>
+        <tr id="{{ drop_id }}-content" style="visibility:collapse;">
+            <td>
+                {{ caller() }}
+            </td>
+        </tr>
+    </table>
+</div>
+{%- endmacro %}

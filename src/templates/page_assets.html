@@ -1,0 +1,111 @@
+{% extends "base/base_page.html" %}
+{% block title %}Assets{% endblock %}
+{% block style_override %}
+<link rel="stylesheet" href="static/assets.css" />
+{% endblock %}
+{% block content %}
+<script type="text/javascript" charset="utf-8">
+    $(document).ready(function() {
+        var device_counter = 0;
+        var audio_in_devices = null
+        var audio_out_devices = null
+        var video_in_devices = null
+        var video_out_devices = null // Doesn't exist
+
+        // TODO automate response playing on ws
+        async function play_response() {
+            active_devices = []
+            $("form#audio-device-widget-list")
+                .find("select")
+                .each((ind, o) => {
+                    active_devices.push($(o).val())
+                })
+    
+            const audio_response = await fetch("http://localhost:5000/static/generated/response.wav")
+            const audio_buffer = await audio_response.arrayBuffer()
+            source_nodes = []
+    
+            for (const device_id of active_devices) {
+                const audio_context = new AudioContext()
+    
+                const source_node = audio_context.createBufferSource()
+                source_nodes.push(source_node)
+                source_node.buffer = await audio_context.decodeAudioData(audio_buffer.slice(0))
+
+                const destination = audio_context.createMediaStreamDestination()
+                source_node.connect(destination)
+    
+                const audio_element = new Audio()
+                audio_element.srcObject = destination.stream
+                await audio_element.setSinkId(device_id)
+                audio_element.play()
+            }
+
+            for (const source of source_nodes) {
+                source.start()
+            }
+        }     
+
+        const add_audio = () => {
+            device_counter += 1
+            new_device = `<div id="audio-device-widget-device-${device_counter}">
+                <select id="audio-device-widget-device-drop-${device_counter}" style="width:200px; overflow:hidden;">`
+            for (ind in audio_out_devices) {
+                device = audio_out_devices[ind]
+                new_device += `<option value="${device.deviceId}">${device.label}</option>`
+            }
+            new_device += `</select> <button id="audio-device-widget-device-delete-${device_counter}" type="submit">Delete</button></div>`
+            
+            $("form#audio-device-widget-list").append(new_device)
+        }
+
+        const delete_audio = (id) => {
+            $(`div#audio-device-widget-device-${id}`).remove()
+        }
+
+        navigator.mediaDevices.getUserMedia({audio: true, video: true}).then(o => {
+            navigator.mediaDevices.enumerateDevices().then(p => {
+                console.log("List of all devices below")
+                console.log(p)
+                audio_in_devices = p.filter(({ kind, deviceId }) => kind === 'audioinput' && deviceId !== 'default' && deviceId !== 'communications' )
+                audio_out_devices = p.filter(({ kind, deviceId }) => kind === 'audiooutput' && deviceId !== 'default' && deviceId !== 'communications' )
+                video_in_devices = p.filter(({ kind, deviceId }) => kind === 'videoinput')
+            })
+        })
+
+        $("button#audio-device-widget-add").on("click", (event) => {
+            event.preventDefault()
+            add_audio()
+        })
+
+        $("button#test").on("click", (event) => {
+            event.preventDefault()
+            play_response()
+        })
+
+        $("form#audio-device-widget-list").on("submit", (event) => {
+            event.preventDefault()
+            if (event.originalEvent.submitter.id.startsWith("audio-device-widget-device-delete-")) {
+                audio_id = event.originalEvent.submitter.id.slice("audio-device-widget-device-delete-".length)
+                delete_audio(audio_id)
+            }
+        })
+
+        // TODO automate subtitler
+        const update_subtitle = (subtitle) => {
+            $("div#subtitler").text(subtitle)
+        }
+
+    })
+</script>
+<div style="position:fixed;width:100vw;height:100vh;">
+    <div id="audio-device-widget" style="position:absolute;top:56px;left:10px;width:300px">
+        {% call elements.Card("Audio Output") %}
+            <form id="audio-device-widget-list"></form>
+            {{ elements.PrimaryButton("Add", "audio-device-widget-add") }}
+            {{ elements.PrimaryButton("test", "test") }}
+        {% endcall %}
+    </div>
+    <div id="subtitler" style="position:absolute;bottom:0;padding:50px;margin:auto;width:100%;overflow-wrap:normal;text-align:center;font-size:50px;color:white;-webkit-text-stroke-width:1px;-webkit-text-stroke-color:black;">Example Subtitle</div>
+</div>
+{% endblock %}
