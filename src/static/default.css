@@ -15,6 +15,7 @@ body {
     width: 100%;
     height: 56px;
     z-index: 100;
+    filter: drop-shadow(0px 5px 10px black);
 
     & ul {
         list-style-type: none;
@@ -54,6 +55,7 @@ body {
     margin: auto;
     z-index: 0;
     padding: 56px 15px 15px 15px;
+    filter: drop-shadow(0px 0px 10px black);
 }
 
 .card {
@@ -61,6 +63,7 @@ body {
     color: #000;
     margin: 10px;
     padding: 10px;
+    filter: drop-shadow(0px 5px 5px gray);
 }
 
 .primary-button {
@@ -80,6 +83,7 @@ body {
         font-size: 20px;
         margin: 0;
         line-height: 30px;
+        filter: drop-shadow(0px 2px 2px black);
     }
 }
 
@@ -89,6 +93,7 @@ body {
     & div {
         background-color: #258FAA;
         padding: 4px;
+        filter: none;
     }
 }
 
@@ -109,6 +114,7 @@ body {
         font-size: 20px;
         margin: 0;
         line-height: 30px;
+        filter: drop-shadow(0px 2px 2px black);
     }
 }
 
@@ -118,5 +124,38 @@ body {
     & div {
         background-color: #5E6B74;
         padding: 4px;
+        filter: none;
     }
+}
+
+.toast-container {
+    z-index: 200;
+    position: fixed;
+    top: 10px;
+    right: 10px;
+}
+
+.toast {
+    height: 100px;
+    width: 300px;
+    overflow-wrap: break-word;
+    overflow-y: hidden;
+    border-style: solid;
+    border-width: 3px;
+    padding: 5px
+}
+
+.info {
+    background-color: #6d82f7;
+    border-color: blue;
+}
+
+.success {
+    background-color: #7ff76d;
+    border-color: green;
+}
+
+.error {
+    background-color: #f76d6d;
+    border-color: red;
 }

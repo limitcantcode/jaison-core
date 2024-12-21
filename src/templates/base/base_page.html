@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.3/dist/jquery.slim.min.js"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO" crossorigin="anonymous"></script>
     <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
     <link rel="stylesheet" href="static/default.css" />
@@ -10,6 +10,7 @@
 </head>
 {% import 'base/base_elements.html' as elements %}
 {% import 'base/controls.html' as controls %}
+{% import 'base/toasts.html' as toasts %}
 <body>
     <div class="nav">
         <ul>
@@ -22,6 +23,6 @@
     </div>
     {% block content %}{% endblock %}
     {% block footer %}{% endblock %}
-    
+    {{ toasts.Toast() }}
 </body>
 </html>

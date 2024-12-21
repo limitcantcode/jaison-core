@@ -3,9 +3,15 @@ import os
 import sys
 import time
 import json
-from config import config
+from utils.time import get_current_time
+from utils.args import args
 
-curr_time = str(round(time.time() * 1000))
+SUBFOLDER_SYS = 'sys'
+SUBFOLDER_DIALOG = 'dialog'
+SUBFOLDER_RESPONSE = 'response'
+START_TIME = get_current_time(include_ms=False)
+
+## FOR SYSTEM LOGGING ###########################
 
 # Setup formatters and handlers
 class CustomFormatter(logging.Formatter):
@@ -13,7 +19,7 @@ class CustomFormatter(logging.Formatter):
     reset = "\x1b[0m"
     base_time = "[%(asctime)s]" + reset
     base_level = "[%(levelname)-5.5s]" + reset
-    base_func = "[%(funcName)s:%(lineno)d]:" + reset
+    base_func = "[%(filename)s::%(lineno)d %(funcName)s]:" + reset
     base_msg = "%(message)s" + reset
 
     template_line = "\x1b[1m\x1b[1;34m" + base_time + " {}" + base_level + " \x1b[1m\x1b[1;33m" + base_func + " " + base_msg
@@ -31,43 +37,51 @@ class CustomFormatter(logging.Formatter):
         formatter = logging.Formatter(log_fmt)
         return formatter.format(record)
 
-sys_console_handler = logging.StreamHandler(sys.stdout)
-sys_console_handler.setFormatter(CustomFormatter())
+def create_file_handler(id = 'main'):
+    file_formatter = logging.Formatter("[%(asctime)s] [%(levelname)-5.5s] [%(filename)s::%(lineno)d %(funcName)s]: %(message)s")
+    file_handler = logging.FileHandler(os.path.join(args.log_dir, SUBFOLDER_SYS, f"{START_TIME}_sys_{id}.log"))
+    file_handler.setFormatter(file_formatter)
+    return file_handler
     
-sys_file_formatter = logging.Formatter("[%(asctime)s] [%(levelname)-5.5s] [%(funcName)s:%(lineno)d]: %(message)s")
-sys_file_handler = logging.FileHandler(os.path.join(config['sys_log_dir'], f"{curr_time}.log"))
-sys_file_handler.setFormatter(sys_file_formatter)
+def create_sys_logger(id = 'main', use_stdout = False):
+    logger = logging.getLogger(f"sys_{id}")
+    logger.setLevel(getattr(logging, args.log_level))
 
+    logger.addHandler(create_file_handler(id))
+    
+    if use_stdout:
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setFormatter(CustomFormatter())
+        logger.addHandler(console_handler)
+
+    return logger
+
+## FOR DIALOG LOGGING ################
 dialog_formatter = logging.Formatter("[%(asctime)s] %(message)s")
-dialog_file_handler = logging.FileHandler(os.path.join(config['dialog_log_dir'], f"{curr_time}.log"))
+dialog_file_handler = logging.FileHandler(os.path.join(args.log_dir, SUBFOLDER_DIALOG, f"{START_TIME}_dialog.log"))
 dialog_file_handler.setFormatter(dialog_formatter)
 
-response_formatter = logging.Formatter("%(message)s")
-response_file_handler = logging.FileHandler(os.path.join(config['response_log_dir'], f"{curr_time}.log"))
-response_file_handler.setFormatter(response_formatter)
-
-# Create loggers
-system_logger = logging.getLogger('system_logger')
-system_logger.setLevel(getattr(logging, config['log_level']))
-system_logger.addHandler(sys_file_handler)
-system_logger.addHandler(sys_console_handler)
-
-dialog_logger = logging.getLogger('dialog_logger')
+dialog_logger = logging.getLogger('dialog')
 dialog_logger.setLevel(logging.INFO)
 dialog_logger.addHandler(dialog_file_handler)
 
-response_logger = logging.getLogger('response_logger')
+def save_dialogue(line: str):
+    dialog_logger.info(line)
+
+## FOR RESPONSE OBJECT LOGGING ###################
+response_formatter = logging.Formatter("%(message)s")
+response_file_handler = logging.FileHandler(os.path.join(args.log_dir, SUBFOLDER_RESPONSE, f"{START_TIME}_response.log"))
+response_file_handler.setFormatter(response_formatter)
+
+response_logger = logging.getLogger('response')
 response_logger.setLevel(logging.INFO)
 response_logger.addHandler(response_file_handler)
 
-def save_dialogue(content: str, author: str):
-    dialog_logger.info(f"[{author}]: {content}")
-
-def save_response(prompt: str, convo: str, response: str):
+def save_response(sys_prompt: str, user_prompt: str, response: str):
     response_obj = {
-        "time": round(time.time() * 1000),
-        "prompt": prompt,
-        "user_input": convo,
+        "time": get_current_time(),
+        "prompt": sys_prompt,
+        "user_input": user_prompt,
         "response": response
     }
     response_logger.info(json.dumps(response_obj))

@@ -6,13 +6,16 @@
 {% block content %}
 <script type="text/javascript" charset="utf-8">
     $(document).ready(function() {
+        var socket = io("{{ host_server_url }}")
+
         var device_counter = 0;
         var audio_in_devices = null
         var audio_out_devices = null
         var video_in_devices = null
         var video_out_devices = null // Doesn't exist
 
-        // TODO automate response playing on ws
+        var audio_elements = []
+
         async function play_response() {
             active_devices = []
             $("form#audio-device-widget-list")
@@ -23,7 +26,8 @@
     
             const audio_response = await fetch("http://localhost:5000/static/generated/response.wav")
             const audio_buffer = await audio_response.arrayBuffer()
-            source_nodes = []
+            var source_nodes = []
+            audio_elements = []
     
             for (const device_id of active_devices) {
                 const audio_context = new AudioContext()
@@ -36,6 +40,7 @@
                 source_node.connect(destination)
     
                 const audio_element = new Audio()
+                audio_elements.push(audio_element)
                 audio_element.srcObject = destination.stream
                 await audio_element.setSinkId(device_id)
                 audio_element.play()
@@ -44,7 +49,13 @@
             for (const source of source_nodes) {
                 source.start()
             }
-        }     
+        }
+
+        function stop_response() {
+            for (const audio of audio_elements) {
+                audio.pause()
+            }
+        }
 
         const add_audio = () => {
             device_counter += 1
@@ -63,7 +74,7 @@
             $(`div#audio-device-widget-device-${id}`).remove()
         }
 
-        navigator.mediaDevices.getUserMedia({audio: true, video: true}).then(o => {
+        navigator.mediaDevices.getUserMedia({audio: true, video: false}).then(o => {
             navigator.mediaDevices.enumerateDevices().then(p => {
                 console.log("List of all devices below")
                 console.log(p)
@@ -78,11 +89,6 @@
             add_audio()
         })
 
-        $("button#test").on("click", (event) => {
-            event.preventDefault()
-            play_response()
-        })
-
         $("form#audio-device-widget-list").on("submit", (event) => {
             event.preventDefault()
             if (event.originalEvent.submitter.id.startsWith("audio-device-widget-device-delete-")) {
@@ -91,11 +97,42 @@
             }
         })
 
-        // TODO automate subtitler
-        const update_subtitle = (subtitle) => {
-            $("div#subtitler").text(subtitle)
+        const update_subtitle = async (subtitle) => {
+            const subtitler = $("div#subtitler-content")
+            subtitler.text()
+            for (const c of subtitle) {
+                subtitler.append(c)
+                var font_size = 50
+                subtitler.css("font-size", font_size)
+                while (true) {
+                    if (subtitler.width() > 500 || subtitler.height() > 200) {
+                        font_size -= 1
+                        subtitler.css("font-size", font_size)
+                    } else {
+                        break
+                    }
+                }
+                await new Promise(resolve => setTimeout(resolve, 50))
+            }
         }
 
+        socket.on('response_generated', async function(msg, cb) {
+            if ('response' in msg) {
+                Promise.all([update_subtitle(msg.response),play_response()])
+            } else {
+                console.log("J.A.I.son response websocket data malformed.")
+                console.log(msg)
+            }
+            if (cb)
+                cb();
+        })
+
+        socket.on('request_stop_response', function(msg, cb) {
+            stop_response()
+
+            if (cb)
+                cb();
+        })
     })
 </script>
 <div style="position:fixed;width:100vw;height:100vh;">
@@ -103,9 +140,10 @@
         {% call elements.Card("Audio Output") %}
             <form id="audio-device-widget-list"></form>
             {{ elements.PrimaryButton("Add", "audio-device-widget-add") }}
-            {{ elements.PrimaryButton("test", "test") }}
         {% endcall %}
     </div>
-    <div id="subtitler" style="position:absolute;bottom:0;padding:50px;margin:auto;width:100%;overflow-wrap:normal;text-align:center;font-size:50px;color:white;-webkit-text-stroke-width:1px;-webkit-text-stroke-color:black;">Example Subtitle</div>
+    <div id="subtitler" style="position:absolute;bottom:0;padding-bottom:50px;width:100%;display:flex;justify-content:center;overflow-wrap:normal;text-align:center;color:white;-webkit-text-stroke-width:1px;-webkit-text-stroke-color:black;">
+        <div id="subtitler-content" style="max-width:500px;"></div>
+    </div>
 </div>
 {% endblock %}
