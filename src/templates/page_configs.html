@@ -1,0 +1,206 @@
+{% extends "base/base_page.html" %}
+{% block title %}Configs{% endblock %}
+{% block style_override %}{% endblock %}
+{% block content %}
+<script type="text/javascript" charset="utf-8">
+    $(document).ready(async function() {
+        const get_config = async (filename) => {
+            const response = await fetch(
+                '/api/get_config_from_file',
+                {
+                    method: "POST",
+                    body: JSON.stringify({filename})
+                }
+            )
+            return await response.json()
+        }
+
+        const get_config_files = async () => {
+            const response = await fetch(
+                '/api/get_config_files',
+                { method: "GET" }
+            )
+            const parsed_response = await response.json()
+            return parsed_response
+        }
+
+        const set_config_file = async (filename) => {
+            const response = await fetch(
+                '/api/set_config_file',
+                {
+                    method: "POST",
+                    body: JSON.stringify({filename})
+                }
+            )
+            const parsed_response = await response.json()
+            return parsed_response.status
+        }
+
+        const save_config = async (config, filename) => {
+            const response = await fetch(
+                '/api/save_config',
+                {
+                    method: "POST",
+                    body: JSON.stringify({config, filename})
+                }
+            )
+            const parsed_response = await response.json()
+            return parsed_response.status
+        }
+
+        const refresh_config_selection = async () => {
+            const result = await get_config_files()
+            const config_files = result.config_files
+            const current_file = result.current
+            const dropdown = $('select#config-load-drop')
+            dropdown.empty()
+            for (const filename of config_files) {
+                dropdown.append(`<option value="${filename}">${filename}</option>`)
+            }
+            dropdown.val(current_file)
+            return current_file
+        }
+
+        const load_current_config = async () => {
+            const current_file = await refresh_config_selection()
+            const current_config = await get_config(current_file)
+            const form = $('form')
+            form.find('input').each((ind, e) => {
+                const element = $(e)
+                if (element.attr('type') == 'checkbox') {
+                    $(`input#${element.attr('id')}`).prop('checked', current_config[element.attr('id')])
+                } else {
+                    $(`input#${element.attr('id')}`).val(current_config[element.attr('id')])
+                }
+            })
+            $('textarea').each((ind, e) => {
+                const element = $(e)
+                $(`textarea#${element.attr('id')}`).val(JSON.stringify(current_config[element.attr('id')]))
+            })
+        }
+
+        const load_config_from_file = async (filename) => {
+            const result = await set_config_file(filename)
+            if (result) {
+                await load_current_config()
+            }
+        }
+
+        $("button#config-load").on("click", async (event) => {
+            event.preventDefault()
+            const selected_file = $("select#config-load-drop").val()
+            console.log(`Loading config from file ${selected_file}...`)
+            await load_config_from_file(selected_file)
+        })
+
+        $("button#config-save").on("click", async () => {
+            event.preventDefault()
+            const file_to_save = $("input#config-save-input").val()
+            console.log(`Saving config to file ${file_to_save}...`)
+            const form_results = {}
+            const form = $('form')
+            form.find('input').each((ind, e) => {
+                const element = $(e)
+                if (element.attr('type') == 'checkbox') {
+                    form_results[element.attr('id')] = element.is(':checked')
+                } else {
+                    form_results[element.attr('id')] = element.val()
+                }
+            })
+            $('textarea').each((ind, e) => {
+                const element = $(e)
+                form_results[element.attr('id')] = JSON.parse(element.val())
+            })
+            const result = await save_config(form_results, file_to_save)
+            if (result) {
+                await load_current_config()
+            }
+        })
+
+        await load_current_config()
+    })
+</script>
+<div class="banner">
+    <form id="config">
+        {% call elements.Dropdown("T2T", "t2t") %}
+        <label for="t2t_default_prompt_file">Default Prompt File</label>
+        <input type="text" id="t2t_default_prompt_file" placeholder="example.txt"/><br/>
+        <label for="t2t_prompt_params">Prompt Parameters</label><br/>
+        <textarea id="t2t_prompt_params" placeholder='{"name":"J.A.I.son"}' style="min-height:100px;"></textarea><br/>
+        <label for="t2t_name_translation_file">Name Translation File</label>
+        <input type="text" id="t2t_name_translation_file" placeholder="example.json"/><br/>
+        <label for="t2t_convo_retention_length">Conversation History Length</label>
+        <input type="number" id="t2t_convo_retention_length" step=1 min=0/><br/>
+        <label for="t2t_enable_context_script">Include script context by default</label>
+        <input type="checkbox" id="t2t_enable_context_script"/><br/>
+        <label for="t2t_enable_context_twitch_chat">Include Twitch chat context by default</label>
+        <input type="checkbox" id="t2t_enable_context_twitch_chat"/><br/>
+        <label for="t2t_enable_context_twitch_events">Include Twitch event context by default</label>
+        <input type="checkbox" id="t2t_enable_context_twitch_events"/><br/>
+        <label for="t2t_enable_context_rag">Include RAG context by default</label>
+        <input type="checkbox" id="t2t_enable_context_rag"/><br/>
+        <label for="t2t_enable_context_av">Include audio-visual context by default</label>
+        <input type="checkbox" id="t2t_enable_context_av"/><br/>
+        <label for="t2t_host">Host</label>
+        <input type="text" id="t2t_host" placeholder="openai"/><br/>
+        <label for="t2t_model">Model</label>
+        <input type="text" id="t2t_model" placeholder="gpt-4o-mini"/><br/>
+        {% endcall %}
+
+        {% call elements.Dropdown("TTS Generation", "ttsg") %}
+        <label for="ttsg_host">Host</label>
+        <input type="text" id="ttsg_host" placeholder="openai"/><br/>
+        <label for="ttsg_voice">Voice</label>
+        <input type="text" id="ttsg_voice" placeholder="nova"/><br/>
+        {% endcall %}
+    
+        {% call elements.Dropdown("TTS Conversion", "ttsc") %}
+        <label for="ttsc_url">RVC Server URL</label>
+        <input type="text" id="ttsc_url" placeholder="http://localhost:7865"/><br/>
+        <label for="ttsc_voice">Voice Model</label>
+        <input type="text" id="ttsc_voice" placeholder="my_voice_model"/><br/>
+        <label for="ttsc_transpose">Transpose</label>
+        <input type="number" id="ttsc_transpose" step=1 min=-48 max=48/><br/>
+        <label for="ttsc_feature_ratio">Feature Ratio</label>
+        <input type="number" id="ttsc_feature_ratio" step=0.01 min=0 max=1/><br/>
+        <label for="ttsc_median_filtering">Median Filtering</label>
+        <input type="number" id="ttsc_median_filtering" step=1 min=0 max=7/><br/>
+        <label for="ttsc_resampling">Resampling</label>
+        <input type="number" id="ttsc_resampling"  step=1 min=0 max=48000/><br/>
+        <label for="ttsc_volume_envelope">Volume Envelope</label>
+        <input type="number" id="ttsc_volume_envelope" step=0.01 min=0 max=1/><br/>
+        <label for="ttsc_voiceless_protection">Voice Consonant Protection</label>
+        <input type="number" id="ttsc_voiceless_protection" step=0.01 min=0 max=0.5/><br/>
+        {% endcall %}
+    
+        {% call elements.Dropdown("VTube Studio", "vts") %}
+        <label for="vts_url">Websocket Server URL</label>
+        <input type="text" id="vts_url" placeholder="ws://localhost:8001"/><br/>
+        <label for="vts_hotkey_config_file">Hotkey Config File</label>
+        <input type="text" id="vts_hotkey_config_file" placeholder="example.json"/><br/>
+        {% endcall %}
+    
+        {% call elements.Dropdown("Discord", "discord") %}
+        <label for="discord_server_id">Discord Server ID</label>
+        <input type="text" id="discord_server_id" placeholder="1234567890"/><br/>
+        {% endcall %}
+    </form>
+    <div style="min-height:60px"></div>  
+</div>
+{% endblock %}
+{% block footer %}
+<div class="footer">
+    <div style="width:70%; margin:0 auto; display:flex">
+        <div style="width:100%; display:flex; justify-content:left;">
+            {{ elements.PrimaryButton("Load","config-load")}}
+            <select id="config-load-drop" style="min-width:300px; height:30px; font-size:15px; margin-top:10px">
+                <option value="temp">REPLACE WITH PROMPT CONFIG OPTIONS</option>
+            </select>
+        </div>
+        <div style="width:100%; display:flex; justify-content:right;">
+            {{ elements.PrimaryButton("Save","config-save")}}
+            <input type="text" id="config-save-input" placeholder="configs/components/example.json" style="height:30px; width:200px; margin:auto 0;" />
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,31 +1,29 @@
 # J.A.I.son
-[Setup](#setup) | [Training voice](#training-voice) | [Running bot](#running-bot)
+[Setup](#setup) | [Customizing responses](#customizing-t2t) | [Customizing voice](#customizing-voice) | [Configuration](#configuration) | [Running bot](#running-bot)
 
 ## Setup
-This was made with Python v3.12.4. It was ran in WSL2 Ubuntu, running an RTX 3070 with the latest drivers installed.
+This was made with Python v3.10.12. It was ran in WSL2 Ubuntu, running an Intel CPU with an RTX 4070 with the latest drivers installed.
 
 **TO AVOID DEPENDENCY ISSUES FOR LOCAL MODELS, IT IS HIGHLY ADVISED YOU ALSO USED A LINUX BASED ENVIRONMENT**
 
 ### Step 1: Before starting
-If you intend to run models locally, please ensure you are able to run [CUDA](https://developer.nvidia.com/cuda-toolkit) on you machine and have it installed (this should come with [NVidia drivers](https://www.nvidia.com/en-us/drivers/) by default).
-
-If you don't have the means to run CUDA, then it is advised you use AI services such as [OpenAI](https://platform.openai.com/docs/overview).
+It is recommended you have a system that can run [CUDA](https://developer.nvidia.com/cuda-toolkit) on you machine and have it installed (this should come with [NVidia drivers](https://www.nvidia.com/en-us/drivers/) by default). Without it, you will have to use OpenAI implementations (no guaruntees this project will still work as other components may require CUDA still) and this project will run significantly slower.
 
 ### Step 2: Setting up voice
-In order to make use of TTS in voice chat as well, you will firstly need something to generate speech.
+In this project, TTS is done by first generating speech then applying an AI voice-changer. Generating speech is done ine 1 of 2 ways: old-school speech synthesis and AI voice generation. 
 
-The following is for old-school TTS generation, and is required whether or not you use it. In Windows, this is built-in with [SAPI5](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ms723627(v=vs.85)). In Linux, you will need to install [eSpeak NG](https://github.com/espeak-ng/espeak-ng/blob/master/docs/guide.md).
+For old-school speech synthesis, the nature of speech synthesizers differ by OS. In Windows, this is built-in with [SAPI5](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ms723627(v=vs.85)), so no additional setup is required for this. In Linux, you will need to install [eSpeak NG](https://github.com/espeak-ng/espeak-ng/blob/master/docs/guide.md).
 
-The following is for AI TTS generation. It is recommended you use OpenAI services for this once again. This repo currently does not have an option for locally ran TTS AI options, however you may add them by implementing the TTS generation classes.
+For AI TTS, this project makes use of OpenAI's API. This project currently does not have an option for locally ran AI TTS options, however you may add them by implementing the TTS generation classes.
 
-Lastly, **YOU WILL NEED THE [RVC-PROJECT](https://github.com/limitcantcode/Retrieval-based-Voice-Conversion-WebUI)**. Please refer to ["Training voice"](#training-voice) for more details.
+Lastly, for the AI voice-changer, **YOU WILL NEED THE [RVC-PROJECT](https://github.com/limitcantcode/Retrieval-based-Voice-Conversion-WebUI)**. Please refer to ["Customizing voice"](#customizing-voice) for more details.
 
 ### Step 3: Setting up the VTuber
 This project makes use of [VTube Studio](https://denchisoft.com/) to render the VTuber model. After [customizing your VTube model](#customizing-vtuber),you will need to go to `General Settings & External Connections` in settings. First enable the plugins API:
 
 <img src="./assets/vts_2.png" alt="vtube studio plugins panel" height="300"/>
 
-Copy the API adress at the bottom of the panel to be used as `vts_api_address` in your components config. If running on WSL, you will need to replace the IP address (`0.0.0.0` in `ws://0.0.0.0:8001`) with the actual IP address of the computer you are running VTube Studio on (you can simply use your home network IPv4 address, gotten by running `ipconfig` in a Command Prompt and should start with `192.168...`).
+Keep note of the API address listed here. If running on WSL, you will need to replace the IP address (`0.0.0.0` in `ws://0.0.0.0:8001`) with the actual IP address of the computer you are running VTube Studio on (you can simply use your home network IPv4 address, gotten by running `ipconfig` in a Command Prompt and should start with `192.168...`).
 
 Further down, you will need to enable the microphone:
 
@@ -35,13 +33,11 @@ You may select either Simple or Advanced Lipsync, it doesn't matter. If you sele
 
 <img src="./assets/vts_3.png" alt="vtube studio set up lipsync" height="300"/>
 
-Before leaving to the next part, pick the microphone input. It is recommended you use a [virtual audio cable](https://vb-audio.com/Cable/) and a [virtual audio mixer](https://vb-audio.com/Voicemeeter/) so you can hear what is being sent to VTube studio. If using VB-Audio (links in previous sentence), unselect all hardware inputs and change the hardware outs to 1. yourself (MME version of device if applicable) and 2. the virtual audio cable INPUT (also MME version). 
+Before leaving to the next part, pick the microphone input. It is recommended you use a [virtual audio cable](https://vb-audio.com/Cable/), setting the microphone input as this cables output.
 
-<img src="./assets/voicemeter_1.png" alt="voicemeter configuartion" height="400"/>
+It is also recommended to use the audio multiplexor in this Projects web UI to input into this cable. You need to remain on this page and have your device added for audio to output.
 
-Back in microphone settings again, select the virtual audio cable OUTPUT. Currently, the audio from the program will be coming from Discord. To send audio into Voicemeeter, navigate to your `Voice & Video settings` and change your `Output Device` to `VoiceMeeter Input...`.
-
-<img src="./assets/discord_2.png" alt="discord audio configuration" height="300"/>
+<img src="./assets/web_ui_1.png" alt="web ui audio device setup" height="300"/>
 
 Next, in VTube Studio, go to the `Model Settings` and find paramters for mouth open and mouth form. Change the input to form and open to `VoiceFrequency` and `VoiceVolumn` respectively.
 
@@ -51,9 +47,9 @@ The first time you run this project, you will need to authenticate some plugins 
 
 <img src="./assets/vts_7.png" alt="vtube studio plugin auth" height="300"/>
 
-These were just the minimal setup instructions to connect the program to yoour VTube model and sync mouth movement to speaking, however there is still more to do to setup animations and general VTuber movement/expressions. Refer to [Customizing Vtuber](#customizing-vtuber) and [Configuration](#configuration)
+These were just the minimal setup instructions to connect the program to your VTube model and sync mouth movement to speaking, however there is still more to do to setup animations and general VTuber movement/expressions. Refer to [Customizing Vtuber](#customizing-vtuber) and [Configuration](#configuration)
 
-### Step 4: Setting up this repo
+### Step 4: Setting up this project
 It is recommended to work from within a virtual python environment. Create one using `python3 -m venv venv` or `python -m venv venv`.
 Activate this virtual environment.
 ```bash
@@ -82,11 +78,23 @@ You can find you Discord Bot token from the [dashboard](https://discord.com/deve
 
 Ensure your bot has the right OAuth2 permissions when it joins your server (Scope -> Bot, Bot Permissions -> Administrator if unsure).
 
-## Training T2T
-For more on running with custom AI T2T models, refer to the `README.md` in `/scripts` directory.
+## Customizing T2T
+For training custom AI T2T models, refer to the `README.md` in `./scripts` directory.
 
-## Training voice
-We don't train direct T2T AI models, but rather AI voice changers using the [RVC-PROJECT](https://github.com/limitcantcode/Retrieval-based-Voice-Conversion-WebUI). You can find a translation of their docs under the `/docs/` directory. Follow the instructions to setup the project, run the web UI, and train a model with you desired voice. **YOU WILL NEED TO BE ABLE TO RUN CUDA TO TRAIN A VOICE**. It is recommended you have a GPU with at least 8GB of dedicated VRAM (not shared or combined with system RAM). If you encounter `CUDA out of memory` errors or something similar, try training smaller models. An RTX 3070 with 8GB or VRAM could only train a v1 model with pitch at 40k sample rate, using both rvmpe_gpu and rvmpe, on a batch size of 1 with no caching. You want to just train a model (be patient after clicking the button, it can take a couple minutes to kick in) and you may ignore training a feature index. If you still have trouble training due to memory, you can swap the pretrained base models from `f0X40k.pth` to just `X40k.pth` where X is either `D` or `G` accordingly.
+For customizing instructions, you can create prompts either in the web UI in the Prompter or in a text file under `./prompts/production`.
+
+<img src="./assets/web_ui_3.png" alt="prompter location" height="300"/>
+
+You can set the current prompt in the Prompter as well when you click `Load` of `Save As`. You can also enable and disable the use of certain contexts when generating responses here.
+
+The prompt in these files are a simple character description and context for the situation. It should be like describing an acting role to a person and not like trying to prompt an AI (a lot more instructions are added on top of this prompt by this project).
+
+Prompts also support variables for reuse. Specifying `{name}` anywhere in a prompt (even multiple times) will be replaced with the value in your config under `t2t_prompt_params` or `Prompt Parameters` under `T2T`. This configuration is a dictionary where the key is the variable and the value is the replacing literal.
+
+On the same page as the Prompter, you can also find a tool to create one-time special instructions to use in the next response, as well as a tool for managing name translations which allows you to turn a Discord displayed name into an actual, defined name.
+
+## Customizing voice
+We don't train direct TTS AI models, but rather AI voice changers using the [RVC-PROJECT](https://github.com/limitcantcode/Retrieval-based-Voice-Conversion-WebUI). You can find a translation of their docs under the `/docs/` directory. Follow the instructions to setup the project, run the web UI, and train a model with you desired voice. **YOU WILL NEED TO BE ABLE TO RUN CUDA TO TRAIN A VOICE**. It is recommended you have a GPU with at least 8GB of dedicated VRAM (not shared or combined with system RAM). If you encounter `CUDA out of memory` errors or something similar, try training smaller models. An RTX 3070 with 8GB or VRAM could only train a v1 model with pitch at 40k sample rate, using both rvmpe_gpu and rvmpe, on a batch size of 1 with no caching. You want to just train a model (be patient after clicking the button, it can take a couple minutes to kick in) and you may ignore training a feature index. If you still have trouble training due to memory, you can swap the pretrained base models from `f0X40k.pth` to just `X40k.pth` where X is either `D` or `G` accordingly.
 
 ## Customizing VTuber
 This section DOES NOT go over making a model or the basics of how to use VTube Studio (there are plenty of tutorials online). Instead, this section will explain how to get animations and actions from VTube Studio into this project.
@@ -112,34 +120,61 @@ Everytime you run this project and things are setup, you may find the following 
 These are meant to help you see which detectable emotions or existing VTube Studio hotkeys were not included in the config file (`... not assigned`) and which in the config isn't a detectable emotion or VTube Studio hotkey (`... not found`).
 
 ## Configuration
-Change the values of the config under `./configs` to match your system. `example.json` briefly shows the values that should be there and `default.json` is what I personally used to run this project. Below is a description of the values:
+It is recommended you run the project using the example configuration `example.json`, then using the configuration manager in the web UI (you may need to manually fix `vts_url` in the config file before this can work changing the url as described in the beginning of [this setup](#step-3-setting-up-the-vtuber)). Fill all the fields here, specify the file name you want to save to, and save the config.
 
-- character_name: (str) Name of your bot and the name it will assume.
-- prompt_filepath: (str) Filepath to the prompt text file you want to use. Some may be found under `./prompts`.
-- t2t_host: (str) One of `local` or `openai` if you want to run an Unsloth model locally or use OpenAI services respectively.
-- t2t_model: (str) Name of OpenAI (checkpoint) model you want to use or name of Unsloth model as you trained it.
-- tts_host: (str) One of `old` or `openai` if you want to use old-school TTS synthesis like SAPI or espeak or if you want to use OpenAI's AI TTS service respectively.
-- tts_output_filepath: (str) Filepath to where bot should output latest generated TTS. Will be used as intermediate to generate speech initially before converting into desired voice. Requires directory to exist (file doesn't have to exist yet).
-- rvc_model: (str) Name of RVC voice model. Is the name you chose when training (so name without the `.pth`).
-- rvc_url: (str) URL to your hosted RVC web UI. Typically http://localhost:7865
-- rvc_output_filepath: (str) Filepath to where bot should output converted TTS. This is what you finally hear. Requires directory to exist (file doesn't have to exist yet).
-- stt_output_filepath: (str) Filepath to most recent audio to be transcribed and sent to t2t.
-- vts_api_address: (str) URL to VTube Studio Plugin API. If running from WSL and having issues, refer back to [the top of this section](#step-3-setting-up-the-vtuber)
-- server_id: (null or number) Discord server/guild id.
+<img src="./assets/web_ui_2.png" alt="config manager location" height="300"/>
+
+If you want to change the configurations outside of the web UI, you can find all config files under `./configs/components`. Below is a description of the values:
+
+- t2t_default_prompt_file: (str) A prompt filename within `./prompts/production`
+- t2t_prompt_params: (dict) Map of variables in a prompt to their actual value (look at a prompt file to see what variables exist)
+- t2t_name_translation_file: (str) A name translation filename within `./configs/name`
+- t2t_convo_retention_length: (int) Length of conversation history to keep for generating T2T responses
+- t2t_enable_context_script: (bool) Whether to include conversation history by default
+- t2t_enable_context_twitch_chat: (bool) Whether to include twitch chat by default (currently does nothing)
+- t2t_enable_context_twitch_events: (bool) Whether to include twitch events by default (currently does nothing)
+- t2t_enable_context_rag: (bool) Whether to include RAG information by default (currently does nothing)
+- t2t_enable_context_av: (bool) Whether to include audio-visual information by default (currently does nothing)
+- t2t_host: (str) One of `openai` or `local`
+- t2t_model: (str) Name of model to use from the host such as `gpt-4o-mini` from `openai`
+- ttsg_host: (str) One of `openai` or `old` (speech synthesis)
+- ttsg_voice: (str) Name of voice to use from the host such as `nova` from `openai`
+- ttsc_url: (str) URL of RVC Project gradio server, typically `http://localhost:7865`
+- ttsc_voice: (str) Name of voice model to use, so just `my-voice-model` with no extensions or anything
+- ttsc_transpose: (int) Semitones to repitch voice
+- ttsc_feature_ratio: (float) `0` to `1`. Higher more strongly converts accents
+- ttsc_median_filtering: (int) `0` to `7`. Higher applies strong filtering, helping with breathiness
+- ttsc_resampling: (int) `0` to `48000`. Output audio's sample rate
+- ttsc_volume_envelope: (float) `0` to `1`. Higher makes volume more consistent instead of matching original volume
+- ttsc_voiceless_protection: (float) `0` to `0.5`. Higher applies less protection of voiceless consenants and breaths
+- vts_url: (str) URL of VTube Studio server, typically `ws://localhost:8001` (see [VTube Studio setup](#step-3-setting-up-the-vtuber))
+- vts_hotkey_config_file: (str)  A hotkey config filename within `./configs/hotkeys`
+- discord_server_id: (int, optional) Discord server ID for Discord bot
 
 ## Running bot
 ### Step 1: Ensure dependency apps are running
-1. Run the RVC-Project (In the same way you [ran the web-UI to train](#training-voice), run the web-UI to start the voice-conversion server using `python ./infer-web.py`)
-2. Run Voicemeeter and [configure Discord to output to it's input](#step-3-setting-up-the-vtuber) (instruction halfway down that section)
-3. Run VTube Studio with the [Plugin API enabled](#step-3-setting-up-the-vtuber)
-
+1. Run the RVC-Project (In the same way you [ran the web-UI to train](#customizing-voice), run the web-UI to start the voice-conversion server using `python ./infer-web.py`)
+2. Run VTube Studio with the [Plugin API enabled](#step-3-setting-up-the-vtuber)
 
 ### Step 2: Getting the right configuration
-Refer to [Configuration](#configuration).
+Refer to [Configuration](#configuration). You may use `example.json` for a first run.
 
 ### Step 3: Start running
-
 To run, simply use the following from the project root:
 ```bash
-python ./src/main.py --config=path/to/component_config.json
+python ./src/main.py --config=config.json
 ```
+
+To get a full list of options, run:
+```bash
+python ./src/main.py --help
+```
+
+## Logging
+Logs are stored in `./logs` by default. Changing the log directory (an option when starting the project) requires the new directory to subfolders `sys`, `dialog`, and `response`.
+
+`sys` contains system logs for each of the main application, VTube studio plugins, and the Discord bot. Only certain logs are sent to the console as well, but all logs are sent to files (except for those generated by dependencies such as Discord.py).
+
+`dialog` contains the entire conversation history in the same format used for generating T2T responses. This is useful for creating new datasets and monitoring conversations.
+
+`response` contains entries immediately usable to train T2T AI models. These contain the time, system prompt, user prompt, and generated response for every response made by the T2T model in use. This is useful for cherrypicking favorable responses to retrain the model on.

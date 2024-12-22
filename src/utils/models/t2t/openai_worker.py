@@ -6,73 +6,30 @@ you've fine-tuned yourself (it will have a name like 'ft:gpt-4o-mini-2024-07-18:
 Please ensure you have your openai token in your ".env" as specified in the ".env-template"
 '''
 from openai import OpenAI
-from .base_worker import BaseT2TAIWorker
-from config import config
+from .base_worker import BaseT2TAIModel
+from utils.logging import create_sys_logger
+logger = create_sys_logger()
 
-class OpenAIWorker(BaseT2TAIWorker):
-    def __init__(self, t2t_model='gpt-3.5-turbo', **kwargs):
-        super().__init__(**kwargs)
+class OpenAIModel(BaseT2TAIModel):
+    def __init__(self, config):
+        super().__init__(config)
         self.client = OpenAI()
-        self.model = config['t2t_model']
 
-    def get_response(self, prompt: str, msg: str):
+    def get_response(self, sys_prompt, user_prompt):
+        messages=[
+            { "role": "system", "content": sys_prompt },
+            { "role": "user", "content": user_prompt }
+        ]
+
+        logger.debug(f"Sending messages: {messages}")
         chat_completion = self.client.chat.completions.create(
-            messages=[
-                {
-                    "role": "system",
-                    "content": prompt,
-                },
-                {
-                    "role": "user",
-                    "content": msg,
-                }
-            ],
-            model=self.model,
+            messages=messages,
+            model=self.config.t2t_model,
         )
-        
+
+        logger.debug(f"Got results: {chat_completion}")
+
         if len(chat_completion.choices) == 0:
             raise Exception("No response")
 
         return chat_completion.choices[0].message.content
-
-# class old_OpenAIWorker:
-#     client = OpenAI()
-
-#     def get_response(self, query_str: str) -> str:
-#         try:
-#             chat_completion = self.client.chat.completions.create(
-#                 messages=[
-#                     {
-#                         "role": "user",
-#                         "content": query_str,
-#                     }
-#                 ],
-#                 model="gpt-3.5-turbo",
-#             )
-
-#             if len(chat_completion.choices) == 0:
-#                 raise Exception("No response")
-#         except Exception as err:
-#             print("Tell Limit there is a problem with my AI")
-#             print(err)
-#             raise err
-
-#         return chat_completion.choices[0].message.content
-
-#     def get_response_stream_generator(self, query_str: str):
-#         # Example usage of get_response_stream_generator
-#         # result = ""
-#         # for content in get_response_stream_generator():
-#         #     result += content
-#         #     print(result)
-#         #     # feed into tts
-
-#         # print(f"Finished with message: {result}")
-
-#         stream = self.client.chat.completions.create(
-#             model="gpt-3.5-turbo",
-#             messages=[{"role": "user", "content": query_str}],
-#             stream=True,
-#         )
-#         for chunk in stream:
-#             yield chunk.choices[0].delta.content or ""

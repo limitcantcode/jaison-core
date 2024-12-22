@@ -1,18 +1,23 @@
 import os
 from dotenv import load_dotenv
 load_dotenv()
+from utils.args import args
+from utils.jaison import JAIson
+from utils.discord import DiscordBot
+from webui import start_ui
+from threading import Thread
 
-from config import config
-from utils.models.t2t import model_dict as T2TModelDict
-from utils.models.tts import TTSAI
-from jaison_bot import JAIsonBot
+jaison_main = JAIson(init_config_file=args.config)
 
-# Select models based on configuration
-t2t_worker = T2TModelDict[config['t2t_host']]()
-tts_worker = TTSAI()
+# For Discord Bot
+discord_bot = DiscordBot(jaison_main)
+discord_thread = Thread(target=discord_bot.run, args=[os.getenv("DISCORD_BOT_TOKEN")])
+discord_thread.start()
 
-# Create the bot
-bot = JAIsonBot(t2t_worker, tts_worker)
+# For Web UI
+web_thread = Thread(target=start_ui, args=[jaison_main])
+web_thread.start()
 
-# Start running
-bot.run(os.getenv("DISCORD_BOT_TOKEN"))
+# Keep running this main thread while others threads are active
+discord_thread.join()
+web_thread.join()

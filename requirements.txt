@@ -17,6 +17,9 @@ apscheduler==3.10.4
 openai-whisper==20240930
 websockets==13.1
 asyncio==3.4.3
+Flask==3.1.0
+flask-socketio==5.4.1
+flask-cors==5.0.0
 
 
 # YOU WILL NEED TO FOLLOW INSTRUCTIONS IN README FOR WINDOWS INSTALL
