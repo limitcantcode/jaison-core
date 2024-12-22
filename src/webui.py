@@ -183,7 +183,7 @@ def api_get_config_from_file():
         params=[json.loads(request.data)['filename']],
         info_msg="Getting config from file...",
         success_msg="Got config from file!",
-        error_message="Failed to get config from file!"
+        error_msg="Failed to get config from file!"
     )
 
 @app.route('/api/get_config_files', methods=['GET'])
