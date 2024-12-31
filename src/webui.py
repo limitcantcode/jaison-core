@@ -10,33 +10,35 @@ from utils.observer import ObserverClient
 PORT = 5000
 HOST_SERVER_URL = f"http://127.0.0.1:{PORT}"
 app = Flask(__name__)
-cors = CORS(app, resources={r"/static/*": {"origins": f"http://127.0.0.1:{PORT}"}})
+cors = CORS(app, resources={r"/static/*": {"origins": HOST_SERVER_URL}})
 app.config['CORS_HEADERS'] = 'Content-Type'
 app.config['SECRET_KEY'] = 'jaisonSecret!'
 socketio = SocketIO(app)
 
 jaison = None
 event_client = None
+page_params = {}
+
 
 @app.route('/')
 def page_home():
-        return render_template('page_home.html')
+        return render_template('page_home.html', **page_params)
 
 @app.route('/assets')
 def page_assets():
-    return render_template('page_assets.html', host_server_url=HOST_SERVER_URL)
+    return render_template('page_assets.html', **page_params)
 
 @app.route('/configs')
 def page_configs():
-    return render_template('page_configs.html')
+    return render_template('page_configs.html', **page_params)
 
 @app.route('/controls')
 def page_controls():
-    return render_template('page_controls.html', host_server_url=HOST_SERVER_URL)
+    return render_template('page_controls.html', **page_params)
 
 @app.route('/datasets')
 def page_datasets():
-    return render_template('page_datasets.html')
+    return render_template('page_datasets.html', **page_params)
 
 ## WEBSOCKET SERVICE #########
 
@@ -60,30 +62,46 @@ class WSBroadcaster(ObserverClient):
             payload
         )
 
+## AUTH #########################
+
+@app.route('/auth/redirect/code')
+def redirect_code():
+    global jaison
+    jaison.twitch_auth_code(request.args.get('code'))
+    return render_template('page_auth_code.html', **page_params)
+
+@app.route('/auth/redirect/tokens', methods=['GET'])
+def redirect_tokens():
+    return "Complete!"
 
 ## API #########################
 
 def base_api_with_response(fun, params=[], kwargs={}, info_msg="", success_msg="", error_msg="", no_toast=False):
+    print(f"Debug: {fun} with {params}, {kwargs}") # debug
     global event_client
     if not no_toast:
         event_client.handle_event('toast_info', info_msg)
     try:
         result = fun(*params, **kwargs)
+        print(f"Debug: {fun} returned {result}") # debug
         if not no_toast:
             event_client.handle_event('toast_success', success_msg)
         return result
     except Exception as err:
+        print(f"Debug: {fun} returned {err}") # debug
         print(err)
         if not no_toast:
             event_client.handle_event('toast_error', error_msg)
         raise err
 
 def base_api_no_response(fun, params=[], kwargs={}, info_msg="", success_msg="", error_msg="", no_toast=False):
+    print(f"Debug: {fun} with {params}, {kwargs}") # debug
     global event_client
     if not no_toast:
         event_client.handle_event('toast_info', info_msg)
     try:
         is_ok = fun(*params, **kwargs)
+        print(f"Debug: {fun} returned {is_ok}") # debug
         if is_ok:
             if not no_toast:
                 event_client.handle_event('toast_success', success_msg)
@@ -91,6 +109,7 @@ def base_api_no_response(fun, params=[], kwargs={}, info_msg="", success_msg="",
         else:
             raise Exception("Internal server error")
     except Exception as err:
+        print(f"Debug: {fun} returned {err}") # debug
         print(err)
         if not no_toast:
             event_client.handle_event('toast_error', error_msg)
@@ -117,7 +136,7 @@ def api_get_name_translations():
 def api_save_name_translations():
     return base_api_no_response(
         jaison.save_name_translations,
-        params=[json.loads(request.data)['message']],
+        params=[json.loads(request.data)['translations']],
         info_msg="Saving name translations...",
         success_msg="Saved name translation!",
         error_msg="Failed to save name translations!"
@@ -227,6 +246,10 @@ def api_cancel_response():
 def start_ui(jaison_app):
     global jaison
     global event_client
+    global page_params
     jaison = jaison_app
+    page_params = {
+        "twitch_relink_url": jaison.twitch.OAUTH_AUTHORIZE_URL
+    }
     event_client = WSBroadcaster(jaison.broadcast_server)
     socketio.run(app, port=PORT)

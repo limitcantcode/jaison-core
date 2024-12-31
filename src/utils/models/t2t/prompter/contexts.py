@@ -1,5 +1,6 @@
 import os
 import json
+from utils.observer import ObserverClient
 
 class ContextBuilder():
     # This is the assumed format of the given contexts.
@@ -55,13 +56,25 @@ You shall never break from the character described in the remainder of this syst
     self_identifier=SELF_IDENTIFIER
 )
 
-    def __init__(self, config):
-        self.config = config
+    def __init__(self, jaison):
+        self.jaison = jaison
         self.convo_history = [] # will contain {time: str, name: str, message: str}
         self.uncommited_history_len = 0
 
+        self.event_listener = self.EventListener(self, jaison.twitch.broadcast_server)
+
         self.one_time_request = None
+        self.twitch_latest_notif = None
         self.name_translations = {}
+
+    class EventListener(ObserverClient):
+        def __init__(self, parent, server):
+            super().__init__(server=server)
+            self.parent = parent
+
+        def handle_event(self, event_id, payload) -> None:
+            if event_id == 'twitch_event':
+                self.parent.twitch_latest_notif = payload['event']
 
     def get_context_instructions(self):
         return self.CONTEXT_INSTRUCTIONS
@@ -82,19 +95,19 @@ You shall never break from the character described in the remainder of this syst
 
     def rollback_history(self):
         if self.uncommited_history_len > 0:
-            self.convo_history[:-(self.uncommited_history_len)]
+           self.convo_history = self.convo_history[:-(self.uncommited_history_len)]
 
         self.uncommited_history_len = 0
 
     def commit_history(self):
-        self.convo_history = self.convo_history[-(self.config.t2t_convo_retention_length or 20):]
+        self.convo_history = self.convo_history[-(self.jaison.config.t2t_convo_retention_length or 20):]
         self.uncommited_history_len = 0
 
     def get_uncommited_history(self):
         return self.convo_history[-(self.uncommited_history_len):] if self.uncommited_history_len > 0 else []
 
     def reload_name_translations(self):
-        with open(os.path.join(self.config.t2t_name_translation_dir, self.config.t2t_name_translation_file), 'r') as f:
+        with open(os.path.join(self.jaison.config.t2t_name_translation_dir, self.jaison.config.t2t_name_translation_file), 'r') as f:
             self.name_translations = json.load(f)
 
     def msg_o_to_line(self, o):
@@ -119,25 +132,36 @@ You shall never break from the character described in the remainder of this syst
 
 
     def get_context_twitch_chat(self):
-        if self.config.t2t_enable_context_twitch_chat:
-            return self.DISABLED_CONTEXT_MESSAGE # TODO
+        if self.jaison.config.t2t_enable_context_twitch_chat:
+            chat_history = self.jaison.twitch_get_chat_history()
+            if len(chat_history) == 0:
+                return "Chat is empty right now."
+
+            result = ""
+            for chat in chat_history:
+                result += "[{}]: {}\n".format(chat['name'], chat['message'])
+            return result
 
         return self.DISABLED_CONTEXT_MESSAGE
 
     def get_context_twitch_events(self):
-        if self.config.t2t_enable_context_twitch_events:
-            return self.DISABLED_CONTEXT_MESSAGE # TODO
+        if self.jaison.config.t2t_enable_context_twitch_events:
+            if self.twitch_latest_notif is None:
+                return "Nothing has happened."
+            result = self.twitch_latest_notif
+            self.twitch_latest_notif = None
+            return result
 
         return self.DISABLED_CONTEXT_MESSAGE
 
     def get_context_rag(self):
-        if self.config.t2t_enable_context_rag:
+        if self.jaison.config.t2t_enable_context_rag:
             return self.DISABLED_CONTEXT_MESSAGE # TODO
 
         return self.DISABLED_CONTEXT_MESSAGE
 
     def get_context_av(self):
-        if self.config.t2t_enable_context_av:
+        if self.jaison.config.t2t_enable_context_av:
             return self.DISABLED_CONTEXT_MESSAGE # TODO
 
         return self.DISABLED_CONTEXT_MESSAGE

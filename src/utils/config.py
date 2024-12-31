@@ -1,5 +1,6 @@
 import os
 import json
+from typing import get_type_hints
 from .time import get_current_time
 from .args import args
 from utils.logging import create_sys_logger
@@ -48,8 +49,13 @@ class Configuration():
     vts_hotkey_config_dir: str = os.path.join(os.getcwd(),"configs/hotkeys")
     vts_hotkey_config_file: str = "example.json"
 
+    # Twitch
+    twitch_broadcaster_id: str = None
+    twitch_user_id: str = None
+
     # Discord
     discord_server_id: str = None
+
 
     def update(self, config_d: dict) -> tuple[bool, str]:
         '''
@@ -58,18 +64,25 @@ class Configuration():
         - If unsuccessful: False, "failing field"
         '''
 
+        uncommitted = {}
+        config_typings = get_type_hints(self)
+
         # Pre-check fields before committing changes
-        for field in config_d:
-            if not hasattr(self, field):
-                logger.error(f"Could not update config due to bad field: {field}")
-                return False, field
+        try:
+            for field in config_d:
+                if field not in config_typings:
+                    raise Exception(f"Config has no field named: {field}")
+                uncommitted[field] = config_typings[field](config_d[field])
+        except Exception as err:
+            logger.error(f"Could not update config due to error: {err}")
+            return False
         
         # Commit config change request
-        for field in config_d:
-            setattr(self, field, config_d[field])
+        for field in uncommitted:
+            setattr(self, field, uncommitted[field])
 
         logger.debug("Config update applied without issue.")
-        return True, None
+        return True
 
     def save(self, config_d: dict = None, filename: str = None) -> bool:
         config_to_save = config_d
@@ -99,6 +112,8 @@ class Configuration():
                 "ttsc_voiceless_protection": self.ttsc_voiceless_protection,
                 "vts_url": self.vts_url,
                 "vts_hotkey_config_file": self.vts_hotkey_config_file,
+                "twitch_broadcaster_id": self.twitch_broadcaster_id,
+                "twitch_user_id": self.twitch_user_id,
                 "discord_server_id": self.discord_server_id
             }
 
@@ -116,7 +131,7 @@ class Configuration():
     def load(self, filename: str):
         with open(os.path.join(self.CONFIG_DIR, filename), 'r') as f:
             config_d = json.load(f)
-        is_ok, bad_field = self.update(config_d)
+        is_ok = self.update(config_d)
         if is_ok:
             self.CURRENT_CONFIG_FILENAME = filename
-        return is_ok, bad_field
+        return is_ok

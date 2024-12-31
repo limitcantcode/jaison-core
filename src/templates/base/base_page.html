@@ -4,7 +4,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.3/dist/jquery.slim.min.js"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO" crossorigin="anonymous"></script>
     <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
-    <link rel="stylesheet" href="static/default.css" />
+    <link rel="stylesheet" href="/static/default.css" />
     <title>{% block title %}{% endblock %} - J.A.I.son</title>
     {% block style_override %}{% endblock %}
 </head>
@@ -19,6 +19,7 @@
             <li><a href="/configs">Configs</a></li>
             <li><a href="/controls">Controls</a></li>
             <li><a href="/datasets">Datasets</a></li>
+            <li><a href="{{ twitch_relink_url }}">Relink Twitch</a></li>
         </ul>
     </div>
     {% block content %}{% endblock %}
