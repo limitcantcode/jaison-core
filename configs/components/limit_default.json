@@ -22,7 +22,9 @@
     "ttsc_resampling": 0,
     "ttsc_volume_envelope": 0,
     "ttsc_voiceless_protection": 0.5,
-    "vts_url": "ws://192.168.2.114:8001",
+    "vts_url": "ws://192.168.2.111:8001",
     "vts_hotkey_config_file": "default.json",
-    "discord_server_id": 1209930020881961090
+    "twitch_broadcaster_id": "85498365",
+    "twitch_user_id": "786978930",
+    "discord_server_id": "1209930020881961090"
 }

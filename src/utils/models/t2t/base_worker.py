@@ -5,14 +5,17 @@ This class isn't to be used as is, but rather implemeted by other classes such a
 '''
 
 from .prompter import Prompter
+from .filter import ResponseFilter
 from utils.time import get_current_time
 from utils.logging import create_sys_logger, save_dialogue, save_response
 logger = create_sys_logger()
 
 class BaseT2TAIModel():
-    def __init__(self, config):
-        self.config = config
-        self.prompter = Prompter(config)
+    DEFAULT_RESPONSE_MSG = 'There is a problem with my AI...'
+    def __init__(self, jaison):
+        self.jaison= jaison
+        self.prompter = Prompter(jaison)
+        self.filter = ResponseFilter()
 
     '''
     Main function for interacting with AI T2T model.
@@ -35,21 +38,30 @@ class BaseT2TAIModel():
             response = response if response != self.prompter.NO_RESPONSE else None
         except Exception as err:
             logger.error(f"Failed to get response: {err}")
-            response = 'There is a problem with my AI...'
+            response = self.DEFAULT_RESPONSE_MSG
 
         if response:
-            self.prompter.add_history(
-                get_current_time(),
-                self.prompter.SELF_IDENTIFIER,
-                response
-            )
-            uncommited_messages = self.prompter.get_uncommited_history()
-            for msg_o in uncommited_messages:
-                save_dialogue(self.prompter.convert_msg_o_to_line(msg_o))
-            self.prompter.commit_history()
-            save_response(sys_prompt, user_prompt, response)
+            try:
+                response = self.filter(response) # Apply filtering
+                self.prompter.add_history(
+                    get_current_time(),
+                    self.prompter.SELF_IDENTIFIER,
+                    response
+                )
+                uncommited_messages = self.prompter.get_uncommited_history()
+                for msg_o in uncommited_messages:
+                    save_dialogue(self.prompter.convert_msg_o_to_line(msg_o))
+                self.prompter.commit_history()
+                save_response(sys_prompt, user_prompt, response)
+            except Exception as err:
+                logger.error(f"Failed to save conversation: {err}")
+                return self.DEFAULT_RESPONSE_MSG
         else:
-            self.prompter.rollback_history()
+            try:
+                self.prompter.rollback_history()
+            except Exception as err:
+                logger.error(f"Failed to rollback conversation: {err}")
+                return self.DEFAULT_RESPONSE_MSG
 
         return response
         

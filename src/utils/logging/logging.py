@@ -13,6 +13,8 @@ START_TIME = get_current_time(include_ms=False)
 
 ## FOR SYSTEM LOGGING ###########################
 
+SYSTEM_LOGGERS = {}
+
 # Setup formatters and handlers
 class CustomFormatter(logging.Formatter):
     # Using console color codes to style text
@@ -44,15 +46,22 @@ def create_file_handler(id = 'main'):
     return file_handler
     
 def create_sys_logger(id = 'main', use_stdout = False):
-    logger = logging.getLogger(f"sys_{id}")
-    logger.setLevel(getattr(logging, args.log_level))
+    global SYSTEM_LOGGERS
+    logger = None
+    if id not in SYSTEM_LOGGERS:
+        logger = logging.getLogger(f"sys_{id}")
+        logger.setLevel(getattr(logging, args.log_level))
 
-    logger.addHandler(create_file_handler(id))
-    
-    if use_stdout:
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(CustomFormatter())
-        logger.addHandler(console_handler)
+        logger.addHandler(create_file_handler(id))
+        
+        if use_stdout:
+            console_handler = logging.StreamHandler(sys.stdout)
+            console_handler.setFormatter(CustomFormatter())
+            logger.addHandler(console_handler)
+        
+        SYSTEM_LOGGERS[id] = logger
+    else:
+        logger = SYSTEM_LOGGERS[id]
 
     return logger
 

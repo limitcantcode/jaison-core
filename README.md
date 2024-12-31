@@ -1,5 +1,5 @@
 # J.A.I.son
-[Setup](#setup) | [Customizing responses](#customizing-t2t) | [Customizing voice](#customizing-voice) | [Configuration](#configuration) | [Running bot](#running-bot)
+[Setup](#setup) | [Linking Twitch](#linking-twitch) | [Customizing responses](#customizing-t2t) | [Customizing voice](#customizing-voice) | [Configuration](#configuration) | [Running bot](#running-bot)
 
 ## Setup
 This was made with Python v3.10.12. It was ran in WSL2 Ubuntu, running an Intel CPU with an RTX 4070 with the latest drivers installed.
@@ -78,6 +78,23 @@ You can find you Discord Bot token from the [dashboard](https://discord.com/deve
 
 Ensure your bot has the right OAuth2 permissions when it joins your server (Scope -> Bot, Bot Permissions -> Administrator if unsure).
 
+Values for Twitch are optional, but instructions are in the next section.
+
+## Linking Twitch
+If you want to include stream information (events and chat) from specific Twitch channels, you need to link your Twitch account. Firstly, change your configuration following [Configuration](#configuration) and change `twitch_broadcaster_id` to the Twitch account ID of the streamer and `twitch_user_id` to your own Twitch account ID. Then, you need to register a new application on [Twitch's Dev Console](https://dev.twitch.tv/console).
+
+<img src="./assets/twitch_1.png" alt="creating a new twitch application" height="300"/>
+
+You can name it whatever you want. Just give it the following `OAuth Redirect URLs`, `Category`, and `Client Type`.
+
+<img src="./assets/twitch_2.png" alt="twitch application fields" height="300"/>
+
+Once you created your new application, click `Manage` and copy the `Client ID` and `Client Secret` into your `.env`.
+
+Finally, on this project's web UI, click `Relink Twitch` and follow the steps there until you've reached the completion page. You should only need to do this once unless you delete the token file under `./src/utils/twitch/`.
+
+<img src="./assets/web_ui_4.png" alt="relink twitch button on webui" height="200"/>
+
 ## Customizing T2T
 For training custom AI T2T models, refer to the `README.md` in `./scripts` directory.
 
@@ -149,6 +166,8 @@ If you want to change the configurations outside of the web UI, you can find all
 - ttsc_voiceless_protection: (float) `0` to `0.5`. Higher applies less protection of voiceless consenants and breaths
 - vts_url: (str) URL of VTube Studio server, typically `ws://localhost:8001` (see [VTube Studio setup](#step-3-setting-up-the-vtuber))
 - vts_hotkey_config_file: (str)  A hotkey config filename within `./configs/hotkeys`
+- twitch_broadcaster_id: (str, optional) Target streamer Twitch account ID 
+- twitch_user_id: (str, optional) Your own Twitch account ID 
 - discord_server_id: (int, optional) Discord server ID for Discord bot
 
 ## Running bot

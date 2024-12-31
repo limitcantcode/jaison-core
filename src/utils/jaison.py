@@ -18,6 +18,7 @@ from utils.models.t2t import T2TModel
 from utils.models.ttsg import TTSGModel
 from utils.models.ttsc import TTSCModel
 from utils.vts import VTS
+from utils.twitch import TwitchContextMonitor
 from utils.time import get_current_time
 from utils.logging import create_sys_logger
 from utils.observer import ObserverServer
@@ -28,14 +29,17 @@ class JAIson():
     # J.A.I.son configuration
     config = Configuration()
 
+    # VTube Studio integrations
+    vts = None
+
+    # Twitch integrations
+    twitch = None
+
     # Models
     stt = None
     t2t = None
     ttsg = None
     ttsc = None
-
-    # VTube Studio integrations
-    vts = None
 
     def __init__(self, init_config_file: str = None):
         # Setup config
@@ -49,14 +53,17 @@ class JAIson():
         #   request_stop_response: Triggered when a request to stop the response is made
         self.broadcast_server = ObserverServer()
     
-        # Initialize core models
-        self.stt = STTModel(self.config)
-        self.t2t = T2TModel(self.config)
-        self.ttsg = TTSGModel(self.config)
-        self.ttsc = TTSCModel(self.config)
-
         # Initialize vts plugins
         self.vts = VTS(self.config)
+
+        # Initialize twitch plugins
+        self.twitch = TwitchContextMonitor(self)
+
+        # Initialize core models
+        self.stt = STTModel(self.config)
+        self.t2t = T2TModel(self)
+        self.ttsg = TTSGModel(self.config)
+        self.ttsc = TTSCModel(self.config)
 
         # Frontend components will have one-way reference
         # Frontend components have own threads
@@ -142,7 +149,7 @@ class JAIson():
 
         end_time = get_current_time(as_str=False)
         logger.debug(f"Finished generating response from text in time: {str(end_time-start_time)}...")
-        self.broadcast_server.broadcast_event("response_generated", {"response":text_result})
+        self.broadcast_server.broadcast_event("response_generated", payload={"response":text_result})
         return text_result, audio_result
 
     '''
@@ -191,7 +198,15 @@ class JAIson():
         self.broadcast_server.broadcast_event("request_stop_response")
         return True
 
+    ## CONTEXTS
+
+    def twitch_get_chat_history(self):
+        return self.twitch.get_chat_history()
+
     ## SPECIAL API ENDPOINTS
+
+    def twitch_auth_code(self, code):
+        self.twitch.set_tokens_from_code(code)
 
     def inject_one_time_request(self, request: str):
         return self.t2t.inject_one_time_request(request)
@@ -213,7 +228,8 @@ class JAIson():
         for o in translations:
             translations_d[o["name"]] = o["translation"]
         with open(os.path.join(self.config.t2t_name_translation_dir, self.config.t2t_name_translation_file), 'w') as f:
-            json.dump(translations_d, f)
+            json.dump(translations_d, f, indent=4)
+        return True
 
     def get_prompt_filenames(self):
         all_files = os.listdir(self.config.t2t_prompt_dir)
@@ -222,6 +238,7 @@ class JAIson():
 
     def load_prompt_file(self, filename: str):
         self.update_config({ "t2t_current_prompt_file": filename })
+        return True
 
     def get_current_prompt(self):
         filename = self.config.t2t_current_prompt_file or self.config.t2t_default_prompt_file
@@ -234,7 +251,7 @@ class JAIson():
     def save_prompt_file(self, filename, contents):
         with open(os.path.join(self.config.t2t_prompt_dir,filename), 'w') as f:
             f.write(contents)
-        is_ok, bad_field = self.update_config({ "t2t_current_prompt_file": filename })
+        is_ok = self.update_config({ "t2t_current_prompt_file": filename })
         return is_ok
 
     def get_context_toggles(self):
@@ -248,7 +265,7 @@ class JAIson():
         return { "result": result }
 
     def set_context_toggles(self, toggles):
-        is_ok, bad_field = self.update_config({
+        is_ok = self.update_config({
             "t2t_enable_context_script": toggles.get("script", self.config.t2t_enable_context_script),
             "t2t_enable_context_twitch_chat": toggles.get("twitch-chat", self.config.t2t_enable_context_twitch_chat),
             "t2t_enable_context_twitch_events": toggles.get("twitch-events", self.config.t2t_enable_context_twitch_events),
@@ -268,11 +285,11 @@ class JAIson():
         return { "config_files": result, "current": self.config.CURRENT_CONFIG_FILENAME }
 
     def set_config_file(self, filename):
-        is_ok, _ = self.load_config(filename)
+        is_ok = self.load_config(filename)
         return is_ok
 
     def save_config_file(self, filename, config_d):
-        is_ok, _ = self.update_config(config_d)
+        is_ok = self.update_config(config_d)
         if is_ok:
-            is_ok, _ = self.save_config(filename=filename)
+            is_ok = self.save_config(filename=filename)
         return is_ok

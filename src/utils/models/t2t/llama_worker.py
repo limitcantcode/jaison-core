@@ -13,10 +13,10 @@ the name you specified during creation. For example, we want to use the
 directory. Therefore we would pass "models/lora_model" as our "model" in runtime.
 '''
 class LlamaAIModel(BaseT2TAIModel):
-    def __init__(self, config):
-        super().__init__(config)
+    def __init__(self, jaison):
+        super().__init__(jaison)
         self.model, self.tokenizer = FastLanguageModel.from_pretrained(
-            model_name = self.config.t2t_model,
+            model_name = self.jaison.config.t2t_model,
             max_seq_length = 2048,
             dtype = None,
             load_in_4bit = True

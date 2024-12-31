@@ -4,7 +4,7 @@
 {% call elements.Card("Response Preview") %}
     <script type="text/javascript" charset="utf-8">
         $(document).ready(function() {
-            var socket = io("{{ host_server_url }}")
+            var socket = io()
 
             $('form#response-preview').submit(async function(event) {
                 event.preventDefault()
@@ -196,7 +196,7 @@
                     
                     const response = await fetch("/api/one-time-request", {
                         method: "POST",
-                        body: JSON.stringify({  message: "test" })
+                        body: JSON.stringify({  message: $('textarea#ot-request-content').val() })
                     })
                     const parsed_response = await response.json()
                     if (parsed_response.status) {
@@ -268,7 +268,7 @@
                 if (entries.length > 0) {
                     const response = await fetch('/api/save_name_translations', {
                         method: "POST",
-                        body: JSON.stringify(entries)
+                        body: JSON.stringify({ translations: entries })
                     })
                 }
 

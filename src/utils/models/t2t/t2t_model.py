@@ -9,15 +9,15 @@ class T2TModel():
         'local': LlamaAIModel
     }
 
-    def __init__(self, config):
-        if config.t2t_host is None or config.t2t_host not in self.T2T_MODELS:
-            err_msg = "T2T model host key {} doesn't exist".format(config.t2t_host)
+    def __init__(self, jaison):
+        if jaison.config.t2t_host is None or jaison.config.t2t_host not in self.T2T_MODELS:
+            err_msg = "T2T model host key {} doesn't exist".format(jaison.config.t2t_host)
             logger.error(err_msg)
             raise Exception(err_msg)
 
-        self.model = self.T2T_MODELS[config.t2t_host](config)
+        self.model = self.T2T_MODELS[jaison.config.t2t_host](jaison)
 
-        logger.debug(f"T2TModel initialized with host {config.t2t_host}")
+        logger.debug(f"T2TModel initialized with host {jaison.config.t2t_host}")
 
     def __call__(self, time, name, message):
         logger.debug(f"Got request for message: {message}")

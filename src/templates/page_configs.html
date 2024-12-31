@@ -179,7 +179,14 @@
         <label for="vts_hotkey_config_file">Hotkey Config File</label>
         <input type="text" id="vts_hotkey_config_file" placeholder="example.json"/><br/>
         {% endcall %}
-    
+        
+        {% call elements.Dropdown("Twitch", "twitch") %}
+        <label for="twitch_broadcaster_id">Streamer Twitch Account ID</label>
+        <input type="text" id="twitch_broadcaster_id" placeholder="123456789"/><br/>
+        <label for="twitch_user_id">Personal Twitch Account ID</label>
+        <input type="text" id="twitch_user_id" placeholder="987654321"/><br/>
+        {% endcall %}
+
         {% call elements.Dropdown("Discord", "discord") %}
         <label for="discord_server_id">Discord Server ID</label>
         <input type="text" id="discord_server_id" placeholder="1234567890"/><br/>
