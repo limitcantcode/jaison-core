@@ -1,0 +1,4 @@
+components:
+  # Must set one of 'directory' or 'endpoint'
+  - directory: path/to/project/root/
+  - endpoint: http://127.0.0.1:50000 # If you set this URI, you will need to run the component separately before running this

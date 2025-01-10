@@ -70,6 +70,9 @@ class JAIson():
 
         logger.info("J.A.I.son Main Applications successfully initialized!")
 
+    def cleanup(self):
+        raise NotImplementedError
+
     ## CONFIG #####################
 
     def update_config(self, config_d: dict) -> tuple[bool, str]:
