@@ -8,40 +8,42 @@ through this layer.
 '''
 
 import json
-import datetime
-from pathlib import Path
 import os
+from scipy.io import wavfile
+import wave
+import traceback
 
 from utils.config import Configuration
-from utils.models.stt import STTModel
-from utils.models.t2t import T2TModel
-from utils.models.ttsg import TTSGModel
-from utils.models.ttsc import TTSCModel
 from utils.vts import VTS
 from utils.twitch import TwitchContextMonitor
 from utils.time import get_current_time
-from utils.logging import create_sys_logger
+from utils.logging import create_sys_logger, save_dialogue, save_response
 from utils.observer import ObserverServer
+from utils.components.component_manager import ComponentManager
+from utils.prompter import Prompter
+from utils.filter import ResponseFilter
 
 logger = create_sys_logger(use_stdout=True)
 
 class JAIson():
-    # J.A.I.son configuration
-    config = Configuration()
+    def __init__(self):
+        # J.A.I.son configuration
+        self.config = Configuration()
 
-    # VTube Studio integrations
-    vts = None
+        # VTube Studio integrations
+        self.vts = None
 
-    # Twitch integrations
-    twitch = None
+        # Twitch integrations
+        self.twitch = None
 
-    # Models
-    stt = None
-    t2t = None
-    ttsg = None
-    ttsc = None
+        # Models
+        self.comp_manager = None
+        self.DEFAULT_RESPONSE_MSG = 'There is a problem with my AI...'
 
-    def __init__(self, init_config_file: str = None):
+    def setup(self, init_config_file: str = None):
+        logger.debug("Setting J.A.I.son application layer...")
+        
+        logger.debug(f"Loading config {init_config_file}...")
         # Setup config
         if init_config_file:
             self.load_config(init_config_file)
@@ -51,27 +53,37 @@ class JAIson():
         # List of events:
         #   response_generated: Triggered when a new response if fully finished creation ({"response":text_result})
         #   request_stop_response: Triggered when a request to stop the response is made
+        logger.debug("Booting event broadcasting server...")
         self.broadcast_server = ObserverServer()
-    
-        # Initialize vts plugins
-        self.vts = VTS(self.config)
-
-        # Initialize twitch plugins
-        self.twitch = TwitchContextMonitor(self)
 
         # Initialize core models
-        self.stt = STTModel(self.config)
-        self.t2t = T2TModel(self)
-        self.ttsg = TTSGModel(self.config)
-        self.ttsc = TTSCModel(self.config)
+        logger.debug("Initializing core components...")
+        self.comp_manager = ComponentManager("E:\\projects\\jaison-core\\configs\\test.yaml") # debug
+        self.comp_manager.load_components([
+            "stt-openai-whisper-lcc",
+            "t2t-openai-api-lcc",
+            "ttsc-rvc-project-lcc",
+            "ttsg-openai-api-lcc"
+        ],reload=True)
 
         # Frontend components will have one-way reference
         # Frontend components have own threads
 
+        # Initialize vts plugins
+        logger.debug("Booting VTube Studio plugins...")
+        self.vts = VTS(self.config)
+        # Initialize twitch plugins
+        logger.debug("Connecting to twitch...")
+        self.twitch = TwitchContextMonitor(self)
+        
+        self.prompter = Prompter(self)
+        self.filter = ResponseFilter()
+
         logger.info("J.A.I.son Main Applications successfully initialized!")
 
     def cleanup(self):
-        raise NotImplementedError
+        if self.comp_manager:
+            self.comp_manager.cleanup()
 
     ## CONFIG #####################
 
@@ -116,7 +128,7 @@ class JAIson():
     - (str) Text response
     - (str) Filepath to audio version of text response
     '''
-    def get_response_from_text(
+    async def get_response_from_text(
         self, 
         name: str,
         message: str, 
@@ -134,20 +146,71 @@ class JAIson():
 
         # Main response pipeline
         try:
-            text_result = self.t2t(time, name, message)
-            if text_result is None: # Skip audio if silent
+            self.prompter.add_history(time, name, message)
+
+            try:
+                sys_prompt = self.prompter.get_sys_prompt()
+                user_prompt = self.prompter.get_user_prompt()
+
+                response_stream = self.comp_manager.use("t2t", {"system_input": sys_prompt, "user_input": user_prompt})
+                text_response = ""
+                for run_id, chunk in response_stream:
+                    text_response += chunk
+                text_response = text_response if text_response != self.prompter.NO_RESPONSE else None
+            except Exception as err:
+                logger.error(f"Failed to get response: {err}")
+                logger.error(traceback.format_exc())
+                text_response = self.DEFAULT_RESPONSE_MSG
+
+            if text_response:
+                try:
+                    text_response = self.filter(text_response) # Apply filtering
+                    self.prompter.add_history(
+                        get_current_time(),
+                        self.prompter.SELF_IDENTIFIER,
+                        text_response
+                    )
+                    uncommited_messages = self.prompter.get_uncommited_history()
+                    async for msg_o in uncommited_messages:
+                        save_dialogue(self.prompter.convert_msg_o_to_line(msg_o))
+                    self.prompter.commit_history()
+                    save_response(sys_prompt, user_prompt, text_response)
+                except Exception as err:
+                    logger.error(f"Failed to save conversation: {err}")
+                    logger.error(traceback.format_exc())
+                    text_response = self.DEFAULT_RESPONSE_MSG
+            else:
+                try:
+                    self.prompter.rollback_history()
+                except Exception as err:
+                    logger.error(f"Failed to rollback conversation: {err}")
+                    logger.error(traceback.format_exc())
+                    text_response = self.DEFAULT_RESPONSE_MSG
+
+            if text_response is None: # Skip audio if silent
                 return None, None
 
-            if include_audio and self.ttsg(text_result) and self.ttsc():
+            
+
+            if include_audio :
+                ttsg_stream = self.comp_manager.use("ttsg",{"content":text_response})
+                tts_raw = b''
+                async for run_id, chunk in ttsg_stream:
+                    tts_raw += chunk
+                ttsc_stream = self.comp_manager.use("ttsc",{"audio":tts_raw})
+                tts_audio = b''
+                async for run_id, chunk in ttsc_stream:
+                    tts_audio += chunk
+                wavfile.write(self.config.RESULT_TTSC, 48000, tts_audio)
                 audio_result =  self.config.RESULT_TTSC
         except Exception as err:
-            logger.error(f"Failed to get responses: {err}")
+            logger.error(f"Failed to get responses", exc_info=True)
             return None, None
 
         # VTS on results
         try:
             if include_animation:
-                self.vts.play_hotkey_using_message(text_result)
+                self.vts.play_hotkey_using_message(text_response)
         except Exception as err:
             logger.error(f"Failed to play animation: {err}")
 
@@ -172,7 +235,7 @@ class JAIson():
     - (str) Text response
     - (str) Filepath to audio version of text response
     '''
-    def get_response_from_audio(
+    async def get_response_from_audio(
         self,
         name: str,
         filepath: str,
@@ -185,12 +248,18 @@ class JAIson():
 
         logger.debug("Generating response from audio...")
         try:
-            stt_result = self.stt(filepath)
+            with wave.open(filepath) as f:
+                audio = f.readframes(1000000)
+            stt_streamer = self.comp_manager.use("stt",{"audio":audio})
+            stt_result = ""
+            async for run_id, chunk in stt_streamer:
+                stt_result += chunk
         except Exception as err:
             logger.error(f"Failed to get response from audio: {err}")
+            logger.error(traceback.format_exc())
             return None, None
 
-        return self.get_response_from_text(
+        return await self.get_response_from_text(
             name, 
             stt_result, 
             time=time, 

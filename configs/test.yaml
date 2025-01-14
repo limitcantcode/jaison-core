@@ -1,0 +1,6 @@
+components:
+  # Must set one of 'directory' or 'endpoint'
+  - directory: "E:\\projects\\components\\stt-openai-whisper-lcc-comp"
+  - directory: "E:\\projects\\components\\t2t-openai-lcc-comp"
+  - directory: "E:\\projects\\components\\ttsc-rvc-proj-lcc-comp"
+  - directory: "E:\\projects\\components\\ttsg-openai-lcc-comp"

@@ -1,4 +1,7 @@
 # J.A.I.son
+
+** THIS VERSION IS UNDER HEAVY REVISION AND WILL NOT WORK. PLEASE WAIT FOR OFFICIAL RELEASE **
+
 [Setup](#setup) | [Linking Twitch](#linking-twitch) | [Customizing responses](#customizing-t2t) | [Customizing voice](#customizing-voice) | [Configuration](#configuration) | [Running bot](#running-bot)
 
 ## Setup

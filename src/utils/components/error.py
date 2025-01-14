@@ -10,7 +10,8 @@ class MissingComponentConfig(Exception):
 class InvalidComponentConfig(Exception):
     pass
 
-class InvalidComponentListing(Exception)
+class InvalidComponentListing(Exception):
+    pass
 
 class UnknownOS(Exception):
     pass

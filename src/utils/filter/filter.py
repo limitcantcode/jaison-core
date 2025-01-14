@@ -14,7 +14,7 @@ class ResponseFilter():
 
     def get_response_type(self, response):
         # Run the model on your input
-        inputs = self.tokenizer("response", return_tensors="pt")
+        inputs = self.tokenizer(response, return_tensors="pt")
         outputs = self.model(**inputs)
 
         # Get the predicted logits

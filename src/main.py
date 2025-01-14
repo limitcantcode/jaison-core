@@ -9,8 +9,9 @@ from utils.signal import GracefulKiller
 from webui import start_ui
 from threading import Thread
 
-jaison_main = JAIson(init_config_file=args.config)
+jaison_main = JAIson()
 kill_handler = GracefulKiller(jaison_main)
+jaison_main.setup(init_config_file=args.config)
 
 # For Discord Bot
 discord_bot = DiscordBot(jaison_main)

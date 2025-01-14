@@ -9,3 +9,5 @@ COMPONENT_COLLECTION = {
     "ttsg": TTSGWorker,
     "ttsc": TTSCWorker
 }
+
+COMPONENT_TYPES = list(COMPONENT_COLLECTION.keys())

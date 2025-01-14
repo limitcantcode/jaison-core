@@ -5,10 +5,8 @@ from utils.logging import create_sys_logger
 
 class BaseComponentWorker():
     def __init__(self, details: ComponentDetails):
-        STREAM_END = grpc.aio.EOF
-        
         if not details.endpoint:
-            raise InvalidComponentConfig(f"Endpoint no (auto) set before creating component worker.")
+            raise InvalidComponentConfig(f"Endpoint not (auto) set before creating component worker.")
         self.logger = create_sys_logger()
         self.details = details
         self.channel = grpc.aio.insecure_channel(details.endpoint)
@@ -16,11 +14,11 @@ class BaseComponentWorker():
 
     async def __call__(self, run_id: str, payload: dict):
         stream = self.create_stream(run_id, payload)
-        while True:
-            response = await stream.read()
-            if response == self.STREAM_END:
-                break
-            yield response.run_id, self.extract_chunk(response)
+        async for response in stream:
+            run_id, response_chunk = response.run_id, self.extract_chunk(response)
+            self.logger(f"Component worker {self.details.id} returned for {run_id} with result: {response_chunk}")
+            yield run_id, response_chunk
+        self.logger.debug(f"Component worker {self.details.id} finished streaming.")
     
     def close(self):
         self.channel.close()

@@ -18,8 +18,9 @@ class ComponentManager():
         self.reload_config(component_config)
 
     def reload_config(self, filepath: str):
+        self.logger.debug(f"Loading component configuration: {filepath}")
         if not (filepath.endswith('.yaml') and os.path.isfile(filepath)):
-            raise MissingComponentConfig
+            raise MissingComponentConfig(f"Component config {filepath} does not exist.")
         
         with open(filepath) as f:
             try:
@@ -27,6 +28,7 @@ class ComponentManager():
                 if 'components' not in yaml_dict:
                     raise InvalidComponentListing("Component listing is missing. Please add 'components'.")
                 components = yaml_dict['components']
+                self.logger.debug(f"Loaded components config: {components}")
             except Exception as err:
                 self.logger.error(f"Could not parse config: {filepath}")
                 self.logger.error(err)
@@ -36,28 +38,30 @@ class ComponentManager():
                 try:
                     metadata = None
                     if 'directory' in listing:
-                        with open(listing['directory'], 'r') as f:
-                            metadata = yaml.safe_load()
+                        with open(os.path.join(listing['directory'],'metadata.yaml'), 'r') as f:
+                            listing['endpoint'] = None
+                            metadata = yaml.safe_load(f)
                         if self.os_type=='nt' and not metadata['is_windows_compatible']:
                             self.logger.warning("Component {} in {} is not compatible with Windows. Skipping...".format(metadata['id'],listing['directory']))
                         elif self.os_type=='posix' and not metadata['is_unix_compatible']:
                             self.logger.warning("Component {} in {} is not compatible with Unix. Skipping...".format(metadata['id'],listing['directory']))
                     elif 'endpoint' in listing:
+                        listing['directory'] = None
                         with grpc.aio.insecure_channel(listing.endpoint) as channel:
                             stub = MetadataInformerStub(channel)
                             metadata = stub.metadata()
                     else:
                         raise InvalidComponentListing(f"Following component listing missing on of 'directory' or 'endpoint': {listing}")
 
-
+                    self.logger.debug(f"For component listing {listing}, got metadata: {metadata}")
                     if metadata['type'] not in self.available_components:
                         self.available_components[metadata['type']] = []
                     self.available_components[metadata['type']].append(
                         ComponentDetails(
                             metadata['type'],
-                            listing['id'],
+                            metadata['id'],
                             metadata['name'],
-                            metadata['directory'],
+                            listing['directory'],
                             metadata['windows_run_script'],
                             metadata['unix_run_script'],
                             metadata['is_windows_compatible'],
@@ -65,6 +69,7 @@ class ComponentManager():
                             endpoint=listing['endpoint']
                         )
                     )
+                    self.logger.info(f"Loaded component configuration: {filepath}")
                 except Exception as err:
                     self.logger.error(f"Failed to add a component.")
                     self.logger.error(err)
@@ -80,6 +85,7 @@ class ComponentManager():
         Errors:
             UnknownComponent: When no available component with that ID exists
         '''
+        self.logger.debug(f"Loading component(s) with ID(s): {components}")
         component_ids = components
         if type(component_ids) == str:
             component_ids = [components]
@@ -90,6 +96,7 @@ class ComponentManager():
                 is_skippable = False
                 for comp_type in self.loaded_components:
                     if self.loaded_components[comp_type].details.id == comp_id:
+                        self.logger.info(f"Component {components} already loaded. Skipping...")
                         is_skippable = True
                         break
                 if is_skippable: continue
@@ -99,11 +106,16 @@ class ComponentManager():
             for comp_type in self.available_components:
                 for details in self.available_components[comp_type]:
                     if details.id == comp_id:
+                        self.logger.debug(f"Found component details: {details}.")
                         try:
+                            self.logger.debug(f"Unloading previous component...")
                             self.unload_components(comp_type)
+                            self.logger.debug(f"Unloaded previous component...")
                         except:
-                            pass
+                            self.logger.debug(f"No component to unload.")
+                        self.logger.debug(f"Starting new component {comp_id}...")
                         self.loaded_components[comp_type] = self._start_component(details)
+                        self.logger.debug(f"Started new component {comp_id}.")
                         is_done = True
                         break
                 if is_done: break
@@ -111,6 +123,8 @@ class ComponentManager():
 
             # No detail object with matching component ID found
             raise UnknownComponent(f"Component of id '{comp_id}' not found")
+        
+        self.logger.debug(f"Finished loading all components.")
         
     def unload_components(self, components: Union[str, list[str]]):
         '''
@@ -125,20 +139,26 @@ class ComponentManager():
         if type(comp_list) is str:
             comp_list = [components]
         for comp_type in comp_list:
+            self.logger.debug(f"Unloading component of type: {comp_type}...")
             if comp_type not in self.loaded_components:
                 raise UnloadedComponentError(f"No loaded components of type '{comp_type}'")
             self.loaded_components[comp_type].close()
             del self.loaded_components[comp_type]
+            self.logger.debug(f"Unloaded component of type: {comp_type}...")
 
     def cleanup(self):
-        self.unload_components(list(self.load_components.keys()))
+        self.unload_components(list(self.loaded_components.keys()))
         
-    def use(self, comp_type: str, payload):
+    async def use(self, comp_type: str, payload, run_id: str = "example_run_id"):
         if comp_type not in self.loaded_components:
             raise UnloadedComponentError(f"No loaded components of type '{comp_type}'")
         
-        for result in self.loaded_components[comp_type](payload):
-            yield result
+        self.logger.debug(f"Streaming from {comp_type} component...")
+        async for run_id, result in self.loaded_components[comp_type](run_id, payload):
+            yield run_id, result
 
     def _start_component(self, comp_details: ComponentDetails):
-        self.loaded_components[comp_details.comp_type] = Component(comp_details)
+        self.logger.debug(f"Starting new component with details: {comp_details}")
+        new_component = Component(comp_details)
+        self.logger.debug(f"Started new component with details: {comp_details}")
+        return new_component

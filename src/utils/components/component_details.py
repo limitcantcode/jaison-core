@@ -1,8 +1,5 @@
 import os
 from .error import InvalidComponentConfig
-from .component_workers import COMPONENT_COLLECTION
-
-COMPONENT_TYPES = list(COMPONENT_COLLECTION.keys())
 
 class ComponentDetails():
     '''
@@ -22,7 +19,7 @@ class ComponentDetails():
 
     def __init__(
         self,
-        comp_type: int,
+        comp_type: str,
         id: str,
         name: str,
         directory: str = None,
@@ -40,6 +37,7 @@ class ComponentDetails():
         self.run_script = windows_run_script if os.name=='nt' else unix_run_script
         self.is_windows_compatible = is_windows_compatible 
         self.is_unix_compatible = is_unix_compatible
+        self.endpoint = None
         if endpoint:
             self.update_endpoint(endpoint)
 

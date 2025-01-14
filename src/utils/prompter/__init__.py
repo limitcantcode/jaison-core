@@ -2,9 +2,9 @@ from .contexts import ContextBuilder
 from .instructions import InstructionBuilder
 
 class Prompter():
-    def __init__(self, config):
-        self.contexts = ContextBuilder(config)
-        self.instructions = InstructionBuilder(config)
+    def __init__(self, jaison):
+        self.contexts = ContextBuilder(jaison)
+        self.instructions = InstructionBuilder(jaison)
 
         # Pass up constants to be shared
         self.NO_RESPONSE = self.contexts.NO_RESPONSE

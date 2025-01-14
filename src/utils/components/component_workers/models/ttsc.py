@@ -7,7 +7,7 @@ class TTSCWorker(BaseComponentWorker):
         self.stub = TTSCComponentStreamerStub(self.channel)
 
     def create_stream(self, run_id, payload):
-        return self.stub.invoke(TTSCComponentRequest(run_id=run_id, content=payload['content']))
+        return self.stub.invoke(TTSCComponentRequest(run_id=run_id, audio=payload['audio']))
     
     def extract_chunk(self, chunk: TTSCComponentResponse):
         return chunk.audio_chunk
