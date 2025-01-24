@@ -1,16 +1,8 @@
 discord.py==2.4.0
 discord-ext-voice-recv==0.4.2a145
-openai==1.37.1
+openai==1.59.6
 python-dotenv==1.0.1
 numpy<2
-tiktoken==0.7.0
-torch==2.4.1 --index-url https://download.pytorch.org/whl/cu124
-torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cu124
-torchaudio==2.4.1 --index-url https://download.pytorch.org/whl/cu124
-bitsandbytes==0.43.3
-xformers==0.0.28
-trl==0.11.0
-peft==0.12.0
 pyttsx3==2.98.0
 gradio==3.34.0
 apscheduler==3.10.4
@@ -21,7 +13,3 @@ Flask==3.1.0
 flask-socketio==5.4.1
 flask-cors==5.0.0
 requests==2.32.3
-
-
-# YOU WILL NEED TO FOLLOW INSTRUCTIONS IN README FOR WINDOWS INSTALL
-unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git

@@ -119,7 +119,8 @@ class JAIson():
         message: str, 
         time: str = None, 
         include_audio: bool = False,
-        include_animation: bool = False
+        include_animation: bool = False,
+        include_broadcast: bool = True
     ) -> tuple[str, str]:
         logger.debug("Generating response from text...")
         self.response_cancelled = False
@@ -138,7 +139,7 @@ class JAIson():
                 audio_result =  self.config.RESULT_TTSC
         except Exception as err:
             logger.error(f"Failed to get responses: {err}")
-            return
+            return None, None
 
         # VTS on results
         try:
@@ -149,7 +150,8 @@ class JAIson():
 
         end_time = get_current_time(as_str=False)
         logger.debug(f"Finished generating response from text in time: {str(end_time-start_time)}...")
-        self.broadcast_server.broadcast_event("response_generated", payload={"response":text_result})
+        if include_broadcast:
+            self.broadcast_server.broadcast_event("response_generated", payload={"response":text_result})
         return text_result, audio_result
 
     '''

@@ -19,6 +19,6 @@ class ObserverServer():
                 self.ongoing.discard(task)
 
         for client in self.clients:
-            task = Thread(target=client.handle_event, args=[event_id, payload])
+            task = Thread(target=client.handle_event, args=[event_id, payload], daemon=True)
             self.ongoing.add(task)
             task.start()

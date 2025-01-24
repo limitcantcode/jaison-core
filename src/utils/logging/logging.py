@@ -9,7 +9,10 @@ from utils.args import args
 SUBFOLDER_SYS = 'sys'
 SUBFOLDER_DIALOG = 'dialog'
 SUBFOLDER_RESPONSE = 'response'
-START_TIME = get_current_time(include_ms=False)
+START_TIME = get_current_time(include_ms=False,as_str=False)
+
+def get_time_filename(time):
+    return time.strftime("%Y-%m-%d")
 
 ## FOR SYSTEM LOGGING ###########################
 
@@ -41,7 +44,7 @@ class CustomFormatter(logging.Formatter):
 
 def create_file_handler(id = 'main'):
     file_formatter = logging.Formatter("[%(asctime)s] [%(levelname)-5.5s] [%(filename)s::%(lineno)d %(funcName)s]: %(message)s")
-    file_handler = logging.FileHandler(os.path.join(args.log_dir, SUBFOLDER_SYS, f"{START_TIME}_sys_{id}.log"))
+    file_handler = logging.FileHandler(os.path.join(args.log_dir, SUBFOLDER_SYS, f"{get_time_filename(START_TIME)}_sys_{id}.log"))
     file_handler.setFormatter(file_formatter)
     return file_handler
     
@@ -67,7 +70,7 @@ def create_sys_logger(id = 'main', use_stdout = False):
 
 ## FOR DIALOG LOGGING ################
 dialog_formatter = logging.Formatter("[%(asctime)s] %(message)s")
-dialog_file_handler = logging.FileHandler(os.path.join(args.log_dir, SUBFOLDER_DIALOG, f"{START_TIME}_dialog.log"))
+dialog_file_handler = logging.FileHandler(os.path.join(args.log_dir, SUBFOLDER_DIALOG, f"{get_time_filename(START_TIME)}_dialog.log"))
 dialog_file_handler.setFormatter(dialog_formatter)
 
 dialog_logger = logging.getLogger('dialog')
@@ -79,7 +82,7 @@ def save_dialogue(line: str):
 
 ## FOR RESPONSE OBJECT LOGGING ###################
 response_formatter = logging.Formatter("%(message)s")
-response_file_handler = logging.FileHandler(os.path.join(args.log_dir, SUBFOLDER_RESPONSE, f"{START_TIME}_response.log"))
+response_file_handler = logging.FileHandler(os.path.join(args.log_dir, SUBFOLDER_RESPONSE, f"{get_time_filename(START_TIME)}_response.log"))
 response_file_handler.setFormatter(response_formatter)
 
 response_logger = logging.getLogger('response')

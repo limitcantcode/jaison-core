@@ -2,21 +2,27 @@
 [Setup](#setup) | [Linking Twitch](#linking-twitch) | [Customizing responses](#customizing-t2t) | [Customizing voice](#customizing-voice) | [Configuration](#configuration) | [Running bot](#running-bot)
 
 ## Setup
-This was made with Python v3.10.12. It was ran in WSL2 Ubuntu, running an Intel CPU with an RTX 4070 with the latest drivers installed.
+This was made with Python v3.12.18. It was ran in WSL2 Ubuntu and Windows, running an Intel CPU with an RTX 4070 with the latest drivers installed. This is unlikely to be runnable for non-Nvidia systems without stripping code in its current state.
 
-**TO AVOID DEPENDENCY ISSUES FOR LOCAL MODELS, IT IS HIGHLY ADVISED YOU ALSO USED A LINUX BASED ENVIRONMENT**
+**TO AVOID DEPENDENCY ISSUES, IT IS HIGHLY ADVISED TO USE CONDA FOR YOUR VIRTUAL ENVIRONMENT**
 
 ### Step 1: Before starting
-It is recommended you have a system that can run [CUDA](https://developer.nvidia.com/cuda-toolkit) on you machine and have it installed (this should come with [NVidia drivers](https://www.nvidia.com/en-us/drivers/) by default). Without it, you will have to use OpenAI implementations (no guaruntees this project will still work as other components may require CUDA still) and this project will run significantly slower.
+
+1. Install [CUDA](https://developer.nvidia.com/cuda-toolkit)
+2. Install ffmpeg
+    1. Either follow [this guide](https://www.hostinger.com/tutorials/how-to-install-ffmpeg)
+    2. Or for Linux: `sudo apt install ffmpeg`
+    3. Or for Windows: Install [ffmpeg](https://huggingface.co/lj1995/VoiceConversionWebUI/blob/main/ffmpeg.exe) and [ffmprobe](https://huggingface.co/lj1995/VoiceConversionWebUI/blob/main/ffprobe.exe), put files in project root
+3. Install [conda](https://docs.conda.io/projects/conda/en/stable/user-guide/install/index.html) for managing virtual environment (Miniconda is recommended)
 
 ### Step 2: Setting up voice
-In this project, TTS is done by first generating speech then applying an AI voice-changer. Generating speech is done ine 1 of 2 ways: old-school speech synthesis and AI voice generation. 
+In this project, TTS is done by first generating speech then applying an AI voice-changer. Generating speech is done in 1 of 2 ways: old-school speech synthesis and AI voice generation. 
 
-For old-school speech synthesis, the nature of speech synthesizers differ by OS. In Windows, this is built-in with [SAPI5](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ms723627(v=vs.85)), so no additional setup is required for this. In Linux, you will need to install [eSpeak NG](https://github.com/espeak-ng/espeak-ng/blob/master/docs/guide.md).
+Old-school speech synthesis uses [SAPI5](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ms723627(v=vs.85)) for Windows (no additional setup is required) and [eSpeak NG](https://github.com/espeak-ng/espeak-ng/blob/master/docs/guide.md) for Linux (you will need to install and set that up).
 
 For AI TTS, this project makes use of OpenAI's API. This project currently does not have an option for locally ran AI TTS options, however you may add them by implementing the TTS generation classes.
 
-Lastly, for the AI voice-changer, **YOU WILL NEED THE [RVC-PROJECT](https://github.com/limitcantcode/Retrieval-based-Voice-Conversion-WebUI)**. Please refer to ["Customizing voice"](#customizing-voice) for more details.
+Lastly, for the AI voice-changer, **YOU WILL NEED THE [RVC-PROJECT](https://github.com/limitcantcode/Retrieval-based-Voice-Conversion-WebUI)**. Follow the setup instructions there for your system ([english instructions](https://github.com/limitcantcode/Retrieval-based-Voice-Conversion-WebUI/blob/main/docs/en/README.en.md)) Please refer to ["Customizing voice"](#customizing-voice) for more details.
 
 ### Step 3: Setting up the VTuber
 This project makes use of [VTube Studio](https://denchisoft.com/) to render the VTuber model. After [customizing your VTube model](#customizing-vtuber),you will need to go to `General Settings & External Connections` in settings. First enable the plugins API:
@@ -50,23 +56,37 @@ The first time you run this project, you will need to authenticate some plugins 
 These were just the minimal setup instructions to connect the program to your VTube model and sync mouth movement to speaking, however there is still more to do to setup animations and general VTuber movement/expressions. Refer to [Customizing Vtuber](#customizing-vtuber) and [Configuration](#configuration)
 
 ### Step 4: Setting up this project
-It is recommended to work from within a virtual python environment. Create one using `python3 -m venv venv` or `python -m venv venv`.
-Activate this virtual environment.
+It is recommended to work from within a conda virtual environment. Assuming you are using conda:
+
+Create and activate environment
 ```bash
-# Windows:
-./venv/Scripts/activate
-# Linux:
-source venv/bin/activate
+conda create -n jaison-core python=3.12 ffmpeg cudatoolkit -c nvidia -y
+conda activate jaison-core
 ```
 
-Install the required dependencies.
+Install dependencies in this order
+
+1. Install pytorch specific to your system.
+- You can see your CUDA version by typing `nvidia-smi` in a terminal.
+Should look like the following (for CUDA 12.4)
 ```bash
-pip install -r requirements.txt
+conda install pytorch torchvision torchaudio pytorch-cuda=12.4 -c pytorch -c nvidia
 ```
 
-**IF YOU INSIST ON USING WINDOWS WITH A LOCAL AI,** you will likely need to manually install dependencies for Unsloth. Steps to do so casn be found in [this discussion](https://github.com/unslothai/unsloth/issues/210#issuecomment-1977988036) (the `Home.md` contains the exact instructions at the bottom. I could not get it to work for my hardware, but it may for yours).
+2. Install Unsloth (unfortunely a requirement right now with how I coded things)
+```bash
+pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
+pip install --no-deps trl peft accelerate bitsandbytes
+```
 
-Create a `.env` file at the root of this project based on `.env-template`.
+3. Install [xFormers](https://github.com/facebookresearch/xformers?tab=readme-ov-file#installing-xformers) specific to your system.
+
+4. Install remainder of dependencies
+```bash
+pip install -r -U requirements.txt
+```
+
+5. Create a `.env` file at the root of this project based on `.env-template`.
 You can find you OpenAI API token [here](https://platform.openai.com/api-keys) as shown below:
 
 <img src="./assets/openai_1.png" alt="openai api token location 1" height="200"/>
@@ -172,7 +192,7 @@ If you want to change the configurations outside of the web UI, you can find all
 
 ## Running bot
 ### Step 1: Ensure dependency apps are running
-1. Run the RVC-Project (In the same way you [ran the web-UI to train](#customizing-voice), run the web-UI to start the voice-conversion server using `python ./infer-web.py`)
+1. In a separate terminal, run the RVC-Project (In the same way you [ran the web-UI to train](#customizing-voice), run the web-UI to start the voice-conversion server using `python ./infer-web.py` with the right virtual environment activated)
 2. Run VTube Studio with the [Plugin API enabled](#step-3-setting-up-the-vtuber)
 
 ### Step 2: Getting the right configuration

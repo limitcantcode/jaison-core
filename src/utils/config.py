@@ -8,18 +8,18 @@ logger = create_sys_logger()
 
 class Configuration():
     # DONT SAVE
-    RESULT_TTSG = os.path.join(os.getcwd(),"output/audio/tts_raw.wav")
-    RESULT_TTSC = os.path.join(os.getcwd(),"output/audio/tts.wav")
-    RESULT_INPUT_SPEECH = os.path.join(os.getcwd(),"output/audio/recorded_speech.wav")
-    CONFIG_DIR = os.path.join(os.getcwd(),"configs/components")
+    RESULT_TTSG = os.path.join(os.getcwd(),"output","audio","tts_raw.wav")
+    RESULT_TTSC = os.path.join(os.getcwd(),"output","audio","tts.wav")
+    RESULT_INPUT_SPEECH = os.path.join(os.getcwd(),"output","audio","recorded_speech.wav")
+    CONFIG_DIR = os.path.join(os.getcwd(),"configs","components")
     CURRENT_CONFIG_FILENAME = None
 
     # T2T
     t2t_default_prompt_file: str = "example.txt"
     t2t_current_prompt_file: str = None # DONT SAVE: session specific
-    t2t_prompt_dir: str = os.path.join(os.getcwd(),"prompts/production") # DONT SAVE: constant
+    t2t_prompt_dir: str = os.path.join(os.getcwd(),"prompts","production") # DONT SAVE: constant
     t2t_prompt_params: dict = {}
-    t2t_name_translation_dir: str = os.path.join(os.getcwd(),"configs/names") # DONT SAVE: constant
+    t2t_name_translation_dir: str = os.path.join(os.getcwd(),"configs","names") # DONT SAVE: constant
     t2t_name_translation_file: str = None
     t2t_convo_retention_length: int = 40
     t2t_enable_context_script : bool = True
@@ -46,7 +46,7 @@ class Configuration():
 
     # VTube Studio
     vts_url: str = "ws://localhost:8001"
-    vts_hotkey_config_dir: str = os.path.join(os.getcwd(),"configs/hotkeys")
+    vts_hotkey_config_dir: str = os.path.join(os.getcwd(),"configs","hotkeys")
     vts_hotkey_config_file: str = "example.json"
 
     # Twitch
