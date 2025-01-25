@@ -68,7 +68,7 @@ class VTSHotkeyPlugin():
         logger.info("VTS Hotkey Plugins successfully initialized!")
 
     # Setup and authenticate websocket to talk to VTube Studio instance API
-    def _setup_ws(self, token_file: str, plugin_info: dict):
+    def _setup_ws(self, token_filename: str, plugin_info: dict):
         try:
             # Connect to VTS API
             logger.debug(f"Setting up websocket {plugin_info} on {self.config.vts_url}")
@@ -76,9 +76,9 @@ class VTSHotkeyPlugin():
 
             # Authenticate this Plugin
             auth_token = None
-            if os.path.isfile(token_file): # Get token from file if gotten and saved previously
-                logger.debug(f"Found token file {token_file}. Authenticating using cached token...")
-                token_file = open(token_file, 'r')
+            if os.path.isfile(token_filename): # Get token from file if gotten and saved previously
+                logger.debug(f"Found token file {token_filename}. Authenticating using cached token...")
+                token_file = open(token_filename, 'r')
                 auth_token = token_file.read()
                 token_file.close()
                 request = {
@@ -109,9 +109,9 @@ class VTSHotkeyPlugin():
             ws.send(json.dumps(request))
             response = json.loads(ws.recv())
             if 'authenticationToken' in response['data']: # Save to file
-                logger.debug(f"Saving new token to {token_file}")
+                logger.debug(f"Saving new token to {token_filename}")
                 auth_token = response['data']['authenticationToken']
-                token_file = open(token_file, 'w')
+                token_file = open(token_filename, 'w')
                 token_file.write(auth_token)
                 token_file.close()
             else:

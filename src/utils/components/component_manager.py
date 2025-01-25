@@ -1,8 +1,11 @@
 import os
 import yaml
 import grpc
+import asyncio
 from typing import Union
 from jaison_grpc.client import MetadataInformerStub
+from jaison_grpc.common import Metadata
+from google.protobuf import empty_pb2 as google_dot_protobuf_dot_empty__pb2
 from .error import UnknownComponent, UnloadedComponentError, MissingComponentConfig, InvalidComponentConfig, InvalidComponentListing
 from .component import Component
 from .component_details import ComponentDetails
@@ -15,9 +18,9 @@ class ComponentManager():
 
     def __init__(self, component_config: str):
         self.os_type = os.name
-        self.reload_config(component_config)
+        asyncio.run(self.reload_config(component_config))
 
-    def reload_config(self, filepath: str):
+    async def reload_config(self, filepath: str):
         self.logger.debug(f"Loading component configuration: {filepath}")
         if not (filepath.endswith('.yaml') and os.path.isfile(filepath)):
             raise MissingComponentConfig(f"Component config {filepath} does not exist.")
@@ -27,7 +30,7 @@ class ComponentManager():
                 yaml_dict = yaml.safe_load(f)
                 if 'components' not in yaml_dict:
                     raise InvalidComponentListing("Component listing is missing. Please add 'components'.")
-                components = yaml_dict['components']
+                components = yaml_dict['components'] or []
                 self.logger.debug(f"Loaded components config: {components}")
             except Exception as err:
                 self.logger.error(f"Could not parse config: {filepath}")
@@ -47,32 +50,32 @@ class ComponentManager():
                             self.logger.warning("Component {} in {} is not compatible with Unix. Skipping...".format(metadata['id'],listing['directory']))
                     elif 'endpoint' in listing:
                         listing['directory'] = None
-                        with grpc.aio.insecure_channel(listing.endpoint) as channel:
-                            stub = MetadataInformerStub(channel)
-                            metadata = stub.metadata()
+                        channel = grpc.aio.insecure_channel(listing['endpoint'])
+                        stub = MetadataInformerStub(channel)
+                        metadata = await stub.metadata(google_dot_protobuf_dot_empty__pb2.Empty())
+                        await channel.close()
                     else:
                         raise InvalidComponentListing(f"Following component listing missing on of 'directory' or 'endpoint': {listing}")
 
                     self.logger.debug(f"For component listing {listing}, got metadata: {metadata}")
-                    if metadata['type'] not in self.available_components:
-                        self.available_components[metadata['type']] = []
-                    self.available_components[metadata['type']].append(
+                    if metadata.type not in self.available_components:
+                        self.available_components[metadata.type] = []
+                    self.available_components[metadata.type].append(
                         ComponentDetails(
-                            metadata['type'],
-                            metadata['id'],
-                            metadata['name'],
+                            metadata.type,
+                            metadata.id,
+                            metadata.name,
                             listing['directory'],
-                            metadata['windows_run_script'],
-                            metadata['unix_run_script'],
-                            metadata['is_windows_compatible'],
-                            metadata['is_unix_compatible'],
+                            metadata.windows_run_script,
+                            metadata.unix_run_script,
+                            metadata.is_windows_compatible,
+                            metadata.is_unix_compatible,
                             endpoint=listing['endpoint']
                         )
                     )
                     self.logger.info(f"Loaded component configuration: {filepath}")
                 except Exception as err:
-                    self.logger.error(f"Failed to add a component.")
-                    self.logger.error(err)
+                    self.logger.error(f"Failed to add a component.", exc_info=True)
                     self.logger.warning("Skipping...")
 
     def load_components(self, components: Union[str, list[str]], reload: bool = False):
@@ -149,13 +152,12 @@ class ComponentManager():
     def cleanup(self):
         self.unload_components(list(self.loaded_components.keys()))
         
-    async def use(self, comp_type: str, payload, run_id: str = "example_run_id"):
+    def use(self, comp_type: str, input_stream): # payload, run_id: str = "example_run_id"):
         if comp_type not in self.loaded_components:
             raise UnloadedComponentError(f"No loaded components of type '{comp_type}'")
         
         self.logger.debug(f"Streaming from {comp_type} component...")
-        async for run_id, result in self.loaded_components[comp_type](run_id, payload):
-            yield run_id, result
+        return self.loaded_components[comp_type](input_stream)
 
     def _start_component(self, comp_details: ComponentDetails):
         self.logger.debug(f"Starting new component with details: {comp_details}")

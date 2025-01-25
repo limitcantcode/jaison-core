@@ -20,12 +20,12 @@ class Component():
         logger.debug(f"Using component type: {self.details.comp_type}")
         self.worker: BaseComponentWorker = None
         logger.debug(f"Connected component worker to process at endpoint {self.details.endpoint}.")
-        self.worker = COMPONENT_COLLECTION[self.details.comp_type](self.details)
 
-    async def __call__(self, run_id, payload):
+    def __call__(self, input_stream):
+        worker = COMPONENT_COLLECTION[self.details.comp_type](self.details)
+
         logger.debug(f"Streaming from component {self.details.id}")
-        async for run_id, chunk in self.worker(run_id, payload):
-            yield run_id, chunk
+        return worker(input_stream)
             
     def close(self):
         if self.process:

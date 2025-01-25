@@ -8,12 +8,15 @@ from utils.discord import DiscordBot
 from utils.signal import GracefulKiller
 from webui import start_ui
 from threading import Thread
+import asyncio
 
+kill_handler = GracefulKiller()
 jaison_main = JAIson()
-kill_handler = GracefulKiller(jaison_main)
+kill_handler.add_cleanup(jaison_main)
 jaison_main.setup(init_config_file=args.config)
 
 # For Discord Bot
+asyncio.set_event_loop(asyncio.new_event_loop())
 discord_bot = DiscordBot(jaison_main)
 discord_thread = Thread(target=discord_bot.run, args=[os.getenv("DISCORD_BOT_TOKEN")], daemon=True)
 discord_thread.start()

@@ -9,7 +9,6 @@ through this layer.
 
 import json
 import os
-from scipy.io import wavfile
 import wave
 import traceback
 
@@ -71,7 +70,7 @@ class JAIson():
 
         # Initialize vts plugins
         logger.debug("Booting VTube Studio plugins...")
-        self.vts = VTS(self.config)
+        # self.vts = VTS(self.config)
         # Initialize twitch plugins
         logger.debug("Connecting to twitch...")
         self.twitch = TwitchContextMonitor(self)
@@ -146,63 +145,62 @@ class JAIson():
 
         # Main response pipeline
         try:
-            self.prompter.add_history(time, name, message)
-
             try:
+                self.prompter.add_history(time, name, message)
                 sys_prompt = self.prompter.get_sys_prompt()
                 user_prompt = self.prompter.get_user_prompt()
-
-                response_stream = self.comp_manager.use("t2t", {"system_input": sys_prompt, "user_input": user_prompt})
-                text_response = ""
-                for run_id, chunk in response_stream:
-                    text_response += chunk
-                text_response = text_response if text_response != self.prompter.NO_RESPONSE else None
             except Exception as err:
-                logger.error(f"Failed to get response: {err}")
-                logger.error(traceback.format_exc())
-                text_response = self.DEFAULT_RESPONSE_MSG
+                logger.error(f"Failed to generate prompts for T2T", exc_info=True)
+                text_result = self.DEFAULT_RESPONSE_MSG
+            else:
+                text_result = "" # TODO figure out filtering in stream. Until then, generate full response before proceeding (tts will be streamed)
+                async for response_chunk in self.comp_manager.use("t2t", {"system_input": sys_prompt, "user_input": user_prompt}):
+                    text_result += response_chunk['content_chunk']
+                text_result = text_result if text_result != self.prompter.NO_RESPONSE else None
 
-            if text_response:
+            if text_result:
                 try:
-                    text_response = self.filter(text_response) # Apply filtering
+                    text_result = self.filter(text_result) # Apply filtering
                     self.prompter.add_history(
                         get_current_time(),
                         self.prompter.SELF_IDENTIFIER,
-                        text_response
+                        text_result
                     )
                     uncommited_messages = self.prompter.get_uncommited_history()
-                    async for msg_o in uncommited_messages:
+                    for msg_o in uncommited_messages:
                         save_dialogue(self.prompter.convert_msg_o_to_line(msg_o))
                     self.prompter.commit_history()
-                    save_response(sys_prompt, user_prompt, text_response)
+                    save_response(sys_prompt, user_prompt, text_result)
                 except Exception as err:
                     logger.error(f"Failed to save conversation: {err}")
                     logger.error(traceback.format_exc())
-                    text_response = self.DEFAULT_RESPONSE_MSG
+                    text_result = self.DEFAULT_RESPONSE_MSG
             else:
                 try:
                     self.prompter.rollback_history()
                 except Exception as err:
                     logger.error(f"Failed to rollback conversation: {err}")
                     logger.error(traceback.format_exc())
-                    text_response = self.DEFAULT_RESPONSE_MSG
+                    text_result = self.DEFAULT_RESPONSE_MSG
 
-            if text_response is None: # Skip audio if silent
+            if text_result is None: # Skip audio if silent
                 return None, None
 
-            
-
             if include_audio :
-                ttsg_stream = self.comp_manager.use("ttsg",{"content":text_response})
-                tts_raw = b''
-                async for run_id, chunk in ttsg_stream:
-                    tts_raw += chunk
-                ttsc_stream = self.comp_manager.use("ttsc",{"audio":tts_raw})
-                tts_audio = b''
-                async for run_id, chunk in ttsc_stream:
-                    tts_audio += chunk
-                wavfile.write(self.config.RESULT_TTSC, 48000, tts_audio)
-                audio_result =  self.config.RESULT_TTSC
+                tts_audio, sample_rate, sample_width, channels = b'', 48000, 2, 1
+                async for response_chunk in self.comp_manager.use(
+                    "ttsc",
+                    self.comp_manager.use("ttsg",iter([{"content":text_result},]))
+                ):
+                    tts_audio += response_chunk['audio_chunk']
+                    sample_rate, sample_width, channels = response_chunk['sample_rate'], response_chunk['sample_width'], response_chunk['channels']
+                f = wave.open(self.config.RESULT_TTSC, 'wb')
+                f.setnchannels(channels)
+                f.setsampwidth(sample_width)
+                f.setframerate(sample_rate)
+                f.writeframes(tts_audio)
+                f.close()
+                audio_result = self.config.RESULT_TTSC
         except Exception as err:
             logger.error(f"Failed to get responses", exc_info=True)
             return None, None
@@ -210,7 +208,7 @@ class JAIson():
         # VTS on results
         try:
             if include_animation:
-                self.vts.play_hotkey_using_message(text_response)
+                self.vts.play_hotkey_using_message(text_result)
         except Exception as err:
             logger.error(f"Failed to play animation: {err}")
 
@@ -250,13 +248,12 @@ class JAIson():
         try:
             with wave.open(filepath) as f:
                 audio = f.readframes(1000000)
-            stt_streamer = self.comp_manager.use("stt",{"audio":audio})
+                sample_rate, sample_width, channels = f.getframerate(), f.getsampwidth(), f.getnchannels()
             stt_result = ""
-            async for run_id, chunk in stt_streamer:
-                stt_result += chunk
+            async for response_chunk in self.comp_manager.use("stt", iter([{"run_id": "debug", "audio_chunk":audio,"sample_rate": sample_rate, "sample_width": sample_width, "channels": channels},])):
+                stt_result += response_chunk['content_chunk']
         except Exception as err:
-            logger.error(f"Failed to get response from audio: {err}")
-            logger.error(traceback.format_exc())
+            logger.error(f"Failed to get response from audio", exc_info=True)
             return None, None
 
         return await self.get_response_from_text(
