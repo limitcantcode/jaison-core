@@ -11,10 +11,6 @@ from utils.logging import create_sys_logger
 logger = create_sys_logger()
 
 class OpenAIModel(BaseT2TAIModel):
-    def __init__(self, jaison):
-        super().__init__(jaison)
-        self.client = OpenAI()
-
     def get_response(self, sys_prompt, user_prompt):
         messages=[
             { "role": "system", "content": sys_prompt },
@@ -22,7 +18,8 @@ class OpenAIModel(BaseT2TAIModel):
         ]
 
         logger.debug(f"Sending messages: {messages}")
-        chat_completion = self.client.chat.completions.create(
+        client = OpenAI()
+        chat_completion = client.chat.completions.create(
             messages=messages,
             model=self.jaison.config.t2t_model,
         )
