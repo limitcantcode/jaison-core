@@ -18,31 +18,22 @@ logger = create_sys_logger()
 class VoiceChangerAI():
     def __init__(self, config):
         self.config = config
-        self.current_conn = None
         self.current_model = None
-        self.client = None
-
-        self.reload()
-        logger.debug("TTSCModel initialized!")
 
     # Force update with new config changes
     def reload(self):
-        logger.debug("Attempting reload...")
-        if self.current_conn != self.config.ttsc_url:
-            logger.debug("Different service url detected. Updating...")
-            self.current_conn = self.config.ttsc_url
-            self.client = Client(self.config.ttsc_url)
-            logger.debug("Updated")
+        client = Client(self.config.ttsc_url)
         if self.current_model != self.config.ttsc_voice:
             logger.debug("Different voice detected. Updating...")
             self.current_model = self.config.ttsc_voice
-            self.client.predict(
+            client.predict(
                 f"{self.config.ttsc_voice}.pth",
                 0,
                 0,
                 api_name='/infer_change_voice'
             )
             logger.debug("Updated")
+        return client
 
     '''
     Converts voice in input file to the voice trained using the RVC model
@@ -53,11 +44,11 @@ class VoiceChangerAI():
     '''
     def __call__(self):
         logger.debug(f"Got request to convert {self.config.RESULT_TTSG}")
-        self.reload()
+        client = self.reload()
 
         # Convert on local RVC-Project server
         logger.debug("")
-        result = self.client.predict(
+        result = client.predict(
             0, # speaker id
             self.config.RESULT_TTSG, # target wav file
             self.config.ttsc_transpose,

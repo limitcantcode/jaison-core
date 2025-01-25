@@ -1,0 +1,30 @@
+{
+    "t2t_default_prompt_file": "limit_default.txt",
+    "t2t_prompt_params": {
+        "name": "J.A.I.son"
+    },
+    "t2t_name_translation_file": "default.json",
+    "t2t_convo_retention_length": 40,
+    "t2t_enable_context_script": true,
+    "t2t_enable_context_twitch_chat": false,
+    "t2t_enable_context_twitch_events": false,
+    "t2t_enable_context_rag": false,
+    "t2t_enable_context_av": false,
+    "t2t_host": "openai",
+    "t2t_model": "ft:gpt-4o-mini-2024-07-18:lcc:jaison:AMd5Xl28",
+    "ttsg_host": "old",
+    "ttsg_voice": "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_MS_EN-US_ZIRA_11.0",
+    "ttsc_url": "http://localhost:7865",
+    "ttsc_voice": "my-voice-model",
+    "ttsc_transpose": 0,
+    "ttsc_feature_ratio": 0,
+    "ttsc_median_filtering": 7,
+    "ttsc_resampling": 0,
+    "ttsc_volume_envelope": 0,
+    "ttsc_voiceless_protection": 0.5,
+    "vts_url": "ws://localhost:8001",
+    "vts_hotkey_config_file": "default.json",
+    "twitch_broadcaster_id": "85498365",
+    "twitch_user_id": "786978930",
+    "discord_server_id": "1209930020881961090"
+}

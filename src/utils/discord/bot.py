@@ -5,6 +5,8 @@ Discord Bot Main Class to interface with Discord
 import discord
 import datetime
 import asyncio
+import functools
+from typing import Callable, Coroutine
 from .commands import add_commands
 from .commands.sink import BufferSink
 from utils.observer import ObserverClient
@@ -47,6 +49,9 @@ class DiscordBot(discord.Client):
         await asyncio.sleep(3)
         await self.send_message(message.channel,user=user,content=content,gen_message=True)
 
+    def voice_cb(self, sink: BufferSink):
+        asyncio.run(self.send_voice_message(sink))
+
     async def send_message(self, channel: discord.abc.GuildChannel, user: str = None, content: str = None, gen_message: bool = False):
         if gen_message:
             message, _ = self.jaison.get_response_from_text(
@@ -61,7 +66,7 @@ class DiscordBot(discord.Client):
         for response in responses:
             await channel.send(response)
 
-    async def voice_cb(self, sink: BufferSink):
+    async def send_voice_message(self, sink: BufferSink):
         logger.debug("Running Discord bot's voice callback...")
         global stt
         for user in sink.buf:

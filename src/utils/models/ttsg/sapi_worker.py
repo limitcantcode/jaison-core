@@ -10,17 +10,13 @@ from utils.logging import create_sys_logger
 logger = create_sys_logger()
 
 class OldTTSModel(BaseTTSGenModel):
-    def __init__(self, config):
-        super().__init__(config)
-        self.engine = pyttsx3.init()
-        self.engine.setProperty('voice', self.config.ttsg_voice)
-        self.engine.setProperty('gender', 'male')
-
-
     def __call__(self, content: str):
         logger.debug("Transforming with traditional synthesis engine...")
-        self.engine.save_to_file(content, self.config.RESULT_TTSG)
-        self.engine.runAndWait()
+        engine = pyttsx3.init()
+        engine.setProperty('voice', self.config.ttsg_voice)
+        engine.setProperty('gender', 'male')
+        engine.save_to_file(content, self.config.RESULT_TTSG)
+        engine.runAndWait()
 
     '''
     Get a list of available voices, names of which can be use to r
