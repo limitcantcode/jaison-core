@@ -3,10 +3,10 @@ Discord Bot Main Class to interface with Discord
 '''
 
 import discord
-import time
+import datetime
+import asyncio
 from .commands import add_commands
 from .commands.sink import BufferSink
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from utils.observer import ObserverClient
 from utils.logging import create_sys_logger
 logger = create_sys_logger(id='discord')
@@ -20,10 +20,6 @@ class DiscordBot(discord.Client):
         logger.debug("Reloading command tree...")
         self.tree, self.tree_params = add_commands(self, self.jaison.config.discord_server_id)
 
-        # For managing response behavior
-        self.message_wait_scheduler = AsyncIOScheduler()
-        self.message_wait_scheduler.start()
-        self.message_waiter = None
         self.vc = None
         self.app_listener = self.JAIsonListener(jaison.broadcast_server, self)
 
@@ -45,27 +41,20 @@ class DiscordBot(discord.Client):
         user = message.author.display_name or message.author.global_name
         content = message.content
         logger.debug(f"Message by user {user}: {content}")
-        logger.debug("Caching and waiting...")
+        
+        logger.debug("Waiting 3 seconds for \"immersion\"...")
+        await message.channel.typing()
+        await asyncio.sleep(3)
+        await self.send_message(message.channel,user=user,content=content,gen_message=True)
 
-        # Send (default if None) message
-        self.message_waiter = self.scheduler.add_job(
-            self.send_message,
-            'date',
-            run_date=datetime.datetime.now()+datetime.timedelta(seconds=3),
-            args=[message.channel],
-            kwargs={"gen_message":True},
-            id='message_wait_response',
-            replace_existing=True
-        )
-
-    async def send_message(self, channel: discord.abc.GuildChannel, message: str = None, gen_message: bool = False):
+    async def send_message(self, channel: discord.abc.GuildChannel, user: str = None, content: str = None, gen_message: bool = False):
         if gen_message:
-            await channel.typing()
             message, _ = self.jaison.get_response_from_text(
                 user,
                 content,
                 include_audio=False,
-                include_animation=False
+                include_animation=False,
+                include_broadcast=False
             )
 
         responses = [msg for msg in message.split('\\n') if len(msg)>0] if message else ['...']

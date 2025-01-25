@@ -54,7 +54,7 @@ class WSBroadcaster(ObserverClient):
             global jaison
             if jaison.response_cancelled:
                 return
-            shutil.copy(jaison.config.RESULT_TTSC, os.path.join(os.path.dirname(os.path.realpath(__file__)), 'static/generated/response.wav'))
+            shutil.copy(jaison.config.RESULT_TTSC, os.path.join(os.path.dirname(os.path.realpath(__file__)),"static","generated","response.wav"))
 
         global socketio
         socketio.emit(

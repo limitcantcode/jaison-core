@@ -50,7 +50,7 @@ class TwitchContextMonitor():
         self.event_ws = None
 
         self.chat_history = []
-        self.event_thread = Thread(target=self._event_loop)
+        self.event_thread = Thread(target=self._event_loop, daemon=True)
         self.event_thread.start()
 
     # Loads tokens from file if it exists

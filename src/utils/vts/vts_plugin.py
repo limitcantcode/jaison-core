@@ -57,11 +57,11 @@ class VTSHotkeyPlugin():
 
         self._trigger_hotkey_event = Event()
 
-        self.event_listener_thread = Thread(target=self._event_listener)
+        self.event_listener_thread = Thread(target=self._event_listener, daemon=True)
         self.event_listener_thread.start()
         logger.debug("Event listener thread initialized!")
 
-        self.hotkey_thread = Thread(target=self._hotkey_exec_loop)
+        self.hotkey_thread = Thread(target=self._hotkey_exec_loop, daemon=True)
         self.hotkey_thread.start()
         logger.debug("Hotkey execution loop thread initialized!")
 
