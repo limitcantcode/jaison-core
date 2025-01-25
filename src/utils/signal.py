@@ -23,3 +23,4 @@ class GracefulKiller:
       child.kill()
     for to_clean in self.to_cleanup:
       to_clean.cleanup()
+      sys.exit(0)

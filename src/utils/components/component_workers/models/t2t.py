@@ -7,7 +7,7 @@ class T2TWorker(BaseComponentWorker):
         self.stub = T2TComponentStreamerStub(self.channel)
 
     async def create_async_generator_from_stream(self, stream): # stream: {run_id, system_input, user_input}
-        first_chunk = anext(stream)
+        first_chunk = await anext(stream)
         yield T2TComponentRequest(run_id=first_chunk['run_id'], system_input="", user_input="")
         yield T2TComponentRequest(run_id=first_chunk['run_id'], system_input=first_chunk['system_input_chunk'], user_input=first_chunk['user_input_chunk'])
         async for next_chunk in stream:

@@ -18,11 +18,10 @@ class Component():
         if not self.details.endpoint:
             self._run_process()
         logger.debug(f"Using component type: {self.details.comp_type}")
-        self.worker: BaseComponentWorker = None
         logger.debug(f"Connected component worker to process at endpoint {self.details.endpoint}.")
 
     def __call__(self, input_stream):
-        worker = COMPONENT_COLLECTION[self.details.comp_type](self.details)
+        worker: BaseComponentWorker = COMPONENT_COLLECTION[self.details.comp_type](self.details)
 
         logger.debug(f"Streaming from component {self.details.id}")
         return worker(input_stream)

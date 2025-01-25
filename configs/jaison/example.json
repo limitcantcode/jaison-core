@@ -10,21 +10,16 @@
     "t2t_enable_context_twitch_events": true,
     "t2t_enable_context_rag": true,
     "t2t_enable_context_av": true,
-    "t2t_host": "openai",
-    "t2t_model": "gpt-4o-mini",
-    "ttsg_host": "openai",
-    "ttsg_voice": "nova",
-    "ttsc_url": "http://localhost:7865",
-    "ttsc_voice": "my-voice-model",
-    "ttsc_transpose": 0,
-    "ttsc_feature_ratio": 0,
-    "ttsc_median_filtering": 7,
-    "ttsc_resampling": 0,
-    "ttsc_volume_envelope": 0,
-    "ttsc_voiceless_protection": 0.5,
     "vts_url": "ws://localhost:8001",
     "vts_hotkey_config_file": "example.json",
     "twitch_broadcaster_id": "123456789",
     "twitch_user_id": "123456789",
-    "discord_server_id": null
+    "discord_server_id": null,
+    "plugins_config_file": "example.yaml",
+    "active_plugins": [
+        "stt-openai-whisper-lcc",
+        "t2t-openai-api-lcc",
+        "ttsg-openai-api-lcc",
+        "ttsc-rvc-project-lcc"
+    ]
 }

@@ -11,6 +11,7 @@ import json
 import os
 import wave
 import traceback
+import time as tm
 
 from utils.config import Configuration
 from utils.vts import VTS
@@ -57,20 +58,15 @@ class JAIson():
 
         # Initialize core models
         logger.debug("Initializing core components...")
-        self.comp_manager = ComponentManager("E:\\projects\\jaison-core\\configs\\test.yaml") # debug
-        self.comp_manager.load_components([
-            "stt-openai-whisper-lcc",
-            "t2t-openai-api-lcc",
-            "ttsc-rvc-project-lcc",
-            "ttsg-openai-api-lcc"
-        ],reload=True)
+        self.comp_manager = ComponentManager(os.path.join(self.config.plugins_config_dir, self.config.plugins_config_file))
+        self.comp_manager.load_components(self.config.active_plugins,reload=True)
 
         # Frontend components will have one-way reference
         # Frontend components have own threads
 
         # Initialize vts plugins
         logger.debug("Booting VTube Studio plugins...")
-        # self.vts = VTS(self.config)
+        self.vts = VTS(self.config)
         # Initialize twitch plugins
         logger.debug("Connecting to twitch...")
         self.twitch = TwitchContextMonitor(self)
@@ -154,7 +150,7 @@ class JAIson():
                 text_result = self.DEFAULT_RESPONSE_MSG
             else:
                 text_result = "" # TODO figure out filtering in stream. Until then, generate full response before proceeding (tts will be streamed)
-                async for response_chunk in self.comp_manager.use("t2t", {"system_input": sys_prompt, "user_input": user_prompt}):
+                async for response_chunk in self.comp_manager.use("t2t", iter([{"run_id": "debug", "system_input_chunk": sys_prompt, "user_input_chunk": user_prompt},])):
                     text_result += response_chunk['content_chunk']
                 text_result = text_result if text_result != self.prompter.NO_RESPONSE else None
 
@@ -188,13 +184,11 @@ class JAIson():
 
             if include_audio :
                 tts_audio, sample_rate, sample_width, channels = b'', 48000, 2, 1
-                async for response_chunk in self.comp_manager.use(
-                    "ttsc",
-                    self.comp_manager.use("ttsg",iter([{"content":text_result},]))
-                ):
+                ttsg_stream = self.comp_manager.use("ttsg",iter([{"run_id": "debug", "content_chunk":text_result},]))
+                async for response_chunk in self.comp_manager.use("ttsc", ttsg_stream):
                     tts_audio += response_chunk['audio_chunk']
                     sample_rate, sample_width, channels = response_chunk['sample_rate'], response_chunk['sample_width'], response_chunk['channels']
-                f = wave.open(self.config.RESULT_TTSC, 'wb')
+                f = wave.open(self.config.RESULT_TTSC, 'wb') # TODO broadcast directly to applications
                 f.setnchannels(channels)
                 f.setsampwidth(sample_width)
                 f.setframerate(sample_rate)

@@ -7,7 +7,7 @@ class STTWorker(BaseComponentWorker):
         self.stub = STTComponentStreamerStub(self.channel)
 
     async def create_async_generator_from_stream(self, stream): # stream: {run_id, audio_chunk, sample_rate, sample_width, channels}
-        first_chunk = anext(stream)
+        first_chunk = await anext(stream)
         yield STTComponentRequest(run_id=first_chunk['run_id'], audio=b"", sample_rate=0, sample_width=0, channels=0)
         yield STTComponentRequest(
             run_id=first_chunk['run_id'], 

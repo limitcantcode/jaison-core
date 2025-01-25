@@ -13,7 +13,7 @@ flask-socketio==5.4.1
 flask-cors==5.0.0
 requests==2.32.3
 pyyaml==6.0.2
-jaison-grpc==1.1.4
+jaison-grpc>=1.1.4
 grpcio==1.68.1
 scipy==1.15.1
 wave==0.0.2

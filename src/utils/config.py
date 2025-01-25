@@ -1,6 +1,6 @@
 import os
 import json
-from typing import get_type_hints
+from typing import get_type_hints, List, Dict, Any
 from .time import get_current_time
 from .args import args
 from utils.logging import create_sys_logger
@@ -11,15 +11,15 @@ class Configuration():
     RESULT_TTSG = os.path.join(os.getcwd(),"output","audio","tts_raw.wav")
     RESULT_TTSC = os.path.join(os.getcwd(),"output","audio","tts.wav")
     RESULT_INPUT_SPEECH = os.path.join(os.getcwd(),"output","audio","recorded_speech.wav")
-    CONFIG_DIR = os.path.join(os.getcwd(),"configs","components")
+    CONFIG_DIR = os.path.join(os.getcwd(),"configs","jaison")
     CURRENT_CONFIG_FILENAME = None
 
     # T2T
     t2t_default_prompt_file: str = "example.txt"
     t2t_current_prompt_file: str = None # DONT SAVE: session specific
     t2t_prompt_dir: str = os.path.join(os.getcwd(),"prompts","production") # DONT SAVE: constant
-    t2t_prompt_params: dict = {}
-    t2t_name_translation_dir: str = os.path.join(os.getcwd(),"configs","names") # DONT SAVE: constant
+    t2t_prompt_params: Dict[str, Any] = {}
+    t2t_name_translation_dir: str = os.path.join(os.getcwd(),"configs","translations") # DONT SAVE: constant
     t2t_name_translation_file: str = None
     t2t_convo_retention_length: int = 40
     t2t_enable_context_script : bool = True
@@ -46,7 +46,7 @@ class Configuration():
 
     # VTube Studio
     vts_url: str = "ws://localhost:8001"
-    vts_hotkey_config_dir: str = os.path.join(os.getcwd(),"configs","hotkeys")
+    vts_hotkey_config_dir: str = os.path.join(os.getcwd(),"configs","vts_hotkeys")
     vts_hotkey_config_file: str = "example.json"
 
     # Twitch
@@ -55,6 +55,11 @@ class Configuration():
 
     # Discord
     discord_server_id: str = None
+
+    # Plugins
+    plugins_config_dir: str = os.path.join(os.getcwd(),"configs","plugins")
+    plugins_config_file: str = "example.yaml"
+    active_plugins: List[str] = []
 
 
     def update(self, config_d: dict) -> tuple[bool, str]:
@@ -114,7 +119,9 @@ class Configuration():
                 "vts_hotkey_config_file": self.vts_hotkey_config_file,
                 "twitch_broadcaster_id": self.twitch_broadcaster_id,
                 "twitch_user_id": self.twitch_user_id,
-                "discord_server_id": self.discord_server_id
+                "discord_server_id": self.discord_server_id,
+                "plugins_config_file": self.plugins_config_file,
+                "active_plugins": self.active_plugins
             }
 
         try:

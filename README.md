@@ -12,20 +12,21 @@ This was made with Python v3.12.18. It was ran in WSL2 Ubuntu and Windows, runni
 ### Step 1: Before starting
 
 1. Install [CUDA](https://developer.nvidia.com/cuda-toolkit)
-2. Install ffmpeg
-    1. Either follow [this guide](https://www.hostinger.com/tutorials/how-to-install-ffmpeg)
-    2. Or for Linux: `sudo apt install ffmpeg`
-    3. Or for Windows: Install [ffmpeg](https://huggingface.co/lj1995/VoiceConversionWebUI/blob/main/ffmpeg.exe) and [ffmprobe](https://huggingface.co/lj1995/VoiceConversionWebUI/blob/main/ffprobe.exe), put files in project root
-3. Install [conda](https://docs.conda.io/projects/conda/en/stable/user-guide/install/index.html) for managing virtual environment (Miniconda is recommended)
+2. Install [conda](https://docs.conda.io/projects/conda/en/stable/user-guide/install/index.html) for managing virtual environment (Miniconda is recommended)
 
-### Step 2: Setting up voice
-In this project, TTS is done by first generating speech then applying an AI voice-changer. Generating speech is done in 1 of 2 ways: old-school speech synthesis and AI voice generation. 
+### Step 2: Setting up plugins
+You can find plugins for components (things that generate responses) and applications (things that use Project J.A.I.son) in the [Discord](https://discord.gg/Z8yyEzHsYM) or on my GitHub. These are community projects, so anyone can make and upload their own plugins. Each one has their own setup guide, so follow that.
 
-Old-school speech synthesis uses [SAPI5](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ms723627(v=vs.85)) for Windows (no additional setup is required) and [eSpeak NG](https://github.com/espeak-ng/espeak-ng/blob/master/docs/guide.md) for Linux (you will need to install and set that up).
+To link this project to those components, list the plugins you want to use in your plugins config (`./configs/plugins/example.yaml` by default). Endpoint is for if you deploy the plugin prior to running this project (saves development time, deploy on another machine, and doesn't shut down when this project terminates), or you can specify the path to the directory (this project will automatically boot it up for you, but it takes some time and can only be deployed on the same machine).
 
-For AI TTS, this project makes use of OpenAI's API. This project currently does not have an option for locally ran AI TTS options, however you may add them by implementing the TTS generation classes.
+You will need STT, T2T, TTSG, and TTSC components for this project to work currently. Here are some that I've made:
 
-Lastly, for the AI voice-changer, **YOU WILL NEED THE [RVC-PROJECT](https://github.com/limitcantcode/Retrieval-based-Voice-Conversion-WebUI)**. Follow the setup instructions there for your system ([english instructions](https://github.com/limitcantcode/Retrieval-based-Voice-Conversion-WebUI/blob/main/docs/en/README.en.md)) Please refer to ["Customizing voice"](#customizing-voice) for more details.
+- [STT Local OpenAI Whisper](https://github.com/limitcantcode/stt-openai-whisper-lcc-comp) (Recommended)
+- [T2T OpenAI API](https://github.com/limitcantcode/t2t-openai-lcc-comp) (Recommended)
+- [T2T Local Unsloth](https://github.com/limitcantcode/t2t-unsloth-lcc-comp)
+- [TTSG OpenAI API](https://github.com/limitcantcode/ttsg-openai-lcc-comp)
+- [TTSG Speech Synthesis](https://github.com/limitcantcode/ttsg-pytts-lcc-comp) (Recommended)
+- [TTSC RVC Project](https://github.com/limitcantcode/ttsc-rvc-proj-lcc-comp) (Recommended)
 
 ### Step 3: Setting up the VTuber
 This project makes use of [VTube Studio](https://denchisoft.com/) to render the VTuber model. After [customizing your VTube model](#customizing-vtuber),you will need to go to `General Settings & External Connections` in settings. First enable the plugins API:
@@ -61,32 +62,11 @@ These were just the minimal setup instructions to connect the program to your VT
 ### Step 4: Setting up this project
 It is recommended to work from within a conda virtual environment. Assuming you are using conda:
 
-Create and activate environment
+Create and activate environement. Install dependencies in this order. Replace version of `pytorch-cuda` with your version (12.4 in example below). You can see your version by typing `nvidia-smi` in a terminal.
 ```bash
-conda create -n jaison-core python=3.12 ffmpeg cudatoolkit -c nvidia -y
+conda create -n jaison-core python=3.12 ffmpeg pytorch torchvision torchaudio pytorch-cuda=12.4 cudatoolkit -c pytorch -c nvidia -y
 conda activate jaison-core
-```
-
-Install dependencies in this order
-
-1. Install pytorch specific to your system.
-- You can see your CUDA version by typing `nvidia-smi` in a terminal.
-Should look like the following (for CUDA 12.4)
-```bash
-conda install pytorch torchvision torchaudio pytorch-cuda=12.4 -c pytorch -c nvidia
-```
-
-2. Install Unsloth (unfortunely a requirement right now with how I coded things)
-```bash
-pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
-pip install --no-deps trl peft accelerate bitsandbytes
-```
-
-3. Install [xFormers](https://github.com/facebookresearch/xformers?tab=readme-ov-file#installing-xformers) specific to your system.
-
-4. Install remainder of dependencies
-```bash
-pip install -r -U requirements.txt
+pip install -r requirements.txt
 ```
 
 5. Create a `.env` file at the root of this project based on `.env-template`.
@@ -164,42 +144,36 @@ It is recommended you run the project using the example configuration `example.j
 
 <img src="./assets/web_ui_2.png" alt="config manager location" height="300"/>
 
-If you want to change the configurations outside of the web UI, you can find all config files under `./configs/components`. Below is a description of the values:
+If you want to change the configurations outside of the web UI, you can find all config files under `./configs/jaison`. Below is a description of the values:
 
 - t2t_default_prompt_file: (str) A prompt filename within `./prompts/production`
 - t2t_prompt_params: (dict) Map of variables in a prompt to their actual value (look at a prompt file to see what variables exist)
-- t2t_name_translation_file: (str) A name translation filename within `./configs/name`
+- t2t_name_translation_file: (str) A name translation filename within `./configs/translations`
 - t2t_convo_retention_length: (int) Length of conversation history to keep for generating T2T responses
 - t2t_enable_context_script: (bool) Whether to include conversation history by default
 - t2t_enable_context_twitch_chat: (bool) Whether to include twitch chat by default (currently does nothing)
 - t2t_enable_context_twitch_events: (bool) Whether to include twitch events by default (currently does nothing)
 - t2t_enable_context_rag: (bool) Whether to include RAG information by default (currently does nothing)
 - t2t_enable_context_av: (bool) Whether to include audio-visual information by default (currently does nothing)
-- t2t_host: (str) One of `openai` or `local`
-- t2t_model: (str) Name of model to use from the host such as `gpt-4o-mini` from `openai`
-- ttsg_host: (str) One of `openai` or `old` (speech synthesis)
-- ttsg_voice: (str) Name of voice to use from the host such as `nova` from `openai`
-- ttsc_url: (str) URL of RVC Project gradio server, typically `http://localhost:7865`
-- ttsc_voice: (str) Name of voice model to use, so just `my-voice-model` with no extensions or anything
-- ttsc_transpose: (int) Semitones to repitch voice
-- ttsc_feature_ratio: (float) `0` to `1`. Higher more strongly converts accents
-- ttsc_median_filtering: (int) `0` to `7`. Higher applies strong filtering, helping with breathiness
-- ttsc_resampling: (int) `0` to `48000`. Output audio's sample rate
-- ttsc_volume_envelope: (float) `0` to `1`. Higher makes volume more consistent instead of matching original volume
-- ttsc_voiceless_protection: (float) `0` to `0.5`. Higher applies less protection of voiceless consenants and breaths
 - vts_url: (str) URL of VTube Studio server, typically `ws://localhost:8001` (see [VTube Studio setup](#step-3-setting-up-the-vtuber))
-- vts_hotkey_config_file: (str)  A hotkey config filename within `./configs/hotkeys`
+- vts_hotkey_config_file: (str)  A hotkey config filename within `./configs/vts_hotkeys`
 - twitch_broadcaster_id: (str, optional) Target streamer Twitch account ID 
 - twitch_user_id: (str, optional) Your own Twitch account ID 
 - discord_server_id: (int, optional) Discord server ID for Discord bot
+- plugins_config_file: (str, optional) File name under `./configs/plugins`
 
 ## Running bot
 ### Step 1: Ensure dependency apps are running
-1. In a separate terminal, run the RVC-Project (In the same way you [ran the web-UI to train](#customizing-voice), run the web-UI to start the voice-conversion server using `python ./infer-web.py` with the right virtual environment activated)
+1. Ensure any plugins specified as endpoints are up and running
 2. Run VTube Studio with the [Plugin API enabled](#step-3-setting-up-the-vtuber)
 
-### Step 2: Getting the right configuration
+### Step 2: Getting the right configuration and environment
 Refer to [Configuration](#configuration). You may use `example.json` for a first run.
+
+Ensure you are using the right environment:
+```bash
+conda activate jaison-core
+```
 
 ### Step 3: Start running
 To run, simply use the following from the project root:

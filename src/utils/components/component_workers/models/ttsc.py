@@ -5,9 +5,9 @@ from jaison_grpc.common import TTSCComponentRequest, TTSCComponentResponse
 class TTSCWorker(BaseComponentWorker):
     def setup(self):
         self.stub = TTSCComponentStreamerStub(self.channel)
-    
+
     async def create_async_generator_from_stream(self, stream): # stream: {run_id, audio_chunk, sample_rate, sample_width, channels}
-        first_chunk = anext(stream)
+        first_chunk = await anext(stream)
         yield TTSCComponentRequest(run_id=first_chunk['run_id'], audio=b"", sample_rate=0, sample_width=0, channels=0)
         yield TTSCComponentRequest(
             run_id=first_chunk['run_id'], 

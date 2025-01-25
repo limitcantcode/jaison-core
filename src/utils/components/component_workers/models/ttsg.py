@@ -6,30 +6,30 @@ class TTSGWorker(BaseComponentWorker):
     def setup(self):
         self.stub = TTSGComponentStreamerStub(self.channel)
 
-    async def create_async_generator_from_stream(self, stream): # stream: {run_id, text_chunk}
-        first_chunk = anext(stream)
-        yield TTSGComponentRequest(run_id=first_chunk['run_id'], text="")
+    async def create_async_generator_from_stream(self, stream): # stream: {run_id, content_chunk}
+        first_chunk = await anext(stream)
+        yield TTSGComponentRequest(run_id=first_chunk['run_id'], content="")
         yield TTSGComponentRequest(
             run_id=first_chunk['run_id'], 
-            text=first_chunk['text_chunk'], 
+            content=first_chunk['content_chunk'], 
         )
         async for next_chunk in stream:
             yield TTSGComponentRequest(
                 run_id=next_chunk['run_id'], 
-                audio=next_chunk['text_chunk']
+                content=next_chunk['content_chunk']
             )
 
-    def create_generator_from_stream(self, stream): # stream: {run_id, text_chunk}
+    def create_generator_from_stream(self, stream): # stream: {run_id, content_chunk}
         first_chunk = next(stream)
-        yield TTSGComponentRequest(run_id=first_chunk['run_id'], text="")
+        yield TTSGComponentRequest(run_id=first_chunk['run_id'], content="")
         yield TTSGComponentRequest(
             run_id=first_chunk['run_id'], 
-            text=first_chunk['text_chunk'], 
+            content=first_chunk['content_chunk'], 
         )
         for next_chunk in stream:
             yield TTSGComponentRequest(
                 run_id=next_chunk['run_id'], 
-                audio=next_chunk['text_chunk']
+                content=next_chunk['content_chunk']
             )
 
     def extract_chunk(self, chunk: TTSGComponentResponse):
