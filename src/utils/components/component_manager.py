@@ -32,6 +32,8 @@ class ComponentManager():
                     raise InvalidComponentListing("Component listing is missing. Please add 'components'.")
                 components = yaml_dict['components'] or []
                 self.logger.debug(f"Loaded components config: {components}")
+            except asyncio.CancelledError:
+                raise
             except Exception as err:
                 self.logger.error(f"Could not parse config: {filepath}")
                 self.logger.error(err)
@@ -44,15 +46,25 @@ class ComponentManager():
                         with open(os.path.join(listing['directory'],'metadata.yaml'), 'r') as f:
                             listing['endpoint'] = None
                             metadata = yaml.safe_load(f)
-                        if self.os_type=='nt' and not metadata['is_windows_compatible']:
+                        metadata = Metadata(**metadata)
+                        if self.os_type=='nt' and not metadata.is_windows_compatible:
                             self.logger.warning("Component {} in {} is not compatible with Windows. Skipping...".format(metadata['id'],listing['directory']))
-                        elif self.os_type=='posix' and not metadata['is_unix_compatible']:
+                        elif self.os_type=='posix' and not metadata.is_unix_compatible:
                             self.logger.warning("Component {} in {} is not compatible with Unix. Skipping...".format(metadata['id'],listing['directory']))
                     elif 'endpoint' in listing:
                         listing['directory'] = None
                         channel = grpc.aio.insecure_channel(listing['endpoint'])
                         stub = MetadataInformerStub(channel)
                         metadata = await stub.metadata(google_dot_protobuf_dot_empty__pb2.Empty())
+                        # metadata = {
+                        #     'id': metadata.id,
+                        #     'name': metadata.name,
+                        #     'type': metadata.type,
+                        #     'is_windows_compatible': metadata.is_windows_compatible,
+                        #     'is_unix_compatible': metadata.is_unix_compatible,
+                        #     'windows_run_script': metadata.windows_run_script,
+                        #     'unix_run_script': metadata.unix_run_script
+                        # }
                         await channel.close()
                     else:
                         raise InvalidComponentListing(f"Following component listing missing on of 'directory' or 'endpoint': {listing}")
@@ -74,6 +86,8 @@ class ComponentManager():
                         )
                     )
                     self.logger.info(f"Loaded component configuration: {filepath}")
+                except asyncio.CancelledError:
+                    raise
                 except Exception as err:
                     self.logger.error(f"Failed to add a component.", exc_info=True)
                     self.logger.warning("Skipping...")
@@ -114,6 +128,8 @@ class ComponentManager():
                             self.logger.debug(f"Unloading previous component...")
                             self.unload_components(comp_type)
                             self.logger.debug(f"Unloaded previous component...")
+                        except asyncio.CancelledError:
+                            raise
                         except:
                             self.logger.debug(f"No component to unload.")
                         self.logger.debug(f"Starting new component {comp_id}...")

@@ -1,16 +1,16 @@
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
+class FilteredException(Exception):
+    pass
+
 class ResponseFilter():
-    FILTERED_MESSAGE = "Filtered..."
+    FILTERED_MESSAGE = "Filtered."
     GOOD_LABEL = "OK"
     model = AutoModelForSequenceClassification.from_pretrained("KoalaAI/Text-Moderation")
     tokenizer = AutoTokenizer.from_pretrained("KoalaAI/Text-Moderation")
 
     def __call__(self, response):
-        label = self.get_response_type(response)
-        if label != self.GOOD_LABEL:
-            return self.FILTERED_MESSAGE
-        return response
+        return self.get_response_type(response) == self.GOOD_LABEL
 
     def get_response_type(self, response):
         # Run the model on your input

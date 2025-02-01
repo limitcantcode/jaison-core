@@ -1,4 +1,4 @@
-from threading import Thread
+import asyncio
 
 class ObserverServer():
     def __init__(self):
@@ -15,10 +15,10 @@ class ObserverServer():
 
     def broadcast_event(self, event_id: str, payload = None):
         for task in set(self.ongoing):
-            if not task.is_alive():
+            if not task.done():
                 self.ongoing.discard(task)
 
         for client in self.clients:
-            task = Thread(target=client.handle_event, args=[event_id, payload], daemon=True)
+            task = asyncio.create_task(client.handle_event(event_id, payload))
             self.ongoing.add(task)
             task.start()

@@ -18,9 +18,9 @@ class GracefulKiller:
 
   def exit_gracefully(self, signum, frame):
     logger.info("Gracefully shutting down...")
+    for to_clean in self.to_cleanup:
+      to_clean.cleanup()
     curr_process = psutil.Process(os.getpid())
     for child in curr_process.children(recursive=True):
       child.kill()
-    for to_clean in self.to_cleanup:
-      to_clean.cleanup()
-      sys.exit(0)
+    sys.exit(0)

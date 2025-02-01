@@ -34,9 +34,6 @@ class Component():
                 child.kill()
             process.kill()
 
-        if self.worker:
-            self.worker.close()
-
     def _get_open_port(self):
         logger.debug(f"Finding open port...")
         sock = socket.socket()

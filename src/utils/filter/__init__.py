@@ -1,1 +1,1 @@
-from .filter import ResponseFilter
+from .filter import ResponseFilter, FilteredException

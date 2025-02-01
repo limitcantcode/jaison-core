@@ -69,7 +69,7 @@ def create_sys_logger(id = 'main', use_stdout = False):
     return logger
 
 ## FOR DIALOG LOGGING ################
-dialog_formatter = logging.Formatter("[%(asctime)s] %(message)s")
+dialog_formatter = logging.Formatter("%(message)s")
 dialog_file_handler = logging.FileHandler(os.path.join(args.log_dir, SUBFOLDER_DIALOG, f"{get_time_filename(START_TIME)}_dialog.log"))
 dialog_file_handler.setFormatter(dialog_formatter)
 
