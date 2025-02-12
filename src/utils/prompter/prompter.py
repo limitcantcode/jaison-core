@@ -92,6 +92,8 @@ Here, you should respond with {no_response_token}.
             "message": message
         }
         self.convo_history.append(new_dialog)
+        while len(self.convo_history) > self.config.convo_retention_length:
+            self.convo_history.pop(0)
         save_dialogue(self.msg_o_to_line(new_dialog))
 
     def add_special_request(self, message):
