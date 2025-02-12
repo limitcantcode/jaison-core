@@ -42,7 +42,7 @@ class JAIson(metaclass=Singleton):
         'output_text': True,
         'output_audio': True
     }
-    MAX_CHUNK_BROADCAST_SIZE = 4096
+    MAX_CHUNK_BROADCAST_SIZE = 4096 # There is a size limit for websockets and http
 
     def __init__(self):
         # J.A.I.son configuration
@@ -73,7 +73,6 @@ class JAIson(metaclass=Singleton):
         # Event parameter notes:
         # - "success" field indicates if event is part of normal generation (True) or some exception (False). If False, the unsuccessful chunks overwrite any of the older successful chunks of that stage.
         # - "runtime" is time for pipeline to finish in seconds
-        # self.broadcast_server = ObserverServer(self.event_loop)
         self.broadcast_server = ObserverServer()
 
         # Components
@@ -105,6 +104,7 @@ class JAIson(metaclass=Singleton):
 
     ## Response Run Management #################
 
+    # Add async task to Queue to be ran in the order it was requested
     async def create_run(self, **kwargs):
         new_run_id = str(uuid.uuid4())
         assert(new_run_id not in self.run_queue_d)
@@ -122,18 +122,19 @@ class JAIson(metaclass=Singleton):
         logger.debug(cancel_message)
 
         run = self.active_runs.get(run_id)
-        if run is not None:
+        if run is not None: # If run is outside of Queue and already running as a Task
             run.cancel(cancel_message)
-        else:
+        else: # If run is still in Queue
             temp_queue = asyncio.Queue()
-            while not self.run_queue.empty():
+            while not self.run_queue.empty(): # Transfer contents 1 by 1, skipping target
                 coro = await self.run_queue.get()
                 if coro is self.run_queue_d[run_id]: continue
                 await temp_queue.put(coro)
-            self.run_queue.shutdown(immediate=True)
+            self.run_queue.shutdown(immediate=True) # Replace with new queue
             self.run_queue = temp_queue
             del self.run_queue_d[run_id]
 
+    # Side loop responsible for running the next run in the Queue
     async def _process_run_loop(self):
         while True:
             try:
@@ -145,6 +146,7 @@ class JAIson(metaclass=Singleton):
                 logger.error("Encountered error in main run processing loop", exc_info=True)
                 asyncio.sleep(1)
 
+    # Helper for streaming contents to fix websocket size constraints
     def _generate_iterable(self, base_d: dict, chunk_key: str, slicable_chunk: bytes | str):
         iterable = []
         while len(slicable_chunk) > 0:
@@ -220,7 +222,7 @@ class JAIson(metaclass=Singleton):
     ) -> None:
         try:
             logger.debug(f"Starting response_pipeline for run {run_id}")
-            await self.broadcast_server.broadcast_event("run_start", {"run_id": run_id, "output_text": output_text, "output_audio": output_audio})
+            await self.broadcast_server.broadcast_event("run_start", {"run_id": run_id, "output_text": output_text or output_audio, "output_audio": output_audio})
             
             # Basic request validation
             if (input_text is None) == (input_audio_bytes is None): raise Exception("Exactly one text of audio can be used as input")
@@ -230,12 +232,13 @@ class JAIson(metaclass=Singleton):
 
             # Generate textual response from input
             try:
-                start_time = get_current_time(as_str=False)
-                
+                start_time = get_current_time(as_str=False) # For metrics
+
                 if input_time is None:
                     input_time = get_current_time(include_ms=False)
                     logger.debug(f"Run {run_id} default using current time {input_time}")
 
+                # STT Generation
                 if input_audio_bytes:
                     await self.broadcast_server.broadcast_event("run_stt_start", {"run_id": run_id})
                     logger.debug(f"Run {run_id} using STT")
@@ -257,6 +260,7 @@ class JAIson(metaclass=Singleton):
                     await self.broadcast_server.broadcast_event("run_stt_stop", {"run_id": run_id, "success": True})
                     logger.debug(f"Run {run_id} finished STT with result: {input_text:.50}")
 
+                # Save to conversation or request context
                 logger.debug(f"Run {run_id} using input text: {input_text:.50}")
                 if process_dialog:
                     logger.debug(f"Run {run_id} adding to history under user {input_user}")
@@ -267,13 +271,14 @@ class JAIson(metaclass=Singleton):
                 else:
                     raise Exception("process_dialog and process_request are both false when exactly one should be true")
                 
-                if not output_text:
+                if not (output_text or output_audio): # Skip all generation if just adding to contexts
                     stop_time = get_current_time(as_str=False)
                     duration = (stop_time-start_time).total_seconds()
                     logger.info(f"Finished response_pipeline {run_id} generation in {duration} seconds", exc_info=True, stack_info=True)
                     await self.broadcast_server.broadcast_event("run_finish", {"run_id": run_id, "runtime": duration})
                     return
                 
+                # Getting prompts
                 # special requests are the only way for applications to add additional context to prompt
                 logger.debug(f"Run {run_id} using contexts and getting prompts")
                 await self.broadcast_server.broadcast_event("run_context_start", {"run_id": run_id})
@@ -287,10 +292,10 @@ class JAIson(metaclass=Singleton):
                 logger.debug(f"Run {run_id} sys_prompt: {sys_prompt:.200}")
                 logger.debug(f"Run {run_id} user_prompt: {user_prompt:.200}")
 
+                # T2T Generation
                 logger.debug(f"Run {run_id} using T2T")
                 await self.broadcast_server.broadcast_event("run_t2t_start", {"run_id": run_id})
                 t2t_result = ""
-                
                 async for response_chunk in self.comp_manager.use(
                     "t2t",
                     chain(
@@ -320,6 +325,7 @@ class JAIson(metaclass=Singleton):
 
             # Process audio if appropriate
             if t2t_result != self.prompter.NO_RESPONSE and output_audio:
+                # TTSG and TTSC generation (streaming continuous streaming)
                 logger.debug(f"Run {run_id} using TTS")
                 await self.broadcast_server.broadcast_event("run_tts_start", {"run_id": run_id})
                 ttsg_stream = self.comp_manager.use("ttsg",iter([{"run_id": run_id, "content_chunk":t2t_result},]))
@@ -337,11 +343,13 @@ class JAIson(metaclass=Singleton):
             logger.info(f"Finished response_pipeline {run_id} generation in {duration} seconds")
             await self.broadcast_server.broadcast_event("run_finish", {"run_id": run_id, "runtime": duration})
 
+            # Add response to contexts
             self.prompter.add_history(
                 start_time,
                 self.prompter.SELF_IDENTIFIER,
                 t2t_result
             )
+            # Log result
             save_response(sys_prompt, user_prompt, t2t_result)
         except asyncio.CancelledError as err:
             logger.warning(f"Cancelled response_pipeline {run_id} generation", exc_info=True, stack_info=True)
