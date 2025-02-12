@@ -1,23 +1,16 @@
 {
-    "t2t_default_prompt_file": "example.txt",
-    "t2t_prompt_params": {
+    "prompt_default_file": "example.txt",
+    "prompt_params": {
         "name": "J.A.I.son"
     },
-    "t2t_name_translation_file": "example.json",
-    "t2t_convo_retention_length": 40,
-    "t2t_enable_context_script": true,
-    "t2t_enable_context_twitch_chat": true,
-    "t2t_enable_context_twitch_events": true,
-    "t2t_enable_context_rag": true,
-    "t2t_enable_context_av": true,
+    "name_translation_file": "example.json",
+    "convo_retention_length": 40,
     "plugins_config_file": "example.yaml",
     "active_plugins": [
         "stt-openai-whisper-lcc",
         "t2t-openai-api-lcc",
         "ttsg-openai-api-lcc",
-        "ttsc-rvc-project-lcc"
+        "ttsc-no-changer-lcc"
     ],
-    "web_host": "localhost",
-    "web_api_port": 1337,
-    "web_socket_port": 1337
+    "web_api_port": 5001
 }

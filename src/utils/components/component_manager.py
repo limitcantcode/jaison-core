@@ -16,9 +16,8 @@ class ComponentManager():
     loaded_components = {} # <component type>: Component
     available_components = {} # <component type>: <list of ComponentDetails>
 
-    def __init__(self, component_config: str):
+    def __init__(self):
         self.os_type = os.name
-        asyncio.run(self.reload_config(component_config))
 
     async def reload_config(self, filepath: str):
         self.logger.debug(f"Loading component configuration: {filepath}")

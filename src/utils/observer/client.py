@@ -18,3 +18,4 @@ class ObserverClient():
     # To Be Implement
     async def handle_event(self, event_id: str, payload) -> None:
         raise NotImplementedError
+    

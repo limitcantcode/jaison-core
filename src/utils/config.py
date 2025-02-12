@@ -8,30 +8,25 @@ logger = create_sys_logger()
 
 class Configuration(metaclass=Singleton):
     # DONT SAVE
-    RESULT_TTSG = os.path.join(os.getcwd(),"output","audio","tts_raw.wav")
-    RESULT_TTSC = os.path.join(os.getcwd(),"output","audio","tts.wav")
-    RESULT_INPUT_SPEECH = os.path.join(os.getcwd(),"output","audio","recorded_speech.wav")
-    CONFIG_DIR = os.path.join(os.getcwd(),"configs","jaison")
-    CURRENT_CONFIG_FILENAME = None
+    CONFIG_DIR = os.path.join(os.getcwd(),"configs","jaison") # DONT SAVE: constant
+    CURRENT_CONFIG_FILENAME = None # DONT SAVE
 
     # T2T
-    t2t_default_prompt_file: str = "example.txt"
-    t2t_current_prompt_file: str = None # DONT SAVE: session specific
-    t2t_prompt_dir: str = os.path.join(os.getcwd(),"prompts","production") # DONT SAVE: constant
-    t2t_prompt_params: dict = dict()
-    t2t_name_translation_dir: str = os.path.join(os.getcwd(),"configs","translations") # DONT SAVE: constant
-    t2t_name_translation_file: str = None
-    t2t_convo_retention_length: int = 40
+    prompt_dir: str = os.path.join(os.getcwd(),"prompts","production") # DONT SAVE: constant
+    name_translation_dir: str = os.path.join(os.getcwd(),"configs","translations") # DONT SAVE: constant
+    prompt_current_file: str = None # DONT SAVE: session specific
+    prompt_default_file: str = "example.txt"
+    prompt_params: dict = dict()
+    name_translation_file: str = None
+    convo_retention_length: int = 40
 
     # Plugins
-    plugins_config_dir: str = os.path.join(os.getcwd(),"configs","plugins")
+    plugins_config_dir: str = os.path.join(os.getcwd(),"configs","plugins") # DONT SAVE: constant
     plugins_config_file: str = "example.yaml"
     active_plugins: list = list()
 
     # Web
-    web_host: str = "localhost"
-    web_api_port: int = 1337
-    web_socket_port: int = 7270
+    web_port: int = 5001
 
     def __init__(self):
         if not self.load(args.config):
@@ -65,15 +60,13 @@ class Configuration(metaclass=Singleton):
         file_to_save = filename or self.CURRENT_CONFIG_FILENAME
         if config_to_save is None:
             config_to_save = {
-                "t2t_default_prompt_file": self.t2t_default_prompt_file,
-                "t2t_prompt_params": self.t2t_prompt_params,
-                "t2t_name_translation_file": self.t2t_name_translation_file,
-                "t2t_convo_retention_length": self.t2t_convo_retention_length,
+                "prompt_default_file": self.prompt_default_file,
+                "prompt_params": self.prompt_params,
+                "name_translation_file": self.name_translation_file,
+                "convo_retention_length": self.convo_retention_length,
                 "plugins_config_file": self.plugins_config_file,
                 "active_plugins": self.active_plugins,
-                "web_host": self.web_host,
-                "web_api_port": self.web_api_port,
-                "web_socket_port": self.web_socket_port
+                "web_port": self.web_port
             }
 
         with open(os.path.join(self.CONFIG_DIR, file_to_save), 'w') as f:

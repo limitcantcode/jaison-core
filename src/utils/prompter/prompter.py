@@ -17,7 +17,7 @@ class Prompter():
         self.config = Configuration()
 
         self.CONTEXT_INSTRUCTIONS_BASE = '''
-You are taking the next turn in a given conversation. The user wil give the conversation along with all the context. Of the contexts given, you must always follow the instructions in requests given under the header "{request_header}". The main conversation will be given under the header "{conversation_header}. The conversation will be formatted as a script where each line starts with time the line was spoken between [] followed the speaker's name between [] or the special <{self_identifier}> to represent what you said before. For example:
+You are taking the next turn in a given conversation. The user wil give the conversation along with all the context. Of the contexts given, you must always follow the instructions in requests given under the header "{request_header}". The main conversation will be given under the header "{main_conversation_header}". The conversation will be formatted as a script where each line starts with time the line was spoken between [] followed the speaker's name between [] or the special <{self_identifier}> to represent what you said before. For example:
 
 {main_conversation_header}
 [2024-12-09 20:51:46,339][Jason]: Hey there!
@@ -48,16 +48,16 @@ Here, you should respond with {no_response_token}.
     
     def _get_character_description(self):
         with open(os.path.join(
-            self.config.t2t_prompt_dir,
-            self.config.t2t_current_prompt_file or self.config.t2t_default_prompt_file
+            self.config.prompt_dir,
+            self.config.prompt_current_file or self.config.prompt_default_file
         ), 'r') as f:
-            return f.read().format(**self.config.t2t_prompt_params)
+            return f.read().format(**self.config.prompt_params)
 
     def _translate_name(self, name: str):
         return self.name_translations.get(name, name)
     
     def reload_name_translations(self):
-        with open(os.path.join(self.jaison.config.t2t_name_translation_dir, self.jaison.config.t2t_name_translation_file), 'r') as f:
+        with open(os.path.join(self.config.name_translation_dir, self.config.name_translation_file), 'r') as f:
             self.name_translations = json.load(f)
 
     def msg_o_to_line(self, o):
@@ -67,10 +67,11 @@ Here, you should respond with {no_response_token}.
 
         return f"{time} {name}: {message}\n"
 
-    def add_optional_context(self, context_id: str, context_name: str, initial_contents: str = None):
+    def add_optional_context(self, context_id: str, context_name: str, context_description: str = None, initial_contents: str = None):
         if context_id is None or context_name is None: raise Exception("New context must have context_id and context_name")
         self.optional_contexts[context_id] = {
             "name": context_name,
+            "description": context_description,
             "contents": initial_contents
         }
 
@@ -136,16 +137,16 @@ Here, you should respond with {no_response_token}.
 
         user_prompt = '''
 {optional_contexts}{main_conversation_header}
-{main_conversation_content}
+{main_conversation_context}
 
 {request_header}
-{request_content}
+{request_context}
 
 '''.format(
 main_conversation_header=self._header_builder(self.MAIN_CONVERSATION_HEADER),
-main_conversation_content=main_conversation_context,
+main_conversation_context=main_conversation_context,
 request_header=self._header_builder(self.REQUEST_HEADER),
-request_content=special_request_context,
+request_context=special_request_context,
 optional_contexts=full_optional_context
 )
         if not preserve_temp:

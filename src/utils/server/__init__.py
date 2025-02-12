@@ -1,2 +1,1 @@
-from .rest_api import start_rest_api
-from .socket_server import SocketServerObserver
+from .app_server import start_web_server

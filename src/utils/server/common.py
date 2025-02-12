@@ -1,4 +1,4 @@
-def create_response(status: int, message: str, response: dict): # TODO: document status codes, validate information
+def create_response(status: int, message: str, response: dict):
     return (
         {
             "status": status,

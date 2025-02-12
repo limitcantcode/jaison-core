@@ -17,7 +17,7 @@ class BaseComponentWorker():
         stream = self.create_stream(input_stream)
         async for response in stream:
             response_chunk = self.extract_chunk(response)
-            self.logger.debug(f"Component worker {self.details.id} returned for {response_chunk.get('run_id')} with result: {str(response_chunk):.50}")
+            self.logger.debug(f"Component worker {self.details.id} returned for {response_chunk.get('run_id')} with result: {str(response_chunk):.200}")
             yield response_chunk
         self.logger.debug(f"Component worker {self.details.id} finished streaming.")
     
