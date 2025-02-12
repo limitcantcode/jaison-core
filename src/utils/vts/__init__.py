@@ -1,1 +1,0 @@
-from .vts_plugin import VTSHotkeyPlugin as VTS
