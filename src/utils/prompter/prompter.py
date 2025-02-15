@@ -12,7 +12,7 @@ class Prompter():
         self.SELF_IDENTIFIER = "You"
         self.MAIN_CONVERSATION_HEADER = "Main Conversation"
         self.REQUEST_HEADER = "Request"
-        self.DEFAULT_CONVO_HISTORY_LENGTH = 20
+        self.DEFAULT_CONVO_HISTORY_LENGTH = 5
 
         self.config = Configuration()
 
@@ -128,7 +128,7 @@ Here, you should respond with {no_response_token}.
         full_optional_context = ""
         for context_id in self.optional_contexts:
             details = self.optional_contexts[context_id]
-            full_optional_context += f'''{details['name']}\n{details['contents']}\n\n'''
+            full_optional_context += f'''=== {details['name']} ===\n{details['contents']}\n\n'''
 
         special_request_context = self.special_request or "There is no request."
 

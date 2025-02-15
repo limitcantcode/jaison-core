@@ -98,6 +98,7 @@ class JAIson(metaclass=Singleton):
         logger.info("JAIson application layer setup!")
 
     def cleanup(self):
+        logger.debug("JAIson application layer cleaning up")
         if self.comp_manager:
             self.comp_manager.cleanup()
         logger.info("JAIson application layer cleaned up")

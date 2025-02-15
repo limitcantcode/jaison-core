@@ -18,7 +18,7 @@ class Configuration(metaclass=Singleton):
     prompt_default_file: str = "example.txt"
     prompt_params: dict = dict()
     name_translation_file: str = None
-    convo_retention_length: int = 40
+    convo_retention_length: int = 5
 
     # Plugins
     plugins_config_dir: str = os.path.join(os.getcwd(),"configs","plugins") # DONT SAVE: constant
