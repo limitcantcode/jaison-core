@@ -17,7 +17,7 @@ class Prompter():
         self.config = Configuration()
 
         self.CONTEXT_INSTRUCTIONS_BASE = '''
-You are taking the next turn in a given conversation. The user wil give the conversation along with all the context. Of the contexts given, you must always follow the instructions in requests given under the header "{request_header}". The main conversation will be given under the header "{main_conversation_header}". The conversation will be formatted as a script where each line starts with time the line was spoken between [] followed the speaker's name between [] or the special <{self_identifier}> to represent what you said before. For example:
+You are taking the next turn in a given conversation. The user will give the conversation along with all the context. Of the contexts given, you must always follow the instructions in requests given under the header "{request_header}". The main conversation will be given under the header "{main_conversation_header}". The conversation will be formatted as a script where each line starts with time the line was spoken between [] followed the speaker's name between [] or the special <{self_identifier}> to represent what you said before. For example:
 
 {main_conversation_header}
 [2024-12-09 20:51:46,339][Jason]: Hey there!
