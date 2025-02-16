@@ -4,7 +4,7 @@
         "name": "J.A.I.son"
     },
     "name_translation_file": "example.json",
-    "convo_retention_length": 40,
+    "convo_retention_length": 10,
     "plugins_config_file": "example.yaml",
     "active_plugins": [
         "stt-openai-whisper-lcc",
@@ -12,5 +12,5 @@
         "ttsg-openai-api-lcc",
         "ttsc-no-changer-lcc"
     ],
-    "web_api_port": 5001
+    "web_port": 5001
 }
