@@ -46,7 +46,7 @@ class Component():
     def _run_process(self):
         logger.debug("Starting component in new process.")
         port = self._get_open_port()
-        cmd = ["cd",self.details.directory,"&&",self.details.run_script,str(port)]
+        cmd = f"cd {self.details.directory} && {os.path.join("./", self.details.run_script)} {str(port)}"
         logger.debug(f"Running command: {cmd}")
         self.process = subprocess.Popen(cmd, shell=True)
         address = f'127.0.0.1:{port}'
