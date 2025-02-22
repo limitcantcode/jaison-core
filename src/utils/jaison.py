@@ -221,7 +221,7 @@ class JAIson(metaclass=Singleton):
         process_request: bool = False,
         output_text: bool = True,
         output_audio: bool = True,
-        overlap_on_sentence: bool = True
+        chunk_on_sentence: bool = True
     ) -> None:
         try:
             logger.debug(f"Starting response_pipeline for run {run_id}")
@@ -301,7 +301,7 @@ class JAIson(metaclass=Singleton):
                 logger.debug(f"Run {run_id} user_prompt: {user_prompt:.200}")
 
                 # T2T Generation
-                if overlap_on_sentence:
+                if chunk_on_sentence:
                     logger.debug(f"Run {run_id} using Overlapped T2T/TSSG")
                     t2t_result = await self._run_overlapped_on_sentence(run_id, sys_prompt, user_prompt, no_ttsc)
                     logger.debug(f"Run {run_id} finished Overlapped T2T/TSSG with result: {t2t_result}")
@@ -338,7 +338,7 @@ class JAIson(metaclass=Singleton):
                 await self.broadcast_server.broadcast_event("run_t2t_chunk", {"run_id": run_id, "chunk": t2t_result, "success": False})
                 await self.broadcast_server.broadcast_event("run_t2t_stop", {"run_id": run_id, "success": False})
 
-            if not overlap_on_sentence:
+            if not chunk_on_sentence:
                 # Process audio if appropriate
                 if t2t_result != self.prompter.NO_RESPONSE and output_audio:
                     # TTSG and TTSC generation (streaming continuous streaming)
