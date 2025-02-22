@@ -107,11 +107,51 @@ class ComponentDetailsValidator(metaclass=Singleton):
 
         return valid
     
+
+    def _default_from_type(self, type: str)-> Any:
+        match type:
+            case "str": return ""
+            case "int": return 0
+            case "bool": return False
+            case "list": return []
+            case "dict": return {}
+            case _: return None
+        return None
     
-    def to_valid(self, invalid_details: dict)-> None:
+
+    def to_valid(self, invalid_details: dict)-> dict:
         """
         Generates a valid component details object from an invalid one.
-        Not implemented yet.
         """
-        raise NotImplementedError("Not implemented yet")
+        valid_details: dict = {}
+        base_schema: dict[str, Any] = self.schemas["base"].schema
+
+        # Get component name
+        component_name: str = "unknown"
+        if "name" in self.component_details:
+            component_name = self.component_details["name"]
+        elif "id" in self.component_details:
+            component_name = self.component_details["id"]
+
+        for key, expected_type in base_schema.items():
+            if key not in invalid_details:
+                self.logger.warning(f'Added missing key "{key}" in details of component "{component_name}"')
+                valid_details[key] = self._default_from_type(expected_type)
+            else:
+                valid_details[key] = invalid_details[key]
+        
+        # TODO: Handle features when added to component details
+        return valid_details
+        
+        features_schema = self.schemas["features"].schema
+        component_type: str = valid_details["type"]
+
+        features: dict[str, Any] = features_schema.get(component_type, {})
+        for feature, expected_type in features.items():
+            if feature not in valid_details["features"]:
+                valid_details["features"][feature] = self._default_from_type(expected_type)
+            else:
+                valid_details["features"][feature] = invalid_details["features"][feature]
+        
+        return valid_details
         
