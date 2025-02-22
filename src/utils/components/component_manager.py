@@ -9,6 +9,7 @@ from google.protobuf import empty_pb2 as google_dot_protobuf_dot_empty__pb2
 from .error import UnknownComponent, UnloadedComponentError, MissingComponentConfig, InvalidComponentConfig, InvalidComponentListing
 from .component import Component
 from .component_details import ComponentDetails
+from .component_details_validation import ComponentDetailsValidator
 from utils.logging import create_sys_logger
 
 class ComponentManager():
@@ -18,6 +19,10 @@ class ComponentManager():
 
     def __init__(self):
         self.os_type = os.name
+    
+    def _metadata_to_dict(self, metadata: Metadata):
+        fields = metadata.ListFields()
+        return {field[0].name: field[1] for field in fields}
 
     async def reload_config(self, filepath: str):
         self.logger.debug(f"Loading component configuration: {filepath}")
@@ -40,16 +45,15 @@ class ComponentManager():
 
             for listing in components:
                 try:
-                    metadata = None
+                    details = None
                     if 'directory' in listing:
                         with open(os.path.join(listing['directory'],'metadata.yaml'), 'r') as f:
                             listing['endpoint'] = None
-                            metadata = yaml.safe_load(f)
-                        metadata = Metadata(**metadata)
-                        if self.os_type=='nt' and not metadata.is_windows_compatible:
-                            self.logger.warning("Component {} in {} is not compatible with Windows. Skipping...".format(metadata['id'],listing['directory']))
-                        elif self.os_type=='posix' and not metadata.is_unix_compatible:
-                            self.logger.warning("Component {} in {} is not compatible with Unix. Skipping...".format(metadata['id'],listing['directory']))
+                            details = yaml.safe_load(f)
+                        if self.os_type=='nt' and not details["is_windows_compatible"]:
+                            self.logger.warning("Component {} in {} is not compatible with Windows. Skipping...".format(details['id'],listing['directory']))
+                        elif self.os_type=='posix' and not details["is_unix_compatible"]:
+                            self.logger.warning("Component {} in {} is not compatible with Unix. Skipping...".format(details['id'],listing['directory']))
                     elif 'endpoint' in listing:
                         listing['directory'] = None
                         channel = grpc.aio.insecure_channel(listing['endpoint'])
@@ -65,22 +69,30 @@ class ComponentManager():
                         #     'unix_run_script': metadata.unix_run_script
                         # }
                         await channel.close()
+                        details = self._metadata_to_dict(metadata)
                     else:
                         raise InvalidComponentListing(f"Following component listing missing on of 'directory' or 'endpoint': {listing}")
 
-                    self.logger.debug(f"For component listing {listing}, got metadata: {metadata}")
-                    if metadata.type not in self.available_components:
-                        self.available_components[metadata.type] = []
-                    self.available_components[metadata.type].append(
+                    validator = ComponentDetailsValidator()
+                    if not validator.is_valid(details):
+                        # TODO: Handle invalid details correctly, see `ComponentDetailsValidator.to_valid`
+                        self.logger.warning("Received invalid component details from a loaded componenent. Skipping...")
+                        continue
+
+                    self.logger.debug(f"For component listing {listing}, got details: {details}")
+                    if details["type"] not in self.available_components:
+                        self.available_components[details["type"]] = []
+                    
+                    self.available_components[details["type"]].append(
                         ComponentDetails(
-                            metadata.type,
-                            metadata.id,
-                            metadata.name,
-                            listing['directory'],
-                            metadata.windows_run_script,
-                            metadata.unix_run_script,
-                            metadata.is_windows_compatible,
-                            metadata.is_unix_compatible,
+                            comp_type=details["type"],
+                            id=details["id"],
+                            name=details["name"],
+                            directory=listing['directory'],
+                            windows_run_script=details["windows_run_script"],
+                            unix_run_script=details["unix_run_script"],
+                            is_windows_compatible=details["is_windows_compatible"],
+                            is_unix_compatible=details["is_unix_compatible"],
                             endpoint=listing['endpoint']
                         )
                     )
