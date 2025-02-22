@@ -38,8 +38,6 @@ class ComponentDetailsValidator(metaclass=Singleton):
         paths = [
             DetailSchemaPath("base", SCHEMA_BASE_PATH),
             DetailSchemaPath("features", SCHEMA_FEATURES_PATH),
-            DetailSchemaPath("base_defaults", SCHEMA_BASE_PATH),
-            DetailSchemaPath("features", SCHEMA_FEATURES_PATH),
         ]
         result: dict[str, DetailSchema] = {}
 
