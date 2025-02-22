@@ -1,0 +1,14 @@
+{
+    "stt": {},
+    "t2t": {
+        "streamed_output": "bool"
+    },
+    "ttsc": {
+        "streamed_output": "bool",
+        "streamed_input": "bool"
+    },
+    "ttsg": {
+        "streamed_output": "bool",
+        "streamed_input": "bool"
+    }
+}
