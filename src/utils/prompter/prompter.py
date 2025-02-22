@@ -8,8 +8,8 @@ from utils.time import get_current_time
 class Prompter():
     def __init__(self):
         self.DISABLED_CONTEXT_MESSAGE = "This context isn't provided."
-        self.NO_RESPONSE = "<no response>"
         self.SELF_IDENTIFIER = "You"
+        self.NO_RESPONSE = ""
         self.MAIN_CONVERSATION_HEADER = "Main Conversation"
         self.REQUEST_HEADER = "Request"
         self.DEFAULT_CONVO_HISTORY_LENGTH = 5
@@ -25,14 +25,7 @@ You are taking the next turn in a given conversation. The user will give the con
 [2024-12-09 20:51:52,354][Nosaj]: Hey
 
 In the above example, "Jason" said "Hey there!". Then you said "Oh hi!". Finally "Nosaj" said "Hey".
-You are to only respond with your own response to the current conversation, such as "Oh hi!". If you think you should not say anything, say "{no_response_token}". For example:
-
-{main_conversation_header}
-[2024-12-09 20:51:46,339][Jason]: Hey there!
-[2024-12-09 20:51:50,459]<{self_identifier}>: Oh hi!
-[2024-12-09 20:51:52,354][Jason]: I think I...
-
-Here, you should respond with {no_response_token}.
+You are to only respond with your own response to the current conversation, such as "Oh hi!".
 
 {optional_context_descriptions}Finally, you shall never break from the character described in the remainder of this system prompt:
 
@@ -118,7 +111,6 @@ Here, you should respond with {no_response_token}.
         return self.CONTEXT_INSTRUCTIONS_BASE.format(
             request_header=self._header_builder(self.REQUEST_HEADER),
             main_conversation_header=self._header_builder(self.MAIN_CONVERSATION_HEADER),
-            no_response_token=self.NO_RESPONSE,
             self_identifier=self.SELF_IDENTIFIER,
             optional_context_descriptions=optional_context_descriptions,
             character_description=self._get_character_description()

@@ -14,8 +14,8 @@ from utils.logging import create_sys_logger
 
 class ComponentManager():
     logger = create_sys_logger()
-    loaded_components = {} # <component type>: Component
-    available_components = {} # <component type>: <list of ComponentDetails>
+    loaded_components: dict[str, Component] = {} # <component type>: Component
+    available_components: dict[str, list[ComponentDetails]] = {} # <component type>: <list of ComponentDetails>
 
     def __init__(self):
         self.os_type = os.name
