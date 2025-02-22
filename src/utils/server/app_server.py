@@ -102,7 +102,7 @@ async def run_preflight():
 async def context_preflight():
       return ("Success", 200, {
            'Access-Control-Allow-Origin': '*',
-           'Access-Control-Allow-Methods': 'POST, DELETE, OPTIONS',
+           'Access-Control-Allow-Methods': 'POST, DELETE, OPTIONS, PUT',
            'Access-Control-Allow-Headers': 'Content-Type'})
 
 @app.websocket("/")
