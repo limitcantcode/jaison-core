@@ -1,4 +1,4 @@
-from quart import Quart, request, websocket
+from quart import Quart, request, websocket, make_response
 import asyncio
 import json
 from utils.jaison import JAIson, NonexistantRunException
@@ -29,31 +29,33 @@ jaison = None
 config = None
 sso = None
 
+cors_header = {'Access-Control-Allow-Origin': '*'}
+
 @app.route('/run', methods=['POST'])
 async def run_start():
       global jaison
       try:
-            new_run_id = await jaison.create_run(**await request.get_json())
+            new_run_id = await jaison.create_run(**await request.get_json(force=True))
       except Exception as err:
             logger.error("Unknown error", stack_info=True, exc_info=True)
             return create_response(500, str(err), {})
-      return create_response(200, f"Run {new_run_id} started", {"run_id": new_run_id})
+      return create_response(200, f"Run {new_run_id} started", {"run_id": new_run_id}, cors_header)
 
 @app.route('/run', methods=['DELETE'])
 async def run_cancel():
       global jaison
       request_data = await request.get_json()
       if 'run_id' not in request_data:
-            return create_response(400, f"Invalid request body", {})
+            return create_response(400, f"Invalid request body", {}, cors_header)
       run_id, reason = request_data['run_id'], request_data.get('reason')
       try:
             await jaison.cancel_run(run_id, reason=reason)
-            return create_response(200, f"Run {run_id} cancelled", {"run_id": run_id})
+            return create_response(200, f"Run {run_id} cancelled", {"run_id": run_id}, cors_header)
       except NonexistantRunException as err:
-            return create_response(400, str(err), {"run_id": run_id})
+            return create_response(400, str(err), {"run_id": run_id}, cors_header)
       except Exception as err:
             logger.error("Unknown error", stack_info=True, exc_info=True)
-            return create_response(500, str(err), {})
+            return create_response(500, str(err), {}, cors_header)
       
 @app.route('/context', methods=['POST'])
 async def context_register():
@@ -61,10 +63,10 @@ async def context_register():
       try:
             request_data = await request.get_json()
             jaison.register_context(request_data.get('id'), request_data.get('name'), request_data.get('description'))
-            return create_response(200, f"Context added", {"id": request_data.get('id')})
+            return create_response(200, f"Context added", {"id": request_data.get('id')}, cors_header)
       except Exception as err:
             logger.error("Unknown error", stack_info=True, exc_info=True)
-            return create_response(500, str(err), {})
+            return create_response(500, str(err), {}, cors_header)
       
 @app.route('/context', methods=['PUT'])
 async def context_update():
@@ -72,10 +74,10 @@ async def context_update():
       try:
             request_data = await request.get_json()
             jaison.update_context(request_data.get('id'), request_data.get('content'))
-            return create_response(200, f"Context updated", {"id": request_data.get('id')})
+            return create_response(200, f"Context updated", {"id": request_data.get('id')}, cors_header)
       except Exception as err:
             logger.error("Unknown error", stack_info=True, exc_info=True)
-            return create_response(500, str(err), {})
+            return create_response(500, str(err), {}, cors_header)
       
 @app.route('/context', methods=['DELETE'])
 async def context_delete():
@@ -83,10 +85,25 @@ async def context_delete():
       try:
             request_data = await request.get_json()
             jaison.register_context(request_data.get('id'))
-            return create_response(200, f"Context deleted", {"id": request_data.get('id')})
+            return create_response(200, f"Context deleted", {"id": request_data.get('id')}, cors_header)
       except Exception as err:
             logger.error("Unknown error", stack_info=True, exc_info=True)
-            return create_response(500, str(err), {})
+            return create_response(500, str(err), {}, cors_header)
+
+# Allow CORS
+@app.route('/run', methods=['OPTIONS'])
+async def run_preflight():
+      return ("Success", 200, {
+           'Access-Control-Allow-Origin': '*',
+           'Access-Control-Allow-Methods': 'POST, DELETE, OPTIONS',
+           'Access-Control-Allow-Headers': 'Content-Type'})
+
+@app.route('/context', methods=['OPTIONS'])
+async def context_preflight():
+      return ("Success", 200, {
+           'Access-Control-Allow-Origin': '*',
+           'Access-Control-Allow-Methods': 'POST, DELETE, OPTIONS',
+           'Access-Control-Allow-Headers': 'Content-Type'})
 
 @app.websocket("/")
 async def ws():
