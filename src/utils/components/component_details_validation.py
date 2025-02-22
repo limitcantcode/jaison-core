@@ -27,6 +27,7 @@ class ComponentDetailsValidator(metaclass=Singleton):
     def __init__(self):
         self.logger = create_sys_logger()
         self.schemas = self._read_schemas()
+        self.defaults = self._read_defaults()
 
 
     def _read_schemas(self)-> dict[str, DetailSchema]:
@@ -37,6 +38,27 @@ class ComponentDetailsValidator(metaclass=Singleton):
         paths = [
             DetailSchemaPath("base", SCHEMA_BASE_PATH),
             DetailSchemaPath("features", SCHEMA_FEATURES_PATH),
+            DetailSchemaPath("base_defaults", SCHEMA_BASE_PATH),
+            DetailSchemaPath("features", SCHEMA_FEATURES_PATH),
+        ]
+        result: dict[str, DetailSchema] = {}
+
+        for path in paths:
+            with open(path.path) as f:
+                schema = json.load(f)
+                result[path.type] = DetailSchema(path.type, schema)
+        
+        return result
+
+
+    def _read_defaults(self)-> dict[str, DetailSchema]:
+        SCHEMA_DIR_PATH = os.path.join(os.path.dirname(__file__), "details_schemas")
+        SCHEMA_BASE_DEFAULTS_PATH = os.path.join(SCHEMA_DIR_PATH, "base_defaults.json")
+        SCHEMA_FEATURES_DEFAULTS_PATH = os.path.join(SCHEMA_DIR_PATH, "features_defaults.json")
+
+        paths = [
+            DetailSchemaPath("base", SCHEMA_BASE_DEFAULTS_PATH),
+            DetailSchemaPath("features", SCHEMA_FEATURES_DEFAULTS_PATH),
         ]
         result: dict[str, DetailSchema] = {}
 
@@ -82,6 +104,7 @@ class ComponentDetailsValidator(metaclass=Singleton):
             return False
         
         # TODO: Handle features when added to component details
+        # TODO: Make sure to update base.json and base_defaults.json before enabling this
         return True
 
         features_schema = self.schemas["features"].schema
@@ -108,50 +131,32 @@ class ComponentDetailsValidator(metaclass=Singleton):
         return valid
     
 
-    def _default_from_type(self, type: str)-> Any:
-        match type:
-            case "str": return ""
-            case "int": return 0
-            case "bool": return False
-            case "list": return []
-            case "dict": return {}
-            case _: return None
-        return None
-    
-
     def to_valid(self, invalid_details: dict)-> dict:
         """
         Generates a valid component details object from an invalid one.
         """
         valid_details: dict = {}
-        base_schema: dict[str, Any] = self.schemas["base"].schema
+        base_schema_defaults: dict[str, Any] = self.defaults["base"].schema
 
-        # Get component name
-        component_name: str = "unknown"
-        if "name" in self.component_details:
-            component_name = self.component_details["name"]
-        elif "id" in self.component_details:
-            component_name = self.component_details["id"]
+        self.logger.info("Original details:")
+        self.logger.info(json.dumps(invalid_details, indent=4))
 
-        for key, expected_type in base_schema.items():
-            if key not in invalid_details:
-                self.logger.warning(f'Added missing key "{key}" in details of component "{component_name}"')
-                valid_details[key] = self._default_from_type(expected_type)
-            else:
-                valid_details[key] = invalid_details[key]
+        valid_details = base_schema_defaults | invalid_details
+
+        self.logger.info("Patched details:")
+        self.logger.info(json.dumps(valid_details, indent=4))
         
         # TODO: Handle features when added to component details
+        # TODO: Make sure to update base.json and base_defaults.json before enabling this
         return valid_details
         
-        features_schema = self.schemas["features"].schema
+        features_schema_defaults = self.defaults["features"].schema
         component_type: str = valid_details["type"]
 
-        features: dict[str, Any] = features_schema.get(component_type, {})
-        for feature, expected_type in features.items():
-            if feature not in valid_details["features"]:
-                valid_details["features"][feature] = self._default_from_type(expected_type)
-            else:
-                valid_details["features"][feature] = invalid_details["features"][feature]
+        if "features" in invalid_details:
+            valid_details["features"] = features_schema_defaults[component_type] | invalid_details["features"]
+        else:
+            valid_details["features"] = features_schema_defaults[component_type]
         
         return valid_details
         
