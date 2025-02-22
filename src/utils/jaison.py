@@ -9,6 +9,7 @@ through this layer.
 
 import os
 import datetime
+import time
 import asyncio
 import uuid
 import base64
@@ -76,7 +77,7 @@ class JAIson(metaclass=Singleton):
         self.broadcast_server = ObserverServer()
 
         # Components
-        self.comp_manager = None
+        self.comp_manager: ComponentManager = None
         
         # Other response_pipeline helpers
         self.prompter = None
@@ -219,7 +220,8 @@ class JAIson(metaclass=Singleton):
         process_dialog: bool = False,
         process_request: bool = False,
         output_text: bool = True,
-        output_audio: bool = True
+        output_audio: bool = True,
+        overlap_on_sentence: bool = True
     ) -> None:
         try:
             logger.debug(f"Starting response_pipeline for run {run_id}")
@@ -230,6 +232,9 @@ class JAIson(metaclass=Singleton):
             if not ((input_audio_bytes is None) or (input_audio_bytes and input_audio_sample_rate and input_audio_sample_width and input_audio_channels)): raise Exception("Audio needs to specify input_audio_bytes, input_audio_sample_rate, input_audio_sample_width, and input_audio_channels")
             if process_dialog == process_request: raise Exception("Exactly one of process_dialog and process_request must be True")
             if process_dialog and not input_user: raise Exception("input_user must be specified for processing dialog")
+
+            # Skip ttsc stream if using dud TTSC
+            no_ttsc = self.comp_manager.loaded_components["ttsc"].details.id == "ttsc-no-changer-lcc"
 
             # Generate textual response from input
             try:
@@ -285,31 +290,41 @@ class JAIson(metaclass=Singleton):
                 await self.broadcast_server.broadcast_event("run_context_start", {"run_id": run_id})
                 sys_prompt = self.prompter.get_sys_prompt()
                 user_prompt = self.prompter.get_user_prompt()
+
                 for msg in self._generate_iterable({"run_id": run_id, "user_chunk": "", "success": True}, "sys_chunk", sys_prompt):
                     await self.broadcast_server.broadcast_event("run_context_chunk", msg)
                 for msg in self._generate_iterable({"run_id": run_id, "sys_chunk": "", "success": True}, "user_chunk", user_prompt):
                     await self.broadcast_server.broadcast_event("run_context_chunk", msg)
+                
                 logger.debug(f"Run {run_id} got following prompts")
                 logger.debug(f"Run {run_id} sys_prompt: {sys_prompt:.200}")
                 logger.debug(f"Run {run_id} user_prompt: {user_prompt:.200}")
 
                 # T2T Generation
-                logger.debug(f"Run {run_id} using T2T")
-                await self.broadcast_server.broadcast_event("run_t2t_start", {"run_id": run_id})
-                t2t_result = ""
-                async for response_chunk in self.comp_manager.use(
-                    "t2t",
-                    chain(
-                        self._generate_iterable({"run_id": run_id, "user_input_chunk": ""}, "system_input_chunk", sys_prompt),
-                        self._generate_iterable({"run_id": run_id, "system_input_chunk": ""}, "user_input_chunk", user_prompt)
-                    )
-                ):
-                    chunk = response_chunk['content_chunk']
-                    t2t_result += chunk
-                    if self.filter(t2t_result):
-                        for msg in self._generate_iterable({"run_id": run_id, "success": True}, "chunk", chunk):
-                            await self.broadcast_server.broadcast_event("run_t2t_chunk", msg)
-                await self.broadcast_server.broadcast_event("run_t2t_stop", {"run_id": run_id, "success": True})
+                if overlap_on_sentence:
+                    logger.debug(f"Run {run_id} using Overlapped T2T/TSSG")
+                    t2t_result = await self._run_overlapped_on_sentence(run_id, sys_prompt, user_prompt, no_ttsc)
+                    logger.debug(f"Run {run_id} finished Overlapped T2T/TSSG with result: {t2t_result}")
+                else:
+                    logger.debug(f"Run {run_id} using T2T")
+                    await self.broadcast_server.broadcast_event("run_t2t_start", {"run_id": run_id})
+                    t2t_result = ""
+                    async for response_chunk in self.comp_manager.use(
+                        "t2t",
+                        chain(
+                            self._generate_iterable({"run_id": run_id, "user_input_chunk": ""}, "system_input_chunk", sys_prompt),
+                            self._generate_iterable({"run_id": run_id, "system_input_chunk": ""}, "user_input_chunk", user_prompt)
+                        )
+                    ):
+                        chunk = response_chunk['content_chunk']
+                        t2t_result += chunk
+                        if self.filter(t2t_result):
+                            for msg in self._generate_iterable({"run_id": run_id, "success": True}, "chunk", chunk):
+                                await self.broadcast_server.broadcast_event("run_t2t_chunk", msg)
+                    await self.broadcast_server.broadcast_event("run_t2t_stop", {"run_id": run_id, "success": True})
+                    logger.debug(f"Run {run_id} finished T2T with result: {t2t_result}")
+
+
             except asyncio.CancelledError:
                 raise
             except FilteredException as err:
@@ -322,25 +337,33 @@ class JAIson(metaclass=Singleton):
                 t2t_result = self.RESPONSE_ERROR_MSG
                 await self.broadcast_server.broadcast_event("run_t2t_chunk", {"run_id": run_id, "chunk": t2t_result, "success": False})
                 await self.broadcast_server.broadcast_event("run_t2t_stop", {"run_id": run_id, "success": False})
-            logger.debug(f"Run {run_id} finished T2T with result: {t2t_result}")
 
-            # Process audio if appropriate
-            if t2t_result != self.prompter.NO_RESPONSE and output_audio:
-                # TTSG and TTSC generation (streaming continuous streaming)
-                logger.debug(f"Run {run_id} using TTS")
-                await self.broadcast_server.broadcast_event("run_tts_start", {"run_id": run_id})
-                ttsg_stream = self.comp_manager.use("ttsg",iter([{"run_id": run_id, "content_chunk":t2t_result},]))
-                async for response_chunk in self.comp_manager.use("ttsc", ttsg_stream):
-                    chunk = response_chunk['audio_chunk']
-                    for msg in self._generate_iterable(
-                        {"run_id": run_id, "sample_rate": response_chunk['sample_rate'], "sample_width": response_chunk['sample_width'], "channels": response_chunk['channels'], "success": True},
-                        "chunk", base64.b64encode(chunk).decode('utf-8')
-                    ):
-                        await self.broadcast_server.broadcast_event("run_tts_chunk", msg)
-                await self.broadcast_server.broadcast_event("run_tts_stop", {"run_id": run_id, "success": True})
-                logger.debug(f"Run {run_id} finished TTS")
+            if not overlap_on_sentence:
+                # Process audio if appropriate
+                if t2t_result != self.prompter.NO_RESPONSE and output_audio:
+                    # TTSG and TTSC generation (streaming continuous streaming)
+                    logger.debug(f"Run {run_id} using TTS")
+                    await self.broadcast_server.broadcast_event("run_tts_start", {"run_id": run_id})
+
+                    stream = None
+                    if no_ttsc:
+                        stream = self.comp_manager.use("ttsg", iter([{"run_id": run_id, "content_chunk":t2t_result},]))
+                    else:
+                        ttsg_stream = self.comp_manager.use("ttsg", iter([{"run_id": run_id, "content_chunk":t2t_result},]))
+                        stream = self.comp_manager.use("ttsc", ttsg_stream)
+                    
+                    async for response_chunk in stream:
+                        chunk = response_chunk['audio_chunk']
+                        for msg in self._generate_iterable(
+                            {"run_id": run_id, "sample_rate": response_chunk['sample_rate'], "sample_width": response_chunk['sample_width'], "channels": response_chunk['channels'], "success": True},
+                            "chunk", base64.b64encode(chunk).decode('utf-8')
+                        ):
+                            await self.broadcast_server.broadcast_event("run_tts_chunk", msg)
+                    await self.broadcast_server.broadcast_event("run_tts_stop", {"run_id": run_id, "success": True})
+                    logger.debug(f"Run {run_id} finished TTS")
+
             stop_time = get_current_time(as_str=False)
-            duration = (stop_time-start_time).total_seconds()
+            duration = (stop_time-start_time).seconds
             logger.info(f"Finished response_pipeline {run_id} generation in {duration} seconds")
             await self.broadcast_server.broadcast_event("run_finish", {"run_id": run_id, "runtime": duration})
 
@@ -361,6 +384,87 @@ class JAIson(metaclass=Singleton):
         finally:
             del self.active_runs[run_id]
             del self.run_queue_d[run_id]
+    
+
+    async def _run_overlapped_on_sentence(self, run_id: str, sys_prompt: str, user_prompt: str, no_ttsc: bool)-> str:
+        """
+        Overlaps both LLM and TTS generation, optimizing for time to first audio byte.
+        Due to the poor async model of Python, this may cause sentences to have notable silences between them.
+        This will be mitigated in the future by making use of of threads and a queue of queues for each sentence's audio chunks.
+        
+        returns full text result
+        """
+        # TODO: Buffer first sentence to prevent silence between TTS chunks
+
+        first_llm_chunk = True
+        first_tts_chunk = True
+
+        start_time = time.time()
+        tts_start_time = None
+
+        # T2T Generation
+        logger.debug(f"Run {run_id} using T2T")
+        await self.broadcast_server.broadcast_event("run_t2t_start", {"run_id": run_id})
+
+        t2t_result = ""
+        sentence_acc = ""
+        async for response_chunk in self.comp_manager.use(
+            "t2t",
+            chain(
+                self._generate_iterable({"run_id": run_id, "user_input_chunk": ""}, "system_input_chunk", sys_prompt),
+                self._generate_iterable({"run_id": run_id, "system_input_chunk": ""}, "user_input_chunk", user_prompt)
+            )
+        ):
+            if first_llm_chunk:
+                first_llm_chunk = False
+                stop_time = time.time()
+                duration = (stop_time-start_time)
+                logger.info(f"LLM ttfb: {int(duration * 1000.0)}ms")
+
+            chunk: str = response_chunk['content_chunk']
+            t2t_result += chunk
+            sentence_acc += chunk
+
+            for msg in self._generate_iterable({"run_id": run_id, "success": True}, "chunk", chunk):
+                await self.broadcast_server.broadcast_event("run_t2t_chunk", msg)
+            
+            # Send to TTS on sentence end
+            if not chunk.strip().endswith(('.', ',', ';', '!', '?')): continue
+            if not self.filter(sentence_acc): continue
+                
+            # Create TTS stream
+            stream = None
+            if no_ttsc:
+                stream = self.comp_manager.use("ttsg", iter([{"run_id": run_id, "content_chunk": sentence_acc},]))
+            else:
+                ttsg_stream = self.comp_manager.use("ttsg", iter([{"run_id": run_id, "content_chunk": sentence_acc},]))
+                stream = self.comp_manager.use("ttsc", ttsg_stream)
+
+            if first_tts_chunk:
+                tts_start_time = time.time()
+                await self.broadcast_server.broadcast_event("run_tts_start", {"run_id": run_id})
+
+            # Generate TTS audio
+            sentence_acc = ""
+            async for response_chunk in stream:
+                if first_tts_chunk:
+                    first_tts_chunk = False
+                    stop_time = time.time()
+                    total_duration = (stop_time-start_time)
+                    duration = (stop_time-tts_start_time)
+                    logger.info(f"TTS ttfb: {int(duration * 1000.0)}ms")
+                    logger.info(f"LLM+TTS ttfb: {int(total_duration * 1000.0)}ms")
+
+                chunk = response_chunk['audio_chunk']
+                for msg in self._generate_iterable(
+                    {"run_id": run_id, "sample_rate": response_chunk['sample_rate'], "sample_width": response_chunk['sample_width'], "channels": response_chunk['channels'], "success": True},
+                    "chunk", base64.b64encode(chunk).decode('utf-8')
+                ):
+                    await self.broadcast_server.broadcast_event("run_tts_chunk", msg)
+        
+        await self.broadcast_server.broadcast_event("run_t2t_stop", {"run_id": run_id, "success": True})
+        await self.broadcast_server.broadcast_event("run_tts_stop", {"run_id": run_id, "success": True})
+        return t2t_result
 
     ## Context Management #################
 
