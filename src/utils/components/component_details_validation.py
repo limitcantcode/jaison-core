@@ -27,6 +27,7 @@ class ComponentDetailsValidator(metaclass=Singleton):
     def __init__(self):
         self.logger = create_sys_logger()
         self.schemas = self._read_schemas()
+        self.defaults = self._read_defaults()
 
 
     def _read_schemas(self)-> dict[str, DetailSchema]:
@@ -37,6 +38,25 @@ class ComponentDetailsValidator(metaclass=Singleton):
         paths = [
             DetailSchemaPath("base", SCHEMA_BASE_PATH),
             DetailSchemaPath("features", SCHEMA_FEATURES_PATH),
+        ]
+        result: dict[str, DetailSchema] = {}
+
+        for path in paths:
+            with open(path.path) as f:
+                schema = json.load(f)
+                result[path.type] = DetailSchema(path.type, schema)
+        
+        return result
+
+
+    def _read_defaults(self)-> dict[str, DetailSchema]:
+        SCHEMA_DIR_PATH = os.path.join(os.path.dirname(__file__), "details_schemas")
+        SCHEMA_BASE_DEFAULTS_PATH = os.path.join(SCHEMA_DIR_PATH, "base_defaults.json")
+        SCHEMA_FEATURES_DEFAULTS_PATH = os.path.join(SCHEMA_DIR_PATH, "features_defaults.json")
+
+        paths = [
+            DetailSchemaPath("base", SCHEMA_BASE_DEFAULTS_PATH),
+            DetailSchemaPath("features", SCHEMA_FEATURES_DEFAULTS_PATH),
         ]
         result: dict[str, DetailSchema] = {}
 
@@ -82,6 +102,7 @@ class ComponentDetailsValidator(metaclass=Singleton):
             return False
         
         # TODO: Handle features when added to component details
+        # TODO: Make sure to update base.json and base_defaults.json before enabling this
         return True
 
         features_schema = self.schemas["features"].schema
@@ -107,11 +128,33 @@ class ComponentDetailsValidator(metaclass=Singleton):
 
         return valid
     
-    
-    def to_valid(self, invalid_details: dict)-> None:
+
+    def to_valid(self, invalid_details: dict)-> dict:
         """
         Generates a valid component details object from an invalid one.
-        Not implemented yet.
         """
-        raise NotImplementedError("Not implemented yet")
+        valid_details: dict = {}
+        base_schema_defaults: dict[str, Any] = self.defaults["base"].schema
+
+        self.logger.info("Original details:")
+        self.logger.info(json.dumps(invalid_details, indent=4))
+
+        valid_details = base_schema_defaults | invalid_details
+
+        self.logger.info("Patched details:")
+        self.logger.info(json.dumps(valid_details, indent=4))
+        
+        # TODO: Handle features when added to component details
+        # TODO: Make sure to update base.json and base_defaults.json before enabling this
+        return valid_details
+        
+        features_schema_defaults = self.defaults["features"].schema
+        component_type: str = valid_details["type"]
+
+        if "features" in invalid_details:
+            valid_details["features"] = features_schema_defaults[component_type] | invalid_details["features"]
+        else:
+            valid_details["features"] = features_schema_defaults[component_type]
+        
+        return valid_details
         
