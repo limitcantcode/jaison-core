@@ -7,3 +7,5 @@ jaison-grpc>=1.1.4
 wave==0.0.2
 transformers==4.48.0
 quart==0.20.0
+psutil
+python-dateutil
