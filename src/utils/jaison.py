@@ -221,8 +221,14 @@ class JAIson(metaclass=Singleton):
         process_request: bool = False,
         output_text: bool = True,
         output_audio: bool = True,
-        chunk_on_sentence: bool = True
+        skip_ttsc: bool = False,
     ) -> None:
+        
+        # Temporary flag to set the default behavior of pipeline to sentence chunking
+        # Sentence chunk is more efficient but may cause issues, so unless tested
+        # thoroughly, it will be kept as a flag instead of a full refactor.
+        CHUNK_ON_SENTENCE: bool = True
+
         try:
             logger.debug(f"Starting response_pipeline for run {run_id}")
             await self.broadcast_server.broadcast_event("run_start", {"run_id": run_id, "output_text": output_text or output_audio, "output_audio": output_audio})
@@ -233,8 +239,6 @@ class JAIson(metaclass=Singleton):
             if process_dialog == process_request: raise Exception("Exactly one of process_dialog and process_request must be True")
             if process_dialog and not input_user: raise Exception("input_user must be specified for processing dialog")
 
-            # Skip ttsc stream if using dud TTSC
-            no_ttsc = self.comp_manager.loaded_components["ttsc"].details.id == "ttsc-no-changer-lcc"
 
             # Generate textual response from input
             try:
@@ -301,9 +305,9 @@ class JAIson(metaclass=Singleton):
                 logger.debug(f"Run {run_id} user_prompt: {user_prompt:.200}")
 
                 # T2T Generation
-                if chunk_on_sentence:
+                if CHUNK_ON_SENTENCE:
                     logger.debug(f"Run {run_id} using Overlapped T2T/TSSG")
-                    t2t_result = await self._run_overlapped_on_sentence(run_id, sys_prompt, user_prompt, no_ttsc)
+                    t2t_result = await self._run_overlapped_on_sentence(run_id, sys_prompt, user_prompt, skip_ttsc)
                     logger.debug(f"Run {run_id} finished Overlapped T2T/TSSG with result: {t2t_result}")
                 else:
                     logger.debug(f"Run {run_id} using T2T")
@@ -338,7 +342,7 @@ class JAIson(metaclass=Singleton):
                 await self.broadcast_server.broadcast_event("run_t2t_chunk", {"run_id": run_id, "chunk": t2t_result, "success": False})
                 await self.broadcast_server.broadcast_event("run_t2t_stop", {"run_id": run_id, "success": False})
 
-            if not chunk_on_sentence:
+            if not CHUNK_ON_SENTENCE:
                 # Process audio if appropriate
                 if t2t_result != self.prompter.NO_RESPONSE and output_audio:
                     # TTSG and TTSC generation (streaming continuous streaming)
@@ -346,7 +350,7 @@ class JAIson(metaclass=Singleton):
                     await self.broadcast_server.broadcast_event("run_tts_start", {"run_id": run_id})
 
                     stream = None
-                    if no_ttsc:
+                    if skip_ttsc:
                         stream = self.comp_manager.use("ttsg", iter([{"run_id": run_id, "content_chunk":t2t_result},]))
                     else:
                         ttsg_stream = self.comp_manager.use("ttsg", iter([{"run_id": run_id, "content_chunk":t2t_result},]))
@@ -396,15 +400,16 @@ class JAIson(metaclass=Singleton):
         """
         # TODO: Buffer first sentence to prevent silence between TTS chunks
 
+        filtered = False
+
         first_llm_chunk = True
         first_tts_chunk = True
-
         start_time = time.time()
-        tts_start_time = None
 
         # T2T Generation
         logger.debug(f"Run {run_id} using T2T")
         await self.broadcast_server.broadcast_event("run_t2t_start", {"run_id": run_id})
+        await self.broadcast_server.broadcast_event("run_tts_start", {"run_id": run_id})
 
         t2t_result = ""
         sentence_acc = ""
@@ -421,6 +426,9 @@ class JAIson(metaclass=Singleton):
                 duration = (stop_time-start_time)
                 logger.info(f"LLM ttfb: {int(duration * 1000.0)}ms")
 
+            if filtered:
+                break
+
             chunk: str = response_chunk['content_chunk']
             t2t_result += chunk
             sentence_acc += chunk
@@ -430,41 +438,72 @@ class JAIson(metaclass=Singleton):
             
             # Send to TTS on sentence end
             if not chunk.strip().endswith(('.', ',', ';', '!', '?')): continue
-            if not self.filter(sentence_acc): continue
-                
-            # Create TTS stream
-            stream = None
-            if no_ttsc:
-                stream = self.comp_manager.use("ttsg", iter([{"run_id": run_id, "content_chunk": sentence_acc},]))
-            else:
-                ttsg_stream = self.comp_manager.use("ttsg", iter([{"run_id": run_id, "content_chunk": sentence_acc},]))
-                stream = self.comp_manager.use("ttsc", ttsg_stream)
 
-            if first_tts_chunk:
-                tts_start_time = time.time()
-                await self.broadcast_server.broadcast_event("run_tts_start", {"run_id": run_id})
+            temp_first_tts_chunk = first_tts_chunk
+            first_tts_chunk = False
 
-            # Generate TTS audio
+            if not self.filter(sentence_acc):
+                filtered = True
+                sentence_acc = self.filter.FILTERED_MESSAGE
+
+            temp = sentence_acc
             sentence_acc = ""
-            async for response_chunk in stream:
-                if first_tts_chunk:
-                    first_tts_chunk = False
-                    stop_time = time.time()
-                    total_duration = (stop_time-start_time)
-                    duration = (stop_time-tts_start_time)
-                    logger.info(f"TTS ttfb: {int(duration * 1000.0)}ms")
-                    logger.info(f"LLM+TTS ttfb: {int(total_duration * 1000.0)}ms")
-
-                chunk = response_chunk['audio_chunk']
-                for msg in self._generate_iterable(
-                    {"run_id": run_id, "sample_rate": response_chunk['sample_rate'], "sample_width": response_chunk['sample_width'], "channels": response_chunk['channels'], "success": True},
-                    "chunk", base64.b64encode(chunk).decode('utf-8')
-                ):
-                    await self.broadcast_server.broadcast_event("run_tts_chunk", msg)
+            await self._generate_sentence_tts(run_id, temp, temp_first_tts_chunk, start_time, no_ttsc)
         
+        if sentence_acc != "" and not filtered:
+            temp_first_tts_chunk = first_tts_chunk
+            first_tts_chunk = False
+
+            if not self.filter(sentence_acc):
+                filtered = True
+                sentence_acc = self.filter.FILTERED_MESSAGE
+
+            temp = sentence_acc
+            sentence_acc = ""
+            await self._generate_sentence_tts(run_id, temp, temp_first_tts_chunk, start_time, no_ttsc)
+
+                
         await self.broadcast_server.broadcast_event("run_t2t_stop", {"run_id": run_id, "success": True})
         await self.broadcast_server.broadcast_event("run_tts_stop", {"run_id": run_id, "success": True})
         return t2t_result
+
+
+    async def _generate_sentence_tts(self,
+                                    run_id: str,
+                                    sentence: str,
+                                    first_tts_chunk: bool,
+                                    start_time: int,
+                                    no_ttsc: bool = False) -> (int):
+        # Create TTS stream
+        tts_start_time = 0
+
+        stream = None
+        if no_ttsc:
+            stream = self.comp_manager.use("ttsg", iter([{"run_id": run_id, "content_chunk": sentence},]))
+        else:
+            ttsg_stream = self.comp_manager.use("ttsg", iter([{"run_id": run_id, "content_chunk": sentence},]))
+            stream = self.comp_manager.use("ttsc", ttsg_stream)
+
+        if first_tts_chunk:
+            tts_start_time = time.time()
+
+        # Generate TTS audio
+        sentence_acc = ""
+        async for response_chunk in stream:
+            if first_tts_chunk:
+                first_tts_chunk = False
+                stop_time = time.time()
+                total_duration = (stop_time-start_time)
+                duration = (stop_time-tts_start_time)
+                logger.info(f"TTS ttfb: {int(duration * 1000.0)}ms")
+                logger.info(f"LLM+TTS ttfb: {int(total_duration * 1000.0)}ms")
+
+            chunk = response_chunk['audio_chunk']
+            for msg in self._generate_iterable(
+                {"run_id": run_id, "sample_rate": response_chunk['sample_rate'], "sample_width": response_chunk['sample_width'], "channels": response_chunk['channels'], "success": True},
+                "chunk", base64.b64encode(chunk).decode('utf-8')
+            ):
+                await self.broadcast_server.broadcast_event("run_tts_chunk", msg)
 
     ## Context Management #################
 

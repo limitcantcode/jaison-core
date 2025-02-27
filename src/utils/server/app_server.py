@@ -1,6 +1,7 @@
 from quart import Quart, request, websocket, make_response
 import asyncio
 import json
+import os
 from utils.jaison import JAIson, NonexistantRunException
 from utils.config import Configuration
 from utils.observer import ObserverClient
