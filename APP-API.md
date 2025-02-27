@@ -21,6 +21,7 @@ Body:
 - `process_request`: (`bool`,`False`) Process input as addition to request context
 - `output_text`: (`bool`,`True`) Create T2T response
 - `output_audio`: (`bool`,`True`) Create T2T and TTS response
+- `skip_ttsc`: (`bool`,`False`) Whether to skip the TTSC (voice cloning) pass for this generation
 
 Returns
 - `run_id`: (`uuid string`) New response run's id
