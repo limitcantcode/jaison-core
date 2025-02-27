@@ -47,7 +47,7 @@ class ComponentManager():
                 try:
                     details = None
                     if 'directory' in listing:
-                        with open(os.path.join(listing['directory'],'metadata.yaml'), 'r') as f:
+                        with open(os.path.join(listing['directory'], 'metadata.yaml'), 'r') as f:
                             listing['endpoint'] = None
                             details = yaml.safe_load(f)
                         if self.os_type=='nt' and not details["is_windows_compatible"]:
@@ -75,26 +75,18 @@ class ComponentManager():
 
                     validator = ComponentDetailsValidator()
                     if not validator.is_valid(details):
-                        # TODO: Handle invalid details correctly, see `ComponentDetailsValidator.to_valid`
-                        self.logger.warning("Received invalid component details from a loaded componenent. Skipping...")
-                        continue
+                        self.logger.warning("Received invalid component details from a componenent. Fixing messing fields...")
+                        self.logger.warning("The act of fixing missing fields with default values may cause unexpected behavior. Please contact the component developer.")
+                        details = validator.to_valid(details)
+
+                    comp_type = details["type"]
 
                     self.logger.debug(f"For component listing {listing}, got details: {details}")
-                    if details["type"] not in self.available_components:
-                        self.available_components[details["type"]] = []
+                    if comp_type not in self.available_components:
+                        self.available_components[comp_type] = []
                     
-                    self.available_components[details["type"]].append(
-                        ComponentDetails(
-                            comp_type=details["type"],
-                            id=details["id"],
-                            name=details["name"],
-                            directory=listing['directory'],
-                            windows_run_script=details["windows_run_script"],
-                            unix_run_script=details["unix_run_script"],
-                            is_windows_compatible=details["is_windows_compatible"],
-                            is_unix_compatible=details["is_unix_compatible"],
-                            endpoint=listing['endpoint']
-                        )
+                    self.available_components[comp_type].append(
+                        ComponentDetails(details, listing)
                     )
                     self.logger.info(f"Loaded component configuration: {filepath}")
                 except asyncio.CancelledError:

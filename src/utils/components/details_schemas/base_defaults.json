@@ -1,0 +1,9 @@
+{
+    "id": "missing-id",
+    "name": "MissingComponentName",
+    "type": "",
+    "windows_run_script": "echo \"Component has no run script for windows\"",
+    "unix_run_script": "echo \"Component has no run script for unix\"",
+    "is_windows_compatible": true,
+    "is_unix_compatible": true
+}

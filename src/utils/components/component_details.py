@@ -1,5 +1,8 @@
 import os
+from typing import Any
 from .error import InvalidComponentConfig
+
+
 
 class ComponentDetails():
     '''
@@ -19,25 +22,22 @@ class ComponentDetails():
 
     def __init__(
         self,
-        comp_type: str,
-        id: str,
-        name: str,
-        directory: str = None,
-        windows_run_script: str = None,
-        unix_run_script: str = None,
-        is_windows_compatible: bool = False,
-        is_unix_compatible: bool = False,
-        endpoint: str = None
+        details: dict[str, Any],
+        listing: dict[str, Any]
     ):
+        self.comp_type: str = details["type"]
+        self.id: str = details["id"]
+        self.name: str = details["name"]
 
-        self.comp_type = comp_type
-        self.id = id
-        self.name = name 
-        self.directory = directory 
-        self.run_script = windows_run_script if os.name=='nt' else unix_run_script
-        self.is_windows_compatible = is_windows_compatible 
-        self.is_unix_compatible = is_unix_compatible
-        self.endpoint = None
+        self.is_windows_compatible: bool = details["is_windows_compatible"]
+        self.is_unix_compatible: bool = details["is_unix_compatible"]
+        self.run_script: str = details["windows_run_script"] if os.name=='nt' else details["unix_run_script"]
+
+        self.directory: str | None = listing["directory"]
+        self.endpoint: str | None = None
+
+        endpoint = listing["endpoint"]
+
         if endpoint:
             self.update_endpoint(endpoint)
 
