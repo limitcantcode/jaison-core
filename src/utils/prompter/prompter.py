@@ -9,7 +9,6 @@ class Prompter():
     def __init__(self):
         self.DISABLED_CONTEXT_MESSAGE = "This context isn't provided."
         self.SELF_IDENTIFIER = "You"
-        self.NO_RESPONSE = ""
         self.MAIN_CONVERSATION_HEADER = "Main Conversation"
         self.REQUEST_HEADER = "Request"
         self.DEFAULT_CONVO_HISTORY_LENGTH = 5
