@@ -325,7 +325,7 @@ class JAIson(metaclass=Singleton):
             logger.debug(f"Run {run_id} finished T2T with result: {t2t_result}")
 
             # Process audio if appropriate
-            if t2t_result != self.prompter.NO_RESPONSE and output_audio:
+            if output_audio:
                 # TTSG and TTSC generation (streaming continuous streaming)
                 logger.debug(f"Run {run_id} using TTS")
                 await self.broadcast_server.broadcast_event("run_tts_start", {"run_id": run_id})
