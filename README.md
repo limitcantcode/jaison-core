@@ -1,3 +1,6 @@
+**Force install pip24.0 for conda in order to install rvc dependencies without conflict**
+**Need to install ffmpeg stuff from conda or something**
+
 # J.A.I.son
 [Setup](#setup) | [Linking Twitch](#linking-twitch) | [Customizing responses](#customizing-t2t) | [Customizing voice](#customizing-voice) | [Configuration](#configuration) | [Running bot](#running-bot)
 

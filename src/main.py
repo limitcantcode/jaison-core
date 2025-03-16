@@ -1,26 +1,13 @@
-import os
-from dotenv import load_dotenv
-load_dotenv()
-import time
+from utils.logging import setup_logger
+setup_logger()
 from utils.args import args
+from dotenv import load_dotenv
+load_dotenv(dotenv_path=args.env)
+
 from utils.jaison import JAIson
-from utils.discord import DiscordBot
-from webui import start_ui
-from threading import Thread
 
-jaison_main = JAIson(init_config_file=args.config)
+# Initial loading
+from utils.config import Config
+Config()
 
-# For Discord Bot
-discord_bot = DiscordBot(jaison_main)
-discord_thread = Thread(target=discord_bot.run, args=[os.getenv("DISCORD_BOT_TOKEN")], daemon=True)
-discord_thread.start()
-
-# For Web UI
-web_thread = Thread(target=start_ui, args=[jaison_main], daemon=True)
-web_thread.start()
-
-# Keep running this main thread while others threads are active
-# Don't ever join threads that run forever otherwise can't exit on kill signals
-# Slow polling busy wait is scuffed, ik but it works
-while True:
-    time.sleep(5)
+jaison_main = JAIson()
