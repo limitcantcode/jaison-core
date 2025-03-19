@@ -23,7 +23,7 @@ class OpenAIT2T(T2TOperation):
         
     async def __call__(
         self, 
-        in_stream: AsyncGenerator[Dict[str, Any]] = None,
+        in_stream: AsyncGenerator = None,
         **kwargs
     ):
         system_prompt: str = ""

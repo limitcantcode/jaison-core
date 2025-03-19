@@ -1,6 +1,6 @@
 import logging
 import numpy as np
-from typing import Dict, AsyncGenerator, Any
+from typing import AsyncGenerator, Any
 from rvc.modules.vc.modules import VC
 from utils.config import Config
 from .meta import TTSCOperation
@@ -18,7 +18,7 @@ class RVCProjectTTSC(TTSCOperation):
     async def reload(self):
         if self.vc is not None: self.unload()
         self.vc = VC()
-        model_name = Config().rvc_voice_model if Config().rvc_voice_model.endswith('.pth') else f"{Config().rvc_voice_model}.pth"
+        model_name = Config().rvc_voice if Config().rvc_voice.endswith('.pth') else f"{Config().rvc_voice}.pth"
         self.vc.get_vc(model_name)
         
     async def unload(self):
@@ -44,7 +44,7 @@ class RVCProjectTTSC(TTSCOperation):
         
     async def __call__(
         self, 
-        in_stream: AsyncGenerator[Dict[str, Any]] = None,
+        in_stream: AsyncGenerator = None,
         **kwargs
     ):
         async for in_d in in_stream:

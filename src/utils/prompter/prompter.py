@@ -1,9 +1,12 @@
+
+import os
 from utils.helpers.time import timestamp_to_str
 from utils.helpers.singleton import Singleton
 from .error import UnknownContext, InvalidContext
+from utils.config import Config
 
 class Prompter(metaclass=Singleton):
-    def __init__(self, prompt_filepath, prompt_params, name_translations, convo_retention_length):
+    def __init__(self):
         self.DISABLED_CONTEXT_MESSAGE = "This context isn't provided."
         self.SELF_IDENTIFIER = "You"
         self.MAIN_CONVERSATION_HEADER = "Main Conversation"
@@ -25,11 +28,7 @@ You are to only respond with your own response to the current conversation, such
 {character_description}
 '''
 
-        self.prompt_filepath = prompt_filepath
-        self.prompt_params = prompt_params
-        self.name_translations = name_translations
         self.convo_history = [] # will contain {time: str, name: str, message: str}
-        self.convo_retention_length = convo_retention_length
         self.request = None
         self.custom_contexts = {} # <context id>: {name, description, contents}
 
@@ -37,11 +36,11 @@ You are to only respond with your own response to the current conversation, such
         return f"=== {name} ==="
     
     def _get_character_description(self):
-        with open(self.prompt_filepath, 'r') as f:
-            return f.read().format(**self.prompt_params)
+        with open(os.path.join(Config().PROMPT_DIR, Config().prompt_filename), 'r') as f:
+            return f.read()
 
     def _translate_name(self, name: str):
-        return self.name_translations.get(name, name)
+        return Config().prompt_name_translations.get(name, name)
 
     def msg_o_to_line(self, o):
         time = "[{}]".format(o['time'])
@@ -74,7 +73,7 @@ You are to only respond with your own response to the current conversation, such
             "message": message
         }
         self.convo_history.append(new_dialog)
-        self.convo_history = self.convo_history[-(self.convo_retention_length):]
+        self.convo_history = self.convo_history[-(Config().prompt_conversation_length):]
         
     def clear_history(self):
         self.convo_history.clear()

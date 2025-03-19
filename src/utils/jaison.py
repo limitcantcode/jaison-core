@@ -53,7 +53,7 @@ class JAIson(metaclass=Singleton):
         self.job_loop: asyncio.Task = None
         self.job_queue: asyncio.Queue = None
         self.job_map: Dict[str, Tuple[JobType, Coroutine]] = None
-        self.job_current_id: str= None
+        self.job_current_id: str = None
         self.job_current: asyncio.Task = None
         self.job_skips: Set = None
         
@@ -67,8 +67,6 @@ class JAIson(metaclass=Singleton):
         self.op_manager: OperationManager = None
     
     async def start(self):
-        config = Config()
-        
         self.job_queue = asyncio.Queue()
         self.job_map = dict()
         self.job_skips = dict()
@@ -80,11 +78,10 @@ class JAIson(metaclass=Singleton):
         
         self.process_manager = ProcessManager()
         self.op_manager = OperationManager()
-        self.start_operations('start',JobType.OPERATION_START,ops=config.default_operations)
+        await self.start_operations('start',JobType.OPERATION_START,ops=Config().default_operations)
         
     async def stop(self):
         logging.info("Shutting down JAIson application layer")
-        self.job_queue.shutdown(immediate=True)
         await self.op_manager.unload_all()
         await self.process_manager.unload()
         logging.info("JAIson application layer has been shut down")
@@ -99,7 +96,7 @@ class JAIson(metaclass=Singleton):
     ## Job Queueing #########################
     
     # Add async task to Queue to be ran in the order it was requested
-    async def create_job(self, job_type: str, **kwargs):
+    async def create_job(self, job_type: StrEnum, **kwargs):
         new_job_id = str(uuid.uuid4())
         
         job_type_enum = JobType(job_type)
@@ -127,7 +124,7 @@ class JAIson(metaclass=Singleton):
         logging.debug(f"Queued new job {new_job_id}")
         return new_job_id
     
-    async def cancel_job(self, job_id: uuid.UUID, reason: str = None):
+    async def cancel_job(self, job_id: str, reason: str = None):
         if job_id not in self.job_map: raise NonexistantJobException(f"Job {job_id} does not exist or already finished")
         
         cancel_message = f"Setting job {job_id} to cancel"
@@ -449,6 +446,7 @@ class JAIson(metaclass=Singleton):
     
     async def _handle_broadcast_error(self, job_id: str, job_type: JobType, err: Exception):
         error_type = "unknown"
+        # TODO: extend with all errors
         if isinstance(err, InvalidOperationType): error_type = "type_error"
         elif isinstance(err, InvalidOperationID): error_type = "type_error"
         elif isinstance(err, CompatibilityModeEnabled): error_type = "compatibility"

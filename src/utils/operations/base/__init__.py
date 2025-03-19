@@ -1,2 +1,3 @@
 from .capability import Capability
-from .operation import BaseOperation, OutputField
+from .operation import BaseOperation
+from .constants import OPERATION_MODULE

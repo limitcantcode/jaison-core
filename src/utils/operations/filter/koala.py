@@ -20,7 +20,7 @@ class KoalaAIFilter(FilterOperation):
     async def reload(self):
         if self.model is not None: await self.unload()
         self.model = AutoModelForSequenceClassification.from_pretrained("KoalaAI/Text-Moderation").to('cuda' if torch.cuda.is_available() else 'cpu')
-        self.tokenizer = AutoTokenizer.from_pretrained("KoalaAI/Text-Moderation").to('cuda' if torch.cuda.is_available() else 'cpu')
+        self.tokenizer = AutoTokenizer.from_pretrained("KoalaAI/Text-Moderation")
         
     async def unload(self):
         del self.model, self.tokenizer
@@ -28,7 +28,7 @@ class KoalaAIFilter(FilterOperation):
         
     async def __call__(
         self, 
-        in_stream: AsyncGenerator[Dict[str, Any]] = None,
+        in_stream: AsyncGenerator = None,
         **kwargs
     ):
         if Config().default_skip_filters:

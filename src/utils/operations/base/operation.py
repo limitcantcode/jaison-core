@@ -15,7 +15,7 @@ class BaseOperation:
         self.id: str = capability.op_implem_filename
         self.compatibility: bool = capability.compatibility
     
-    async def __call__(self, in_stream: AsyncGenerator = None, **kwargs) -> Dict[str, Any] | AsyncGenerator[Dict[str, OutputField]]:
+    async def __call__(self, in_stream: AsyncGenerator = None, **kwargs) -> AsyncGenerator:
         raise NotImplementedError
     
     async def start(self):

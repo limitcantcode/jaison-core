@@ -1,19 +1,20 @@
 import logging
 import subprocess
+from subprocess import DEVNULL
 import socket
 from utils.config import Config
 from utils.helpers.singleton import Singleton
 from ..base import BaseProcess
 
 class KoboldCPPProcess(BaseProcess, metaclass=Singleton):
-    async def __init__(self):
+    def __init__(self):
         super().__init__("koboldcpp")
-        self.reload()
+        self.reload_signal = True
         
-    async def reload(self): # TODO asynchronously start process and signal ready
+    async def reload(self):
         # Close any existing servers
         if self.process is not None:
-            self.unload()
+            await self.unload()
         
         # Find open port
         config = Config()
@@ -23,9 +24,7 @@ class KoboldCPPProcess(BaseProcess, metaclass=Singleton):
         sock.close()
         
         # Start Kobold server on that port
-        cmd = '{} --quiet --config "{}"'.format(config.kobold_filepath, config.kcpps_filepath)
-        cmd += " --port {}".format(self.port)
-        if config['use-vulkan']: cmd += " --usevulkan {}".format(config['vulkan-device'] or "")
+        cmd = '{} --quiet --config "{}" --port {}'.format(config.kobold_filepath, config.kcpps_filepath, self.port)
         logging.debug(f"Running Koboldcpp server using command: \"{cmd}\"")
-        self.process = subprocess.Popen(cmd, shell=True)
-        logging.info(f"Opened Koboldcpp server on port {self.port}")
+        self.process = subprocess.Popen(cmd, shell=True, stdout=DEVNULL, stderr=DEVNULL)
+        logging.info(f"Opened Koboldcpp server (PID: {self.process.pid}) on port {self.port}")

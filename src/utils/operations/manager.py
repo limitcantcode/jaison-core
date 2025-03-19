@@ -44,15 +44,15 @@ class OperationManager(metaclass=Singleton):
     
     '''Get dictionary containing all loaded operations'''
     def get_loaded_operations(self):
-        return {
-            STT_TYPE: self.stt,
-            T2T_TYPE: self.t2t,
-            TTSG_TYPE: self.ttsg,
-            TTSC_TYPE: self.ttsc,
-            CHUNKER_TYPE: self.chunker,
-            EMOTION_TYPE: self.emotion,
-            FILTER_TYPE: self.filters
-        }
+        result = {}
+        if self.stt is not None: result = result | {STT_TYPE: self.stt}
+        if self.t2t is not None: result = result | {T2T_TYPE: self.t2t}
+        if self.ttsg is not None: result = result | {TTSG_TYPE: self.ttsg}
+        if self.ttsc is not None: result = result | {TTSC_TYPE: self.ttsc}
+        if self.chunker is not None: result = result | {CHUNKER_TYPE: self.chunker}
+        if self.emotion is not None: result = result | {EMOTION_TYPE: self.emotion}
+        if len(self.filters) > 0: result = result | {FILTER_TYPE: self.filters}
+        return result
     
     '''
     Start an unloaded operation.
@@ -100,19 +100,20 @@ class OperationManager(metaclass=Singleton):
         loaded_op = self.get_loaded_operations()
         for op_type in loaded_op:
             if isinstance(loaded_op[op_type], str):
-                self.reload_operation(op_type, loaded_op[op_type])
+                await self.reload_operation(op_type, loaded_op[op_type])
             elif isinstance(loaded_op[op_type], dict):
                 for op_key in loaded_op[op_type]:
-                    self.reload_operation(op_type, op_key)     
+                    await self.reload_operation(op_type, op_key)     
      
     async def unload_all(self):
         loaded_op = self.get_loaded_operations()
         for op_type in loaded_op:
             if isinstance(loaded_op[op_type], str):
-                self.unload_operation(op_type, loaded_op[op_type])
+                await self.unload_operation(op_type, loaded_op[op_type])
             elif isinstance(loaded_op[op_type], dict):
-                for op_key in loaded_op[op_type]:
-                    self.unload_operation(op_type, op_key)
+                ops = list(loaded_op[op_type].keys())
+                for op_key in ops:
+                    await self.unload_operation(op_type, op_key)
         
     def use(self, op_type: str, op_id: str = None, in_stream: AsyncGenerator = None, **kwargs):
         self._validate_op_key(op_type, op_id=op_id)

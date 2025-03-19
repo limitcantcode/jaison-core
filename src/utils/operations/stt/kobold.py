@@ -19,7 +19,7 @@ class KoboldSTT(STTOperation):
     async def reload(self):
         pm = ProcessManager()
         try:
-            pm.koboldcpp.link(self.id)
+            await pm.koboldcpp.link(self.id)
         except DuplicateLink:
             pass
         
@@ -28,13 +28,13 @@ class KoboldSTT(STTOperation):
     async def unload(self):
         pm = ProcessManager()
         try:
-            pm.koboldcpp.unlink(self.id)
+            await pm.koboldcpp.unlink(self.id)
         except MissingLink:
             pass
         
     async def __call__(
         self, 
-        in_stream: AsyncGenerator[Dict[str, Any]] = None,
+        in_stream: AsyncGenerator = None,
         **kwargs
     ):
         audio_bytes: bytes = b''

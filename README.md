@@ -1,6 +1,11 @@
 **Force install pip24.0 for conda in order to install rvc dependencies without conflict**
 **Need to install ffmpeg stuff from conda or something**
 
+```
+conda create -n jaison-core python=3.12 pip=24.0
+python ./src/main.py --env="E:\\env\\jaison-core.env.txt" --config="test" --log_level=DEBUG
+```
+
 # J.A.I.son
 [Setup](#setup) | [Linking Twitch](#linking-twitch) | [Customizing responses](#customizing-t2t) | [Customizing voice](#customizing-voice) | [Configuration](#configuration) | [Running bot](#running-bot)
 

@@ -27,7 +27,7 @@ class RobertaEmotionClassifier(EmotionOperation):
         
     async def __call__(
         self, 
-        in_stream: AsyncGenerator[Dict[str, Any]] = None,
+        in_stream: AsyncGenerator = None,
         **kwargs
     ):
         content = ""

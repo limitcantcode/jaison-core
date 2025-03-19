@@ -18,7 +18,7 @@ class BaseProcess(): # Be sure to make it a singleton (metaclass=Singleton)
     reload_signal: bool = False
     unload_signal: bool = False
     
-    async def __init__(self, id):
+    def __init__(self, id):
         self.id = id
     
     async def reload(self):
@@ -48,7 +48,7 @@ class BaseProcess(): # Be sure to make it a singleton (metaclass=Singleton)
             raise DuplicateLink(f"Link ID {link_id} already linked to process {self.id}")
         
         if self.process is None:
-            self.reload()
+            await self.reload()
             
         self.links.add(link_id) # Add to links after loading process to ensure link established
         
@@ -59,4 +59,4 @@ class BaseProcess(): # Be sure to make it a singleton (metaclass=Singleton)
         
         if len(self.links):
             logging.info(f"No more links to process {self.id}. Unloading...")
-            self.unload()
+            await self.unload()

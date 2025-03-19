@@ -6,7 +6,7 @@ TTSG_TYPE = 'ttsg'
 class TTSGOperation(BaseOperation):
     async def __call__(
         self, 
-        in_stream: AsyncGenerator[Dict[str, Any]] = None, # {content: str}
+        in_stream: AsyncGenerator = None, # {content: str}
         **kwargs
     ): # {audio_bytes: bytes, sr: int, sw: int, ch: int}
         raise NotImplementedError

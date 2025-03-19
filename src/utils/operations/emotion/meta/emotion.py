@@ -6,7 +6,7 @@ EMOTION_TYPE = 'emotion'
 class EmotionOperation(BaseOperation):
     async def __call__(
         self,
-        in_stream: AsyncGenerator[Dict[str, Any]] = None, # in_stream {content: str}
+        in_stream: AsyncGenerator = None, # in_stream {content: str}
         **kwargs
     ): # out_stream {label: str}
         raise NotImplementedError

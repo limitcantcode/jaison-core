@@ -6,7 +6,7 @@ T2T_TYPE = 't2t'
 class T2TOperation(BaseOperation):
     async def __call__(
         self, 
-        in_stream: AsyncGenerator[Dict[str, Any]] = None, # {system_prompt: str, user_prompt: str}
+        in_stream: AsyncGenerator = None, # {system_prompt: str, user_prompt: str}
         **kwargs
     ): # {content: str}
         raise NotImplementedError

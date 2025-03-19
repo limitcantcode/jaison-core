@@ -6,7 +6,7 @@ STT_TYPE = 'stt'
 class STTOperation(BaseOperation):
     async def __call__(
         self, 
-        in_stream: AsyncGenerator[Dict[str, Any]] = None, # {audio_bytes: bytes, sr: int, sw: int, ch: int, initial_prompt: str}
+        in_stream: AsyncGenerator = None, # {audio_bytes: bytes, sr: int, sw: int, ch: int, initial_prompt: str}
         **kwargs
     ): # {transcription: str}
         raise NotImplementedError
