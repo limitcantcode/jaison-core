@@ -2,7 +2,7 @@
 **Need to install ffmpeg stuff from conda or something**
 
 ```
-conda create -n jaison-core python=3.12 pip=24.0
+conda create -n jaison-core python=3.12 pip=24.0 pytorch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 -c pytorch -y
 python ./src/main.py --env="E:\\env\\jaison-core.env.txt" --config="test" --log_level=DEBUG
 ```
 

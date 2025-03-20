@@ -76,7 +76,7 @@ class KoboldSTT(STTOperation):
 
         if response.status_code == 200:
             result = response.json()['text']
-            logging.debug(f"Operation {self.id} got result: {result:.200}")
+            logging.info(f"Operation {self.id} got result: {result:.200}")
             yield {"transcription": result}
         else:
             raise Exception(f"Failed to get STT result: {response.status_code} {response.reason}")

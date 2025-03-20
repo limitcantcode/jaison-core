@@ -55,4 +55,4 @@ class OpenAIT2T(T2TOperation):
             content_chunk = chunk.choices[0].delta.content or ""
             full_response += content_chunk
             yield {"content": content_chunk}
-        logging.debug(f"Operation {self.id} finished with result: {full_response}")
+        logging.info(f"Operation {self.id} finished with result: {full_response}")

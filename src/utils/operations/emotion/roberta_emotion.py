@@ -38,5 +38,5 @@ class RobertaEmotionClassifier(EmotionOperation):
         
         emotion = self.classifier(content)[0][0]['label']
         
-        logging.debug(f"Operation {self.id} got result: {emotion}")
+        logging.info(f"Operation {self.id} got result: {emotion}")
         yield {"label": emotion}

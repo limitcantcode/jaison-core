@@ -26,9 +26,9 @@ class SentenceChunker(ChunkerOperation):
     ):
         content = ""
         async for in_d in in_stream:
-            content = in_d['content']
+            content += in_d['content']
             while True:
-                sentence_match = self.sentence_pattern.search(content, 10) # Give some characters before
+                sentence_match = self.sentence_pattern.search(content, 20) # Give some characters before
                 if sentence_match is not None:
                     slice_ind = sentence_match.endpos
                     content_slice = content[:slice_ind]
@@ -39,3 +39,4 @@ class SentenceChunker(ChunkerOperation):
                 
         if len(content) > 0:
             yield {"content": content}
+        logging.info(f"Operation {self.id} has finished")

@@ -32,7 +32,7 @@ class KoalaAIFilter(FilterOperation):
         **kwargs
     ):
         if Config().default_skip_filters:
-            logging.debug("Filter is disabled. Skipping")
+            logging.info("Filter is disabled. Skipping")
             async for in_d in in_stream:
                 yield in_d
         else:
@@ -40,16 +40,17 @@ class KoalaAIFilter(FilterOperation):
             sentence = ""
             async for in_d in in_stream:
                 sentence += in_d['content']
-                if sentence[-1] in ['.','!','?'] and len(sentence) > 10: # TODO better sentence detection
-                    full_content += sentence
-                    is_good = await self._filter(full_content)
-                    yield {"content": sentence} if is_good else {"content": self.FILTERED_MESSAGE}
-                    sentence = ""
-                    if not is_good: break
+                full_content += sentence
+                is_good = self._filter(full_content)
+                yield {"content": sentence} if is_good else {"content": self.FILTERED_MESSAGE}
+                sentence = ""
+                if not is_good: break
                 
             if len(sentence) > 0:
                 is_good =  await self._filter(sentence)
                 yield {"content": sentence} if is_good else {"content": self.FILTERED_MESSAGE}
+                
+            logging.info(f"Operation {self.id} has finished")
         
     def _filter(self, content: str):
         assert content is not None and len(content) > 0
@@ -76,10 +77,10 @@ class KoalaAIFilter(FilterOperation):
         top_label, _ = label_prob_pairs[0]
         
         # Handle result
-        logging.debug(f"Operation {self.id} got result: {top_label}")
-        filtered = top_label == self.GOOD_LABEL
+        logging.info(f"Operation {self.id} got result: {top_label}")
+        filtered = top_label != self.GOOD_LABEL
         if filtered:
-            logging.debug("Filtering response")
+            logging.info("Filtering response")
             return False
         else:
             return True

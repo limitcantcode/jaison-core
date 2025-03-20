@@ -22,14 +22,13 @@ class Config(metaclass=Singleton):
     # Defaults
     default_skip_filters: bool = True
     default_skip_emotions: bool = True
-    default_skip_ttsc: bool = True
     default_operations: list = list()
     
     # Prompter
     PROMPT_DIR: str = portable_path(os.path.join(os.getcwd(), "prompts"))
     prompt_filename : str = None
-    prompt_name_translations: str = dict()
-    prompt_conversation_length: str = 10
+    prompt_name_translations: dict = dict()
+    prompt_conversation_length: int = 10
     
     # Kobold
     kobold_filepath: str = None

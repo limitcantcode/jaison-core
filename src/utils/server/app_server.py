@@ -13,59 +13,6 @@ from .common import create_response, create_preflight
 app = Quart(__name__)
 cors_header = {'Access-Control-Allow-Origin': '*'}
 
-# Allow CORS
-@app.route('/app/job', methods=['OPTIONS']) 
-async def preflight_job():
-    return create_preflight('DELETE')
-
-@app.route('/api/response', methods=['OPTIONS']) 
-async def preflight_response():
-    return create_preflight('DEPOSTLETE')
-
-@app.route('/api/context/request', methods=['OPTIONS']) 
-async def preflight_context_request():
-    return create_preflight('POST, DELETE')
-
-@app.route('/api/context/conversation/text', methods=['OPTIONS']) 
-async def preflight_context_conversation_text():
-    return create_preflight('POST')
-
-@app.route('/api/context/conversation/audio', methods=['OPTIONS']) 
-async def preflight_context_conversation_audio():
-    return create_preflight('POST')
-
-@app.route('/api/context/conversation', methods=['OPTIONS']) 
-async def preflight_context_conversation_clear():
-    return create_preflight('DELETE')
-
-@app.route('/api/context/custom', methods=['OPTIONS']) 
-async def preflight_context_custom():
-    return create_preflight('POST, PUT, DELETE')
-
-@app.route('/api/operations', methods=['OPTIONS']) 
-async def preflight_operations_info():
-    return create_preflight('GET')
-
-@app.route('/api/operation/start', methods=['POST']) 
-async def preflight_operation_start():
-    return create_preflight('POST')
-
-@app.route('/api/operation/reload', methods=['POST']) 
-async def preflight_operation_reload():
-    return create_preflight('POST')
-
-@app.route('/api/operation/unload', methods=['POST']) 
-async def preflight_operation_unload():
-    return create_preflight('POST')
-
-@app.route('/api/operation/use', methods=['POST'])
-async def preflight_operation_use():
-    return create_preflight('POST')
-
-@app.route('/api/config', methods=['OPTIONS']) 
-async def preflight_config():
-    return create_preflight('GET, POST, PUT')
-
 ## Websocket Event Broadcasting Server ##
 
 class SocketServerObserver(BaseObserverClient, metaclass=Singleton):
@@ -80,7 +27,7 @@ class SocketServerObserver(BaseObserverClient, metaclass=Singleton):
             if isinstance(payload[key], bytes):
                   payload[key] = base64.b64encode(payload[key]).decode('utf-8')
         message = json.dumps(create_response(200, event_id, payload))
-        logging.debug(f"Broadcasting event: {message:.100} to {len(self.connections)} clients")
+        logging.info(f"Broadcasting event: {message:.400} to {len(self.connections)} clients")
         for ws in set(self.connections):
             await ws.send(message)
             
@@ -95,7 +42,7 @@ async def ws():
     await ws.accept()
     sso.connections.add(ws)
     try:
-        while not sso.shutdown_signal.is_set():
+        while not sso.shutdown_signal.done():
             await asyncio.sleep(10)
     except asyncio.CancelledError:
         sso.connections.discard(ws)
@@ -131,7 +78,7 @@ async def cancel_job():
 async def _request_job(job_type: JobType):
     try:
         request_data = await request.get_json()
-        
+
         job_id = await JAIson().create_job(job_type, **request_data)
         return create_response(200, f"{job_type} job created", {"job_id": job_id}, cors_header)
     except Exception as err:
@@ -204,8 +151,61 @@ async def config_load():
 async def config_save():
     return await _request_job(JobType.CONFIG_SAVE)
 
+# Allow CORS
+@app.route('/app/job', methods=['OPTIONS']) 
+async def preflight_job():
+    return create_preflight('DELETE')
+
+@app.route('/api/response', methods=['OPTIONS']) 
+async def preflight_response():
+    return create_preflight('DEPOSTLETE')
+
+@app.route('/api/context/request', methods=['OPTIONS']) 
+async def preflight_context_request():
+    return create_preflight('POST, DELETE')
+
+@app.route('/api/context/conversation/text', methods=['OPTIONS']) 
+async def preflight_context_conversation_text():
+    return create_preflight('POST')
+
+@app.route('/api/context/conversation/audio', methods=['OPTIONS']) 
+async def preflight_context_conversation_audio():
+    return create_preflight('POST')
+
+@app.route('/api/context/conversation', methods=['OPTIONS']) 
+async def preflight_context_conversation_clear():
+    return create_preflight('DELETE')
+
+@app.route('/api/context/custom', methods=['OPTIONS']) 
+async def preflight_context_custom():
+    return create_preflight('POST, PUT, DELETE')
+
+@app.route('/api/operations', methods=['OPTIONS']) 
+async def preflight_operations_info():
+    return create_preflight('GET')
+
+@app.route('/api/operation/start', methods=['POST']) 
+async def preflight_operation_start():
+    return create_preflight('POST')
+
+@app.route('/api/operation/reload', methods=['POST']) 
+async def preflight_operation_reload():
+    return create_preflight('POST')
+
+@app.route('/api/operation/unload', methods=['POST']) 
+async def preflight_operation_unload():
+    return create_preflight('POST')
+
+@app.route('/api/operation/use', methods=['POST'])
+async def preflight_operation_use():
+    return create_preflight('POST')
+
+@app.route('/api/config', methods=['OPTIONS']) 
+async def preflight_config():
+    return create_preflight('GET, POST, PUT')
+
 ## START ###################################
-async def start_web_server():
+async def start_web_server(): # TODO launch application plugins here as well
     try:
         global app
         await JAIson().start()

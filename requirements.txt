@@ -11,9 +11,9 @@ psutil # For mac
 python-dateutil # For mac
 ffmpeg==1.4 # May need to still install specifically for OS (not as pip or conda)
 
-torch --index-url https://download.pytorch.org/whl/cu126
-torchvision --index-url https://download.pytorch.org/whl/cu126
-torchaudio --index-url https://download.pytorch.org/whl/cu126
+torch==2.5.1 --index-url https://download.pytorch.org/whl/cu124
+torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cu124
+torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu124
 transformers==4.48.0
 
 git+https://github.com/limitcantcode/Retrieval-based-Voice-Conversion.git

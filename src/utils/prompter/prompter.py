@@ -1,5 +1,6 @@
 
 import os
+from typing import AsyncGenerator
 from utils.helpers.time import timestamp_to_str
 from utils.helpers.singleton import Singleton
 from .error import UnknownContext, InvalidContext
@@ -75,6 +76,13 @@ You are to only respond with your own response to the current conversation, such
         self.convo_history.append(new_dialog)
         self.convo_history = self.convo_history[-(Config().prompt_conversation_length):]
         
+    async def listen_response(self, time: int, in_stream: AsyncGenerator):
+        content = ''
+        async for in_d in in_stream:
+            content += in_d['content']
+        
+        self.add_history(time, self.SELF_IDENTIFIER, content)
+            
     def clear_history(self):
         self.convo_history.clear()
 

@@ -74,7 +74,7 @@ class RVCProjectTTSC(TTSCOperation):
             )
             
             yield {
-                "audio_bytes": audio_opt,
+                "audio_bytes": audio_opt.tobytes(),
                 "sr": tgt_sr,
                 "sw": self.TARGET_SW,
                 "ch": self.TARGET_CH
