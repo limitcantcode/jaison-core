@@ -42,12 +42,12 @@ class PyttsTTSG(TTSGOperation):
         **kwargs
     ):
         async for in_d in in_stream:
-            yield await self._generate(in_stream['content'])
+            yield await self._generate(in_d['content'])
 
     async def _generate(self, content: str):
         assert content is not None and len(content) > 0
         
-        self.engine.save_to_file(content, Config().sythn_ttsg_working_file)
+        self.engine.save_to_file(content, Config().synth_ttsg_working_file)
         self.engine.runAndWait()
         
         with wave.open(Config().synth_ttsg_working_file, 'r') as f:

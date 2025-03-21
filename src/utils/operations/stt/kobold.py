@@ -47,7 +47,7 @@ class KoboldSTT(STTOperation):
             sr = in_d['sr']
             sw = in_d['sw']
             ch = in_d['ch']
-            initial_prompt = in_d['initial_prompt']
+            initial_prompt = "Name: J.A.I.son" #in_d['initial_prompt']
             
         assert audio_bytes is not None and len(audio_bytes) > 0
         assert sr > 0

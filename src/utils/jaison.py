@@ -289,6 +289,7 @@ class JAIson(metaclass=Singleton):
             
         # Wait and record response
         await asyncio.wait(self.tasks_to_clean)
+        self.prompter.clear_request() # TODO: handle elsewhere?
 
     # Base context modification
     async def append_request_context(
@@ -322,11 +323,12 @@ class JAIson(metaclass=Singleton):
         job_type: JobType,
         user: str = None,
         timestamp: int = None,
-        audio_bytes: bytes = None,
+        audio_bytes: str = None,
         sr: int = None,
         sw: int = None,
         ch: int = None
     ):
+        audio_bytes: bytes = base64.b64decode(audio_bytes)
         content = ""
         next_stream = list_to_agen([{"audio_bytes": audio_bytes, "sr": sr, "sw": sw, "ch": ch}])
         async for out_d in self.op_manager.use(STT_TYPE, in_stream=next_stream):
@@ -353,7 +355,7 @@ class JAIson(metaclass=Singleton):
         job_id: str,
         job_type: JobType
     ):
-        self.prompter.clear()
+        self.prompter.clear_history()
         await self._handle_broadcast_event(job_id, job_type, {})
         
     # Custom context management

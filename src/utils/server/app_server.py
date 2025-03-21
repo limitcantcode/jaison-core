@@ -77,7 +77,7 @@ async def cancel_job():
 
 async def _request_job(job_type: JobType):
     try:
-        request_data = await request.get_json()
+        request_data = (await request.get_json()) or dict()
 
         job_id = await JAIson().create_job(job_type, **request_data)
         return create_response(200, f"{job_type} job created", {"job_id": job_id}, cors_header)

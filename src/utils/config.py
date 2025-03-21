@@ -53,7 +53,7 @@ class Config(metaclass=Singleton):
     # Synthetic TTSG
     synth_ttsg_voice_name: str = None
     synth_ttsg_gender: str = 'female'
-    synth_ttsg_working_file: str = portable_path(os.path.join(CONFIG_DIR,'ttsg-synth-out.wav'))
+    synth_ttsg_working_file: str = portable_path(os.path.join(WORKING_DIR,'ttsg-synth-out.wav'))
         
     # RVC Project
     rvc_voice: str = None
