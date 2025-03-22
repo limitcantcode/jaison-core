@@ -18,3 +18,5 @@ transformers==4.48.0
 
 git+https://github.com/limitcantcode/Retrieval-based-Voice-Conversion.git
 git+https://github.com/One-sixth/fairseq.git
+
+fish-audio-sdk==2025.2.11

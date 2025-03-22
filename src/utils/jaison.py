@@ -230,17 +230,18 @@ class JAIson(metaclass=Singleton):
         next_stream = t2t_stream_d[T2T_TYPE]
         
         # Enforce sentence chunking
-        next_stream = self.op_manager.use(CHUNKER_TYPE, in_stream=next_stream)
+        if self.op_manager.chunker is not None:
+            next_stream = self.op_manager.use(CHUNKER_TYPE, in_stream=next_stream)
         
         # Filters and emotions
         t2t_consumers = {
             'broadcast': (lambda stream: self._handle_broadcast_stream(job_id, job_type, stream, base_payload={"output_type": 'text_raw'})),
             FILTER_TYPE: (lambda stream: self.op_manager.use(FILTER_TYPE,in_stream=stream))
         }
-        if not config.default_skip_emotions: t2t_consumers = t2t_consumers | {EMOTION_TYPE: (lambda stream: self.op_manager.use(EMOTION_TYPE,in_stream=stream))}
+        if self.op_manager.emotion is not None: t2t_consumers = t2t_consumers | {EMOTION_TYPE: (lambda stream: self.op_manager.use(EMOTION_TYPE,in_stream=stream))}
         t2t_post_stream_d, t2t_post_stream_task = multiplexor(t2t_consumers, next_stream)
         self.tasks_to_clean += [t2t_post_stream_task, asyncio.create_task(t2t_post_stream_d['broadcast'])]
-        if not config.default_skip_emotions:
+        if self.op_manager.emotion is not None:
             self.tasks_to_clean.append(
                 asyncio.create_task(
                     self._handle_broadcast_stream(

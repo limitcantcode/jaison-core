@@ -18,7 +18,7 @@ class OpenAIT2T(T2TOperation):
         self.client = AsyncOpenAI(base_url=Config().openai_t2t_base_url)
         
     async def unload(self):
-        self.client.close()
+        await self.client.close()
         self.client = None
         
     async def __call__(

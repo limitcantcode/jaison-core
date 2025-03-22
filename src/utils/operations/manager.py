@@ -96,7 +96,7 @@ class OperationManager(metaclass=Singleton):
         
         # Update manager trakcing
         if op_type == FILTER_TYPE: del self.filters[op_id]
-        else: self.__setattr__(op_type.value, None)
+        else: self.__setattr__(op_type, None)
        
     async def reload_all(self):
         loaded_op = self.get_loaded_operations()

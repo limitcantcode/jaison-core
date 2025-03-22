@@ -21,7 +21,6 @@ class Config(metaclass=Singleton):
     
     # Defaults
     default_skip_filters: bool = True
-    default_skip_emotions: bool = True
     default_operations: list = list()
     
     # Prompter
@@ -66,6 +65,13 @@ class Config(metaclass=Singleton):
     rvc_resample_sr: int = 0
     rvc_rms_mix_rate: float = 0.25
     rvc_protect: float = 0.33
+    
+    # Fish Audio
+    fish_model_id: str = None
+    fish_model_backend: str = "speech-1.6"
+    fish_normalize: bool = False
+    fish_latency: str = "normal"
+    
         
     def __init__(self):
         # # Every attribute must be typed for validation

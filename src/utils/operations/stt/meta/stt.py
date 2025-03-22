@@ -17,5 +17,11 @@ stt_capabilities: Dict[str, Capability] = {
         "kobold",
         "KoboldSTT",
         compatibility=True
+    ),
+    "fish": Capability(
+        STT_TYPE,
+        "fish",
+        "FishSTT",
+        compatibility=True
     )
 }
