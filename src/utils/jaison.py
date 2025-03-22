@@ -2,17 +2,17 @@ import logging
 import asyncio
 import uuid
 import base64
-from typing import Dict, Coroutine, Set, List, Any, AsyncGenerator, Tuple
+import datetime
+from typing import Dict, Coroutine, List, Any, AsyncGenerator, Tuple
 from enum import StrEnum
 
 from utils.helpers.singleton import Singleton
 from utils.helpers.iterable import list_to_agen
 from utils.helpers.observer import ObserverServer
 from utils.helpers.multiplexor import multiplexor
-from utils.helpers.time import get_current_time
 
 from utils.config import Config
-from utils.prompter import Prompter, UnknownContext
+from utils.prompter import Prompter
 from utils.processes import ProcessManager
 from utils.operations import OperationManager
 from utils.operations import (
@@ -34,14 +34,13 @@ class UnknownJobType(Exception):
 
 class JobType(StrEnum):
     RESPONSE = 'response'
+    CONTEXT_CLEAR = 'context_clear'
     CONTEXT_REQUEST_ADD = 'context_request_add'
-    CONTEXT_REQUEST_CLEAR = 'context_request_clear'
     CONTEXT_CONVERSATION_ADD_TEXT = 'context_conversation_add_text'
     CONTEXT_CONVERSATION_ADD_AUDIO = 'context_conversation_add_audio'
-    CONTEXT_CONVERSATION_CLEAR = 'context_conversation_clear'
-    CONTEXT_CUSTOM_ADD = 'context_custom_add'
+    CONTEXT_CUSTOM_REGISTER = 'context_custom_register'
     CONTEXT_CUSTOM_REMOVE = 'context_custom_remove'
-    CONTEXT_CUSTOM_UPDATE = 'context_custom_update'
+    CONTEXT_CUSTOM_ADD = 'context_custom_add'
     OPERATION_START = 'operation_start'
     OPERATION_RELOAD = 'operation_reload'
     OPERATION_UNLOAD = 'operation_unload'
@@ -105,13 +104,12 @@ class JAIson(metaclass=Singleton):
         coro = None
         if job_type_enum == JobType.RESPONSE: coro = self.response_pipeline(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.CONTEXT_REQUEST_ADD: coro = self.append_request_context(new_job_id, job_type_enum, **kwargs)
-        elif job_type_enum == JobType.CONTEXT_REQUEST_CLEAR: coro = self.clear_request_context(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.CONTEXT_CONVERSATION_ADD_TEXT: coro = self.append_conversation_context_text(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.CONTEXT_CONVERSATION_ADD_AUDIO: coro = self.append_conversation_context_audio(new_job_id, job_type_enum, **kwargs)
-        elif job_type_enum == JobType.CONTEXT_CONVERSATION_CLEAR: coro = self.clear_conversation_context(new_job_id, job_type_enum, **kwargs)
-        elif job_type_enum == JobType.CONTEXT_CUSTOM_ADD: coro = self.add_custom_context(new_job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONTEXT_CLEAR: coro = self.clear_context(new_job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONTEXT_CUSTOM_REGISTER: coro = self.register_custom_context(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.CONTEXT_CUSTOM_REMOVE: coro = self.remove_custom_context(new_job_id, job_type_enum, **kwargs)
-        elif job_type_enum == JobType.CONTEXT_CUSTOM_UPDATE: coro = self.update_custom_context(new_job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONTEXT_CUSTOM_ADD: coro = self.add_custom_context(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.OPERATION_START: coro = self.start_operations(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.OPERATION_RELOAD: coro = self.reload_operations(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.OPERATION_UNLOAD: coro = self.unload_operations(new_job_id, job_type_enum, **kwargs)
@@ -211,8 +209,6 @@ class JAIson(metaclass=Singleton):
         skip_ttsc: bool = None,
         output_audio: bool = None
     ):
-        start_timestamp = int(get_current_time(include_ms=False, as_str=False).timestamp())
-        config = Config()
         if output_audio is None: output_audio = False
         if output_audio and self.op_manager.ttsg is None: raise UnloadedOperationError(TTSG_TYPE)
         if skip_ttsc is None: skip_ttsc = self.op_manager.ttsc is None
@@ -254,7 +250,7 @@ class JAIson(metaclass=Singleton):
         next_stream = t2t_post_stream_d[FILTER_TYPE]
         t2t_post_consumers = {
             'broadcast': (lambda stream: self._handle_broadcast_stream(job_id, job_type, stream, base_payload={"output_type": 'text_final'})),
-            'response_recorder': (lambda stream: self.prompter.listen_response(start_timestamp,in_stream=stream))
+            'response_recorder': (lambda stream: self.prompter.add_chat_stream(Config().character_name,stream))
         }
         if not output_audio:
             # Omit audio generation steps and just broadcast final text
@@ -290,9 +286,16 @@ class JAIson(metaclass=Singleton):
             
         # Wait and record response
         await asyncio.wait(self.tasks_to_clean)
-        self.prompter.clear_request() # TODO: handle elsewhere?
 
-    # Base context modification
+    # Context modification
+    async def clear_context(
+        self,
+        job_id: str,
+        job_type: JobType
+    ):
+        self.prompter.clear_history()
+        await self._handle_broadcast_event(job_id, job_type, {})
+        
     async def append_request_context(
         self, 
         job_id: str, 
@@ -310,12 +313,13 @@ class JAIson(metaclass=Singleton):
         timestamp: int = None, 
         content: str = None
     ):
-        self.prompter.add_history(timestamp, user, content)
+        if timestamp is not None: timestamp = datetime.datetime.fromtimestamp(timestamp)
+        self.prompter.add_chat(user, content, time=timestamp)
         await self._handle_broadcast_event(job_id, job_type, {
             "user": user,
             "timestamp": timestamp,
             "content": content,
-            "line": self.prompter.msg_o_to_line(self.prompter.convo_history[-1])
+            "line": self.prompter.history[-1].to_line()
         })
         
     async def append_conversation_context_audio(
@@ -335,42 +339,25 @@ class JAIson(metaclass=Singleton):
         async for out_d in self.op_manager.use(STT_TYPE, in_stream=next_stream):
             content += out_d['transcription']
       
-        self.prompter.add_history(timestamp, user, content)
+        if timestamp is not None: timestamp = datetime.datetime.fromtimestamp(timestamp)
+        self.prompter.add_chat(user, content, time=timestamp)
         await self._handle_broadcast_event(job_id, job_type, {
             "user": user,
-            "timestamp": timestamp,
+            "timestamp": int(timestamp.timestamp()) if timestamp else None,
             "content": content,
-            "line": self.prompter.msg_o_to_line(self.prompter.convo_history[-1])
+            "line": self.prompter.history[-1].to_line()
         })
-
-    async def clear_request_context(
-        self,
-        job_id: str,
-        job_type: JobType
-    ):
-        self.prompter.clear_request()
-        await self._handle_broadcast_event(job_id, job_type, {})
         
-    async def clear_conversation_context(
-        self,
-        job_id: str,
-        job_type: JobType
-    ):
-        self.prompter.clear_history()
-        await self._handle_broadcast_event(job_id, job_type, {})
-        
-    # Custom context management
-    async def add_custom_context(
+    async def register_custom_context(
         self,
         job_id: str,
         job_type: JobType,
         context_id: str = None,
         context_name: str = None,
-        context_description: str = None,
-        initial_contents: str=None
+        context_description: str = None
     ):
-        self.prompter.add_custom_context(context_id, context_name, context_description=context_description, initial_contents=initial_contents)
-        await self._handle_broadcast_event(job_id, job_type, {"id": context_id, "name": context_name, "description": context_description, "content":initial_contents})
+        self.prompter.register_custom_context(context_id, context_name, context_description=context_description)
+        await self._handle_broadcast_event(job_id, job_type, {"id": context_id, "name": context_name, "description": context_description})
     
     async def remove_custom_context(self,
         job_id: str,
@@ -380,14 +367,16 @@ class JAIson(metaclass=Singleton):
         self.prompter.remove_custom_context(context_id)
         await self._handle_broadcast_event(job_id, job_type, {"id": context_id})
     
-    async def update_custom_context(
+    async def add_custom_context(
         self,
         job_id: str,
         job_type: JobType,
         context_id: str = None,
-        context_contents: str = None
+        context_contents: str = None,
+        timestamp: int = None
     ):
-        self.prompter.update_custom_context(context_id, context_contents)
+        if timestamp is not None: timestamp = datetime.datetime.fromtimestamp(timestamp)
+        self.prompter.add_custom_context(context_id, context_contents)
         await self._handle_broadcast_event(job_id, job_type, {"id":context_id})
             
     # Operation management
@@ -478,7 +467,6 @@ class JAIson(metaclass=Singleton):
         elif isinstance(err, CompatibilityModeEnabled): error_type = "compatibility"
         elif isinstance(err, UnloadedOperationError): error_type = "unloaded"
         elif isinstance(err, UnknownJobType): error_type = "job_error"
-        elif isinstance(err, UnknownContext): error_type = "context_missing"
         
         await self.event_server.broadcast_event(job_type.value, {
             "job_id": job_id,

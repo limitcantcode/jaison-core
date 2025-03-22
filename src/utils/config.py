@@ -25,9 +25,17 @@ class Config(metaclass=Singleton):
     
     # Prompter
     PROMPT_DIR: str = portable_path(os.path.join(os.getcwd(), "prompts"))
-    prompt_filename : str = None
-    prompt_name_translations: dict = dict()
-    prompt_conversation_length: int = 10
+    PROMPT_INSTRUCTION_SUBDIR: str = "instructions"
+    PROMPT_CHARACTER_SUBDIR: str = "characters"
+    PROMPT_SCENE_SUBDIR: str = "scenes"
+    
+    instruction_prompt_filename: str = 'example.txt'
+    character_prompt_filename: str = 'example.txt'
+    scene_prompt_filename: str = 'example.txt'
+    
+    character_name: str = 'JAIson'
+    name_translations: dict = dict()
+    history_length: int = 50
     
     # Kobold
     kobold_filepath: str = None

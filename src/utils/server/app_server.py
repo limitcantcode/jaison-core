@@ -90,14 +90,15 @@ async def _request_job(job_type: JobType):
 async def response():
     return await _request_job(JobType.RESPONSE)
 
+# Context - General
+@app.route('/api/context', methods=['DELETE'])    
+async def context_clear():
+    return await _request_job(JobType.CONTEXT_CLEAR)
+
 # Context - Requests
 @app.route('/api/context/request', methods=['POST'])    
 async def context_request_add():
     return await _request_job(JobType.CONTEXT_REQUEST_ADD)
-
-@app.route('/api/context/request', methods=['DELETE'])    
-async def context_request_clear():
-    return await _request_job(JobType.CONTEXT_REQUEST_CLEAR)
 
 # Context - Conversation
 @app.route('/api/context/conversation/text', methods=['POST'])    
@@ -108,14 +109,10 @@ async def context_conversation_add_text():
 async def context_conversation_add_audio():
     return await _request_job(JobType.CONTEXT_CONVERSATION_ADD_AUDIO)
 
-@app.route('/api/context/conversation', methods=['DELETE'])    
-async def context_conversation_clear():
-    return await _request_job(JobType.CONTEXT_CONVERSATION_CLEAR)
-
 # Context - Custom
 @app.route('/api/context/custom', methods=['PUT'])    
 async def context_custom_add():
-    return await _request_job(JobType.CONTEXT_CUSTOM_ADD)
+    return await _request_job(JobType.CONTEXT_CUSTOM_REGISTER)
 
 @app.route('/api/context/custom', methods=['DELETE'])    
 async def context_custom_remove():
@@ -123,7 +120,7 @@ async def context_custom_remove():
 
 @app.route('/api/context/custom', methods=['POST'])    
 async def context_custom_update():
-    return await _request_job(JobType.CONTEXT_CUSTOM_UPDATE)
+    return await _request_job(JobType.CONTEXT_CUSTOM_ADD)
 
 # Operation management
 @app.route('/api/operation/start', methods=['POST'])    
@@ -158,11 +155,15 @@ async def preflight_job():
 
 @app.route('/api/response', methods=['OPTIONS']) 
 async def preflight_response():
-    return create_preflight('DEPOSTLETE')
+    return create_preflight('POST')
+
+@app.route('/api/context', methods=['OPTIONS']) 
+async def preflight_context_conversation_clear():
+    return create_preflight('DELETE')
 
 @app.route('/api/context/request', methods=['OPTIONS']) 
 async def preflight_context_request():
-    return create_preflight('POST, DELETE')
+    return create_preflight('POST')
 
 @app.route('/api/context/conversation/text', methods=['OPTIONS']) 
 async def preflight_context_conversation_text():
@@ -171,10 +172,6 @@ async def preflight_context_conversation_text():
 @app.route('/api/context/conversation/audio', methods=['OPTIONS']) 
 async def preflight_context_conversation_audio():
     return create_preflight('POST')
-
-@app.route('/api/context/conversation', methods=['OPTIONS']) 
-async def preflight_context_conversation_clear():
-    return create_preflight('DELETE')
 
 @app.route('/api/context/custom', methods=['OPTIONS']) 
 async def preflight_context_custom():
