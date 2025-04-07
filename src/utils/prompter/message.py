@@ -13,7 +13,7 @@ class RequestMessage(Message):
         self.time = time
         
     def to_line(self):
-        return "[REQUEST]: "
+        return f"[REQUEST]: {self.message}"
     
 class ChatMessage(Message):
     def __init__(self, user: str, message: str, time: datetime.datetime):

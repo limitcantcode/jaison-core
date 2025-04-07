@@ -187,7 +187,7 @@ class JAIson(metaclass=Singleton):
         return self.op_manager.get_loaded_operations()
 
     def get_current_config(self):
-        return Config().get_config_dict()    
+        return Config().get_config_dict()
             
     ## Async Job Handlers #########################
     
@@ -313,13 +313,20 @@ class JAIson(metaclass=Singleton):
         timestamp: int = None, 
         content: str = None
     ):
-        if timestamp is not None: timestamp = datetime.datetime.fromtimestamp(timestamp)
-        self.prompter.add_chat(user, content, time=timestamp)
+        self.prompter.add_chat(
+            user,
+            content,
+            time=(
+                datetime.datetime.fromtimestamp(timestamp) \
+                if isinstance(timestamp, int) else timestamp
+            )
+        )
+        last_line_o = self.prompter.history[-1]
         await self._handle_broadcast_event(job_id, job_type, {
-            "user": user,
-            "timestamp": timestamp,
-            "content": content,
-            "line": self.prompter.history[-1].to_line()
+            "user": last_line_o.user,
+            "timestamp": last_line_o.time.timestamp(),
+            "content": last_line_o.message,
+            "line": last_line_o.to_line()
         })
         
     async def append_conversation_context_audio(
@@ -339,13 +346,20 @@ class JAIson(metaclass=Singleton):
         async for out_d in self.op_manager.use(STT_TYPE, in_stream=next_stream):
             content += out_d['transcription']
       
-        if timestamp is not None: timestamp = datetime.datetime.fromtimestamp(timestamp)
-        self.prompter.add_chat(user, content, time=timestamp)
+        self.prompter.add_chat(
+            user,
+            content,
+            time=(
+                datetime.datetime.fromtimestamp(timestamp) \
+                if isinstance(timestamp, int) else timestamp
+            )
+        )
+        last_line_o = self.prompter.history[-1]
         await self._handle_broadcast_event(job_id, job_type, {
-            "user": user,
-            "timestamp": int(timestamp.timestamp()) if timestamp else None,
-            "content": content,
-            "line": self.prompter.history[-1].to_line()
+            "user": last_line_o.user,
+            "timestamp": last_line_o.time.timestamp(),
+            "content": last_line_o.message,
+            "line": last_line_o.to_line()
         })
         
     async def register_custom_context(

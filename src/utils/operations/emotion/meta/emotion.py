@@ -12,9 +12,9 @@ class EmotionOperation(BaseOperation):
         raise NotImplementedError
     
 emotion_capabilities: Dict[str, Capability] = {
-    "roberta_emotion": Capability(
+    "roberta": Capability(
         EMOTION_TYPE,
-        "roberta_emotion",
+        "roberta",
         'RobertaEmotionClassifier',
         compatibility=False
     )

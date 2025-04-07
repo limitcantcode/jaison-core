@@ -111,7 +111,7 @@ async def context_conversation_add_audio():
 
 # Context - Custom
 @app.route('/api/context/custom', methods=['PUT'])    
-async def context_custom_add():
+async def context_custom_register():
     return await _request_job(JobType.CONTEXT_CUSTOM_REGISTER)
 
 @app.route('/api/context/custom', methods=['DELETE'])    
@@ -119,7 +119,7 @@ async def context_custom_remove():
     return await _request_job(JobType.CONTEXT_CUSTOM_REMOVE)
 
 @app.route('/api/context/custom', methods=['POST'])    
-async def context_custom_update():
+async def context_custom_add():
     return await _request_job(JobType.CONTEXT_CUSTOM_ADD)
 
 # Operation management

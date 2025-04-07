@@ -22,7 +22,7 @@ class PyttsTTSG(TTSGOperation):
         await self.reload()
         
     async def reload(self):
-        if self.engine is not None: self.unload()
+        if self.engine is not None: await self.unload()
         
         self.engine = pyttsx3.init()
         

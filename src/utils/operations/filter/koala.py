@@ -19,7 +19,8 @@ class KoalaAIFilter(FilterOperation):
         
     async def reload(self):
         if self.model is not None: await self.unload()
-        self.model = AutoModelForSequenceClassification.from_pretrained("KoalaAI/Text-Moderation").to('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.model = AutoModelForSequenceClassification.from_pretrained("KoalaAI/Text-Moderation").to(self.device)
         self.tokenizer = AutoTokenizer.from_pretrained("KoalaAI/Text-Moderation")
         
     async def unload(self):
@@ -56,7 +57,7 @@ class KoalaAIFilter(FilterOperation):
         assert content is not None and len(content) > 0
         
         # Run the model on your input
-        inputs = self.tokenizer(content, return_tensors="pt")
+        inputs = self.tokenizer(content, return_tensors="pt").to(self.device)
         outputs = self.model(**inputs)
 
         # Get the predicted logits
