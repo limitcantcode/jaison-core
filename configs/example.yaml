@@ -1,0 +1,64 @@
+# General
+compatibility_mode: false
+web_port: 7272
+
+# Defaults
+default_skip_filters: false
+default_operations:
+- type: stt
+  id: kobold
+- type: t2t
+  id: openai
+- type: chunker
+  id: sentence
+- type: filter
+  id: koala
+- type: emotion
+  id: roberta
+- type: ttsg
+  id: openai
+- type: ttsc
+  id: rvc
+
+# Prompter
+instruction_prompt_filename: 'example.txt'
+character_prompt_filename: 'example.txt'
+scene_prompt_filename: 'example.txt'
+
+character_name: "J.A.I.son"
+name_translations:
+  limit: Limit
+history_length: 50
+
+# Kobold
+kobold_filepath: E:\\jaison-core\\models\\kobold\\koboldcpp_cu12.exe # must be absolute
+kcpps_filepath: E:\\jaison-core\\models\\kobold\\save.kcpps # must be absolute
+
+kobold_stt_suppress_non_speech: true
+kobold_stt_langcode: en
+
+# OpenAI T2T
+openai_t2t_base_url: https://api.openai.com/v1/
+openai_t2t_model: ft:gpt-4o-mini-2024-07-18:lcc::AteqXgF6
+
+openai_t2t_temperature: 1
+openai_t2t_top_p: 0.9
+openai_t2t_presence_penalty: 1
+openai_t2t_frequency_penalty: 1
+
+# OpenAI TTSG
+openai_ttsg_base_url: https://api.openai.com/v1/
+openai_ttsg_voice: nova
+openai_ttsg_model: tts-1
+
+# RVC Project
+rvc_voice: my-voice-model
+rvc_f0_up_key: 0
+rvc_f0_method: rmvpe
+rvc_f0_file: null
+rvc_index_file: null
+rvc_index_rate: 0.0
+rvc_filter_radius: 3
+rvc_resample_sr: 0
+rvc_rms_mix_rate: 0
+rvc_protect: 0.5
