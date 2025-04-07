@@ -1,0 +1,32 @@
+[project]
+name = "jaison-core"
+version = "2.1.0"
+description = "Main functionality and server for Project J.A.I.son"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+keywords = ["ai", "llm", "vtuber", "jaison"]
+authors = [
+    {email = "limit@limit-cc.com"},
+    {name = "LimitCantCode"},
+]
+classifiers = [
+    "Programming Language :: Python",
+]
+dependencies = [
+    "python-dotenv>=1.0.1",
+    "pyyaml>=6.0.2",
+    "websockets>=13.1",
+    "requests>=2.32.3",
+    "quart>=0.20.0",
+    "wave>=0.0.2",
+    "psutil",
+    "python-dateutil",
+    "ffmpeg>=1.4",
+    "openai>=1.70.0",
+    "pyttsx3>=2.98.0",
+    "fish-audio-sdk>=2025.2.11",
+    "transformers>=4.48.0",
+    "rvc @ git+https://github.com/limitcantcode/Retrieval-based-Voice-Conversion.git",
+    "fairseq @ git+https://github.com/One-sixth/fairseq.git"
+]
