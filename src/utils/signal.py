@@ -2,7 +2,7 @@ import signal
 import os
 import psutil
 import sys
-from utils.logging import create_sys_logger
+from src.utils.logging import create_sys_logger
 
 logger = create_sys_logger()
 

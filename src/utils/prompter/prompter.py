@@ -1,9 +1,9 @@
 import os
 import json
 import asyncio
-from utils.config import Configuration
-from utils.logging import save_dialogue, save_response
-from utils.time import get_current_time
+from src.utils.config import Configuration
+from src.utils.logging import save_dialogue, save_response
+from src.utils.time import get_current_time
 
 class Prompter():
     def __init__(self):

@@ -1,11 +1,11 @@
 from quart import Quart, request, websocket, make_response
 import asyncio
 import json
-from utils.jaison import JAIson, NonexistantRunException
-from utils.config import Configuration
-from utils.observer import ObserverClient
-from utils.signal import GracefulKiller
-from utils.logging import create_sys_logger
+from src.utils.jaison import JAIson, NonexistantRunException
+from src.utils.config import Configuration
+from src.utils.observer import ObserverClient
+from src.utils.signal import GracefulKiller
+from src.utils.logging import create_sys_logger
 from .common import create_response
 logger = create_sys_logger(use_stdout=True)
 kill_handler = GracefulKiller()

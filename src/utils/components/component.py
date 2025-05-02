@@ -6,7 +6,7 @@ from copy import deepcopy
 from .component_details import ComponentDetails
 from .component_worker_base import BaseComponentWorker
 from .component_workers import COMPONENT_COLLECTION
-from utils.logging import create_sys_logger
+from src.utils.logging import create_sys_logger
 
 logger = create_sys_logger()
 

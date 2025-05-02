@@ -2,8 +2,8 @@ from typing import Any
 import json
 import os
 
-from utils.helpers.singleton import Singleton
-from utils.logging import create_sys_logger
+from src.utils.helpers.singleton import Singleton
+from src.utils.logging import create_sys_logger
 
 
 class DetailSchemaPath:

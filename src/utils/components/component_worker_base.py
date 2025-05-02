@@ -2,7 +2,7 @@ import grpc
 from typing import Generator, AsyncGenerator, Iterator, AsyncIterator
 from .component_details import ComponentDetails
 from .error import InvalidComponentConfig
-from utils.logging import create_sys_logger
+from src.utils.logging import create_sys_logger
 
 class BaseComponentWorker():
     def __init__(self, details: ComponentDetails):

@@ -3,8 +3,8 @@ import os
 import sys
 import time
 import json
-from utils.time import get_current_time
-from utils.args import args
+from src.utils.time import get_current_time
+from src.utils.args import args
 
 SUBFOLDER_SYS = 'sys'
 SUBFOLDER_DIALOG = 'dialog'

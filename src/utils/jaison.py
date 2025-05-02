@@ -14,14 +14,14 @@ import uuid
 import base64
 from itertools import chain
 
-from utils.helpers.singleton import Singleton
-from utils.config import Configuration
-from utils.time import get_current_time
-from utils.logging import create_sys_logger, save_response
-from utils.observer import ObserverServer
-from utils.components.component_manager import ComponentManager
-from utils.prompter import Prompter
-from utils.filter import ResponseFilter, FilteredException
+from src.utils.helpers.singleton import Singleton
+from src.utils.config import Configuration
+from src.utils.time import get_current_time
+from src.utils.logging import create_sys_logger, save_response
+from src.utils.observer import ObserverServer
+from src.utils.components.component_manager import ComponentManager
+from src.utils.prompter import Prompter
+from src.utils.filter import ResponseFilter, FilteredException
 
 logger = create_sys_logger(use_stdout=True)
 

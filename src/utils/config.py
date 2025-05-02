@@ -1,9 +1,9 @@
 import os
 import json
 from typing import get_type_hints
-from utils.args import args
-from utils.helpers.singleton import Singleton
-from utils.logging import create_sys_logger
+from src.utils.args import args
+from src.utils.helpers.singleton import Singleton
+from src.utils.logging import create_sys_logger
 logger = create_sys_logger()
 
 class Configuration(metaclass=Singleton):

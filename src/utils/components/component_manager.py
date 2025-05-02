@@ -10,7 +10,7 @@ from .error import UnknownComponent, UnloadedComponentError, MissingComponentCon
 from .component import Component
 from .component_details import ComponentDetails
 from .component_details_validation import ComponentDetailsValidator
-from utils.logging import create_sys_logger
+from src.utils.logging import create_sys_logger
 
 class ComponentManager():
     logger = create_sys_logger()
