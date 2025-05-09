@@ -51,6 +51,9 @@ openai_ttsg_base_url: https://api.openai.com/v1/
 openai_ttsg_voice: nova
 openai_ttsg_model: tts-1
 
+# Azure TTSG
+azure_ttsg_voice: "en-US-AshleyNeural"
+
 # RVC Project
 rvc_voice: my-voice-model
 rvc_f0_up_key: 0

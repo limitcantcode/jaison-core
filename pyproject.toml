@@ -23,9 +23,11 @@ dependencies = [
     "psutil",
     "python-dateutil",
     "ffmpeg>=1.4",
+    "ffmpeg-python>=0.2.0",
     "openai>=1.70.0",
     "pyttsx3>=2.98.0",
     "fish-audio-sdk>=2025.2.11",
+    "azure-cognitiveservices-speech>=1.43.0",
     "transformers>=4.48.0",
     "rvc @ git+https://github.com/limitcantcode/Retrieval-based-Voice-Conversion.git",
     "fairseq @ git+https://github.com/One-sixth/fairseq.git"

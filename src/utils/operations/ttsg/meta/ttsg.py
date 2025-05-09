@@ -29,5 +29,11 @@ ttsg_capabilities: Dict[str, Capability] = {
         'fish',
         'FishTTSG',
         compatibility=True
+    ),
+    'azure': Capability(
+        TTSG_TYPE,
+        'azure',
+        'AzureTTSG',
+        compatibility=True
     )
 }

@@ -61,6 +61,10 @@ class Config(metaclass=Singleton):
     synth_ttsg_voice_name: str = None
     synth_ttsg_gender: str = 'female'
     synth_ttsg_working_file: str = portable_path(os.path.join(WORKING_DIR,'ttsg-synth-out.wav'))
+    
+    # Azure TTSG
+    azure_ttsg_voice: str = None
+    # azure_ttsg_style: str = "Default"
         
     # RVC Project
     rvc_voice: str = None

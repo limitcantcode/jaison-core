@@ -318,7 +318,7 @@ class JAIson(metaclass=Singleton):
             content,
             time=(
                 datetime.datetime.fromtimestamp(timestamp) \
-                if isinstance(timestamp, int) else timestamp
+                if not isinstance(timestamp, datetime.datetime) else timestamp
             )
         )
         last_line_o = self.prompter.history[-1]
