@@ -1,6 +1,9 @@
 import logging
+import wave
+from io import BytesIO
 from typing import Dict, AsyncGenerator, Any
 from openai import AsyncOpenAI
+
 from utils.config import Config
 from .meta import TTSGOperation
 from ..base import Capability
@@ -27,25 +30,23 @@ class OpenAITTSG(TTSGOperation):
         **kwargs
     ):
         async for in_d in in_stream:
-            yield await self._generate(in_d['content'])
-            
-    async def _generate(self, content: str):
-        assert content is not None and len(content) > 0
+            async with self.client.audio.speech.with_streaming_response.create(
+                model=Config().openai_ttsg_model,
+                voice=Config().openai_ttsg_voice,
+                input=in_d['content'],
+                response_format="wav",
+            ) as response:
+                output_b = BytesIO(await response.read())
         
-        # This should be called while sentence chunking, meaning the full output will already be sentence chunked.
-        async with self.client.audio.speech.with_streaming_response.create(
-            model=Config().openai_ttsg_model,
-            voice=Config().openai_ttsg_voice,
-            response_format="pcm",  # similar to WAV, but without a header chunk at the start.
-            input=content
-        ) as response:
-            audio_bytes = b''
-            async for chunk in response.iter_bytes(chunk_size=4096):
-                audio_bytes += chunk
+                with wave.open(output_b, "r") as f:
+                    sr = f.getframerate()
+                    sw = f.getsampwidth()
+                    ch = f.getnchannels()
+                    ab = f.readframes(f.getnframes())
                 
-            return {
-                "audio_bytes": audio_bytes,
-                "sr": 24000,
-                "sw": 2,
-                "ch": 1
-            }
+                yield {
+                    "audio_bytes": ab,
+                    "sr": sr,
+                    "sw": sw,
+                    "ch": ch
+                }
