@@ -170,7 +170,7 @@ class JAIson(metaclass=Singleton):
                     await asyncio.wait([self.job_current])
                     
                     # Handle finishing with error
-                    err = self.job_current.exception()
+                    err = self.job_current.exception() if self.job_current else None
                     if err is not None:
                         logging.warning(f"Job was cancelled due to an error: {err}", exc_info=err)
                         await self._handle_broadcast_error(self.job_current_id, job_type, err)
