@@ -12,6 +12,7 @@ class SentenceChunker(ChunkerOperation):
         
     async def start(self):
         self.sentence_pattern = re.compile("[{}]+".format(re.escape(".?,;!")))
+        self.script_trim_pattern = re.compile(r"^\[[^\[\]]+\]:\s*")
         
     async def reload(self):
         pass
@@ -28,9 +29,15 @@ class SentenceChunker(ChunkerOperation):
         async for in_d in in_stream:
             content += in_d['content']
             while True:
+                match = self.script_trim_pattern.search(content)
+                if match:
+                    content = content[match.span()[1]:]
+                else:
+                    break
+            while True:
                 sentence_match = self.sentence_pattern.search(content, 20) # Give some characters before
                 if sentence_match is not None:
-                    slice_ind = sentence_match.endpos
+                    slice_ind = sentence_match.span()[1]
                     content_slice = content[:slice_ind]
                     content = content[slice_ind:]
                     yield {"content": content_slice}
