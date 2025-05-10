@@ -1,7 +1,10 @@
 from fish_audio_sdk import AsyncWebSocketSession, TTSRequest
 import os
 import logging
+import wave
 from typing import AsyncGenerator
+from io import BytesIO
+
 from utils.config import Config
 from .meta import TTSGOperation
 from ..base import Capability
@@ -27,23 +30,26 @@ class FishTTSG(TTSGOperation):
         in_stream: AsyncGenerator = None,
         **kwargs
     ):
-        tts_request = TTSRequest(
-            text="",
-            format="pcm",
-            normalize=Config().fish_normalize,
-            latency=Config().fish_latency,
-            sample_rate=44100, # sw: 2, ch 1
-            reference_id=Config().fish_model_id
-        )
-        async for chunk in self.session.tts(
-            tts_request,
-            self._stream(in_stream),
-            backend=Config().fish_model_backend
-        ):
-            if len(chunk) > 0:
-                yield {"audio_bytes": bytes(chunk), "sr": 44100, "sw": 2, "ch": 1}
-
-
-    async def _stream(self, in_stream: AsyncGenerator):
         async for in_d in in_stream:
-            yield in_d['content']
+            content= in_d['content']
+            logging.critical(content)
+            tts_request = TTSRequest(
+                text=content,
+                format="pcm",
+                normalize=Config().fish_normalize,
+                latency=Config().fish_latency,
+                reference_id=Config().fish_model_id
+            )
+            b = b''
+            async for chunk in self.session.tts(
+                tts_request,
+                self._stream(),
+                backend=Config().fish_model_backend
+            ):
+                b += chunk
+                
+            yield {"audio_bytes": b, "sr": 44100, "sw": 2, "ch": 1}
+
+
+    async def _stream(self):
+        yield ""
