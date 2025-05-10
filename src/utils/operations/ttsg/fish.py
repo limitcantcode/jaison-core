@@ -31,10 +31,8 @@ class FishTTSG(TTSGOperation):
         **kwargs
     ):
         async for in_d in in_stream:
-            content= in_d['content']
-            logging.critical(content)
             tts_request = TTSRequest(
-                text=content,
+                text=in_d['content'],
                 format="pcm",
                 normalize=Config().fish_normalize,
                 latency=Config().fish_latency,
