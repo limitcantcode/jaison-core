@@ -3,8 +3,7 @@ compatibility_mode: false
 web_port: 7272
 
 # Defaults
-default_skip_filters: false
-default_operations:
+operations:
 - type: stt
   id: kobold
 - type: t2t
@@ -37,6 +36,21 @@ kcpps_filepath: E:\\jaison-core\\models\\kobold\\save.kcpps # must be absolute
 kobold_stt_suppress_non_speech: true
 kobold_stt_langcode: en
 
+kobold_t2t_max_context_length: 2048
+kobold_t2t_max_length: 100
+kobold_t2t_quiet: true
+kobold_t2t_rep_pen: 1.1
+kobold_t2t_rep_pen_range: 256
+kobold_t2t_rep_pen_slope: 1
+kobold_t2t_temperature: 0.5
+kobold_t2t_tfs: 1
+kobold_t2t_top_a: 0
+kobold_t2t_top_k: 100
+kobold_t2t_top_p: 0.9
+kobold_t2t_typical: 1
+
+kobold_tts_voice: kobo
+
 # OpenAI T2T
 openai_t2t_base_url: https://api.openai.com/v1/
 openai_t2t_model: ft:gpt-4o-mini-2024-07-18:lcc::AteqXgF6
@@ -46,13 +60,23 @@ openai_t2t_top_p: 0.9
 openai_t2t_presence_penalty: 1
 openai_t2t_frequency_penalty: 1
 
-# OpenAI TTSG
+# OpenAI TTSG https://platform.openai.com/docs/guides/text-to-speech
 openai_ttsg_base_url: https://api.openai.com/v1/
 openai_ttsg_voice: nova
 openai_ttsg_model: tts-1
 
+# Openai STT https://platform.openai.com/docs/guides/speech-to-text
+openai_stt_model: gpt-4o-transcribe
+openai_stt_language: English # https://platform.openai.com/docs/guides/speech-to-text#supported-languages
+
 # Azure TTSG
-azure_ttsg_voice: "en-US-AshleyNeural"
+azure_ttsg_voice: "en-US-AshleyNeural" # https://speech.microsoft.com/portal/voicegallery
+
+# Azure STT
+azure_stt_language: en-US # https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support?tabs=stt
+
+# Spacy NLP
+spacy_model: en_core_web_sm
 
 # RVC Project
 rvc_voice: my-voice-model
@@ -65,3 +89,6 @@ rvc_filter_radius: 3
 rvc_resample_sr: 0
 rvc_rms_mix_rate: 0
 rvc_protect: 0.5
+
+# Pitch filter
+pitch_amount: 0

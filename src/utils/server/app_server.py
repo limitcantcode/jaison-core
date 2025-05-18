@@ -123,13 +123,13 @@ async def context_custom_add():
     return await _request_job(JobType.CONTEXT_CUSTOM_ADD)
 
 # Operation management
-@app.route('/api/operation/start', methods=['POST'])    
+@app.route('/api/operation/load', methods=['POST'])    
 async def operation_start():
-    return await _request_job(JobType.OPERATION_START)
+    return await _request_job(JobType.OPERATION_LOAD)
 
 @app.route('/api/operation/reload', methods=['POST'])    
 async def operation_reload():
-    return await _request_job(JobType.OPERATION_RELOAD)
+    return await _request_job(JobType.OPERATION_CONFIG_RELOAD)
 
 @app.route('/api/operation/unload', methods=['POST'])    
 async def operation_unload():
@@ -140,11 +140,16 @@ async def operation_use():
     return await _request_job(JobType.OPERATION_USE)
 
 # Configuration
-@app.route('/api/config', methods=['PUT'])    
+@app.route('/api/config/load', methods=['PUT'])    
 async def config_load():
     return await _request_job(JobType.CONFIG_LOAD)
 
-@app.route('/api/config', methods=['POST'])    
+# Configuration
+@app.route('/api/config/update', methods=['PUT'])    
+async def config_update():
+    return await _request_job(JobType.CONFIG_UPDATE)
+
+@app.route('/api/config/save', methods=['POST'])    
 async def config_save():
     return await _request_job(JobType.CONFIG_SAVE)
 
@@ -181,7 +186,11 @@ async def preflight_context_custom():
 async def preflight_operations_info():
     return create_preflight('GET')
 
-@app.route('/api/operation/start', methods=['POST']) 
+@app.route('/api/operation/load', methods=['POST']) 
+async def preflight_operation_start():
+    return create_preflight('POST')
+
+@app.route('/api/operation/reload', methods=['POST']) 
 async def preflight_operation_start():
     return create_preflight('POST')
 
@@ -199,7 +208,19 @@ async def preflight_operation_use():
 
 @app.route('/api/config', methods=['OPTIONS']) 
 async def preflight_config():
-    return create_preflight('GET, POST, PUT')
+    return create_preflight('GET')
+
+@app.route('/api/config/load', methods=['OPTIONS']) 
+async def preflight_config():
+    return create_preflight('PUT')
+
+@app.route('/api/config/update', methods=['OPTIONS']) 
+async def preflight_config():
+    return create_preflight('PUT')
+
+@app.route('/api/config/save', methods=['OPTIONS']) 
+async def preflight_config():
+    return create_preflight('POST')
 
 ## START ###################################
 async def start_web_server(): # TODO launch application plugins here as well

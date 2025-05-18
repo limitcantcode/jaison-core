@@ -1,18 +1,16 @@
-class InvalidOperationType(Exception):
+class UnknownOpType(Exception):
     def __init__(self, op_type: str):
-        super().__init__(f"Attempt on non-existant type {op_type}")
-
-class InvalidOperationID(Exception):
-    def __init__(self, op_type: str, op_id: str):
-        super().__init__(f'No operation with ID {op_id} for {op_type}')
-
-class UnloadedOperationError(Exception):
+        super().__init__("No operation of type {}".format(op_type))
+        
+class UnknownOpID(Exception):
+    def __init__(self, op_type: str, op_id):
+        super().__init__("No operation of type {} with id {}".format(op_type, op_id))
+        
+class DuplicateFilter(Exception):
+    def __init__(self, op_type: str, op_id):
+        super().__init__("Can not add already active {} {}".format(op_type, op_id))
+        
+class OperationUnloaded(Exception):
     def __init__(self, op_type: str, op_id: str = None):
-        message = ""
-        if op_id is not None: message = f"Operation {op_id} is not loaded for {op_type}"
-        else: message = f"No operation for {op_type} is loaded"
-        super().__init__(message)
-
-class CompatibilityModeEnabled(Exception):
-    def __init__(self, op_type: str, op_id: str):
-        super().__init__(f"Operation with ID {op_id} of type {op_type} can not be used when compatibility mode is enabled")
+        if op_id: super().__init__("No operation {} with id {} loaded".format(op_type, op_id))
+        else: super().__init__("No operation of type {} loaded".format(op_type))

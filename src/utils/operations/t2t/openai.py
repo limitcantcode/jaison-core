@@ -1,40 +1,24 @@
-import logging
-from typing import Dict, AsyncGenerator, Any
 from openai import AsyncOpenAI
+
 from utils.config import Config
-from .meta import T2TOperation
-from ..base import Capability
+
+from .base import T2TOperation
 
 class OpenAIT2T(T2TOperation):
-    def __init__(self, capability: Capability):
-        super().__init__(capability)
+    def __init__(self):
+        super().__init__()
         self.client = None
         
     async def start(self):
-        await self.reload()
-        
-    async def reload(self):
-        if self.client is not None: await self.unload()
+        await super().start()
         self.client = AsyncOpenAI(base_url=Config().openai_t2t_base_url)
         
-    async def unload(self):
+    async def close(self):
+        await super().close()
         await self.client.close()
         self.client = None
         
-    async def __call__(
-        self, 
-        in_stream: AsyncGenerator = None,
-        **kwargs
-    ):
-        system_prompt: str = ""
-        user_prompt: str = ""
-        async for in_d in in_stream:
-            system_prompt += in_d['system_prompt']
-            user_prompt += in_d['user_prompt']
-            
-        assert system_prompt is not None and len(system_prompt) > 0
-        assert user_prompt is not None and  len(user_prompt) > 0
-        
+    async def _generate(self, system_prompt: str = None, user_prompt: str = None, **kwargs):
         messages=[
             { "role": "system", "content": system_prompt },
             { "role": "user", "content": user_prompt }
@@ -55,4 +39,3 @@ class OpenAIT2T(T2TOperation):
             content_chunk = chunk.choices[0].delta.content or ""
             full_response += content_chunk
             yield {"content": content_chunk}
-        logging.info(f"Operation {self.id} finished with result: {full_response}")

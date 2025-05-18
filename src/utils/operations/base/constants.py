@@ -1,1 +1,0 @@
-OPERATION_MODULE = "utils.operations"

@@ -5,18 +5,66 @@ Enables expensive processes used in one place to be reused elsewhere
 For example: Kobold server shared between STT and T2T operation implementation
 '''
 
-from utils.helpers.singleton import Singleton
-from .processes.koboldcpp import KoboldCPPProcess # TODO: will this introduce dependency issues (for not, no since process classes are minimal)
+from enum import StrEnum
 
-class ProcessManager(metaclass=Singleton): # TODO something for process readying events
-    koboldcpp = KoboldCPPProcess()
+from utils.helpers.singleton import Singleton
+
+from .error import UnknownProcessError, UnloadedProcessError
+
+class ProcessType(StrEnum):
+    KOBOLD = "kobold"
+
+class ProcessManager(metaclass=Singleton):
+    loaded_processes = dict()
     
+    '''Perform initial load'''
+    async def load(self, process_type: ProcessType):
+        match process_type:
+            case ProcessType.KOBOLD:
+                from .processes.koboldcpp import KoboldCPPProcess
+                self.loaded_processes[ProcessType.KOBOLD] = KoboldCPPProcess()
+                await self.loaded_processes[ProcessType.KOBOLD].reload()
+            case _:
+                raise UnknownProcessError(process_type)
+        
     '''Reload any process where reload_signal is True'''
     async def reload(self):
-        # Just list them here sequentially
-        if self.koboldcpp.reload_signal: await self.koboldcpp.reload()
+        for process_type in self.loaded_processes:
+            if self.loaded_processes[process_type] and self.loaded_processes[process_type].reload_signal:
+                await self.loaded_processes[process_type].reload()
         
     '''Unload any process where unload_signal is True'''
     async def unload(self):
-        # Just list them here sequentially
-        if self.koboldcpp.unload_signal: await self.koboldcpp.unload()
+        for process_type in self.loaded_processes:
+            if self.loaded_processes[process_type] and self.loaded_processes[process_type].unload_signal:
+                await self.loaded_processes[process_type].unload()
+                
+    async def link(self, link_id: str, process_type: ProcessType):
+        if not (process_type in self.loaded_processes and self.loaded_processes[process_type]):
+            self.load(process_type)
+            
+        self.loaded_processes[process_type].link(link_id)
+        
+    async def unlink(self, link_id: str, process_type: ProcessType):
+        if not (process_type in self.loaded_processes and self.loaded_processes[process_type]):
+            raise UnloadedProcessError(process_type.value)
+            
+        self.loaded_processes[process_type].unlink(link_id)
+    
+    def signal_reload(self, process_type: ProcessType):
+        if not (process_type in self.loaded_processes and self.loaded_processes[process_type]):
+            raise UnloadedProcessError(process_type.value)
+            
+        self.loaded_processes[process_type].reload_signal = True
+        
+    def signal_unload(self, process_type: ProcessType):
+        if not (process_type in self.loaded_processes and self.loaded_processes[process_type]):
+            raise UnloadedProcessError(process_type.value)
+            
+        self.loaded_processes[process_type].unload_signal = True
+        
+    def get_process(self, process_type: ProcessType):
+        if not (process_type in self.loaded_processes and self.loaded_processes[process_type]):
+            raise UnloadedProcessError(process_type.value)
+            
+        return self.loaded_processes[process_type]

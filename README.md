@@ -72,6 +72,7 @@ conda install pytorch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 pytorch-cuda=
 Install remaining dependencies.
 ```bash
 pip install .
+python -m spacy download en_core_web_sm
 ```
 
 <br>

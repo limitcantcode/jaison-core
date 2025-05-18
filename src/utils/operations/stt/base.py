@@ -1,0 +1,55 @@
+'''
+STT Operations (at minimum) require the following fields for input chunks:
+- audio_bytes: (bytes) pcm audio data
+- sr: (int) sample rate
+- sw: (int) sample width
+- ch: (int) audio channels
+
+Adds to chunk:
+- transcription: (str) transcribed audio
+'''
+
+from typing import Dict, Any, AsyncGenerator
+
+from ..base import Operation
+
+class STTOperation(Operation):
+    ## TO BE OVERRIDEN ####
+    async def start(self) -> None:
+        '''General setup needed to start generated'''
+        super().start()
+    
+    async def close(self) -> None:
+        '''Clean up resources before unloading'''
+        super().close()
+    
+    async def _parse_chunk(self, chunk_in: Dict[str, Any]) -> Dict[str, Any]:
+        '''Extract information from input for use in _generate'''
+        assert "audio_bytes" in chunk_in
+        assert isinstance(chunk_in["audio_bytes"], bytes)
+        assert len(chunk_in["audio_bytes"]) > 0
+        assert "sr" in chunk_in
+        assert isinstance(chunk_in["sr"], int)
+        assert chunk_in["sr"] > 0
+        assert "sw" in chunk_in
+        assert isinstance(chunk_in["sw"], int)
+        assert chunk_in["sw"] > 0
+        assert "ch" in chunk_in
+        assert isinstance(chunk_in["ch"], int)
+        assert chunk_in["ch"] > 0
+        
+        return {
+            "audio_bytes": chunk_in["audio_bytes"],
+            "sr": chunk_in["sr"],
+            "sw": chunk_in["sw"],
+            "ch": chunk_in["ch"]
+        }
+    
+    ## TO BE IMPLEMENTED ####
+    async def _generate(self, audio_bytes: bytes = None, sr: int = None, sw: int = None, ch: int = None, **kwargs) -> AsyncGenerator[Dict[str, Any]]:
+        '''Generate a output stream'''
+        raise NotImplementedError
+    
+        yield {
+            "transcription": "example transcribed text"
+        }

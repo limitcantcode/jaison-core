@@ -2,13 +2,8 @@ import subprocess
 import psutil
 import logging
 
-class DuplicateLink(Exception):
-    pass
+from .error import DuplicateLink, MissingLink
 
-class MissingLink(Exception):
-    pass
-
-# TODO process ready event
 class BaseProcess(): # Be sure to make it a singleton (metaclass=Singleton)
     id: str = None
     process: subprocess.Popen = None
@@ -45,7 +40,7 @@ class BaseProcess(): # Be sure to make it a singleton (metaclass=Singleton)
     
     async def link(self, link_id):
         if link_id in self.links:
-            raise DuplicateLink(f"Link ID {link_id} already linked to process {self.id}")
+            raise DuplicateLink(link_id, self.id)
         
         if self.process is None:
             await self.reload()
@@ -54,7 +49,7 @@ class BaseProcess(): # Be sure to make it a singleton (metaclass=Singleton)
         
     async def unlink(self, link_id):
         if link_id not in self.links:
-            raise MissingLink(f"Link ID {link_id} is not linked to process {self.id}")
+            raise MissingLink(link_id, self.id)
         self.links.remove(link_id)
         
         if len(self.links):

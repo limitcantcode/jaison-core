@@ -20,8 +20,7 @@ class Config(metaclass=Singleton):
     web_port: int = 7272
     
     # Defaults
-    default_skip_filters: bool = True
-    default_operations: list = list()
+    operations: list = list()
     
     # Prompter
     PROMPT_DIR: str = portable_path(os.path.join(os.getcwd(), "prompts"))
@@ -43,6 +42,21 @@ class Config(metaclass=Singleton):
     
     kobold_stt_suppress_non_speech: bool = True
     kobold_stt_langcode: str = 'en'
+    
+    kobold_t2t_max_context_length: int = 2048,
+    kobold_t2t_max_length: int = 100,
+    kobold_t2t_quiet: bool = True,
+    kobold_t2t_rep_pen: float = 1.1,
+    kobold_t2t_rep_pen_range: int = 256,
+    kobold_t2t_rep_pen_slope: int = 1,
+    kobold_t2t_temperature: float = 0.5,
+    kobold_t2t_tfs: int = 1,
+    kobold_t2t_top_a: int = 0,
+    kobold_t2t_top_k: int = 100,
+    kobold_t2t_top_p: float = 0.9,
+    kobold_t2t_typical: int = 1
+    
+    kobold_tts_voice: str = None
         
     # OpenAI
     openai_t2t_base_url: str = None
@@ -52,6 +66,9 @@ class Config(metaclass=Singleton):
     openai_t2t_top_p: float = 0.9
     openai_t2t_presence_penalty: float = 0
     openai_t2t_frequency_penalty: float = 0
+    
+    openai_stt_model: str = None
+    openai_stt_language: str = None
     
     openai_ttsg_base_url: str = None
     openai_ttsg_voice: str = None
@@ -63,8 +80,22 @@ class Config(metaclass=Singleton):
     synth_ttsg_working_file: str = portable_path(os.path.join(WORKING_DIR,'ttsg-synth-out.wav'))
     
     # Azure TTSG
+    azure_stt_language: str = None
+    
     azure_ttsg_voice: str = None
-    # azure_ttsg_style: str = "Default"
+    
+    # Fish Audio
+    fish_model_id: str = None
+    fish_model_backend: str = "speech-1.6"
+    fish_normalize: bool = False
+    fish_latency: str = "normal"
+    
+    # Spacy
+    spacy_model: str = None
+    
+    # FFmpeg
+    ffmpeg_working_src: str = os.path.join(WORKING_DIR,'ffmpeg_src.wav')
+    ffmpeg_working_dest: str = os.path.join(WORKING_DIR,'ffmpeg_dest.wav')
         
     # RVC Project
     rvc_voice: str = None
@@ -78,82 +109,21 @@ class Config(metaclass=Singleton):
     rvc_rms_mix_rate: float = 0.25
     rvc_protect: float = 0.33
     
-    # Fish Audio
-    fish_model_id: str = None
-    fish_model_backend: str = "speech-1.6"
-    fish_normalize: bool = False
-    fish_latency: str = "normal"
+    # Pitch corrector
+    pitch_amount: int = 0
     
-        
     def __init__(self):
-        # # Every attribute must be typed for validation
-        # self.CONFIG_DIR: str = portable_path(os.path.join(os.getcwd(), "configs"))
-        # self.WORKING_DIR: str = portable_path(os.path.join(os.getcwd(),"output","temp"))
-        # self.current_config: str = None
-        
-        # # General
-        # self.compatibility_mode: bool = True
-        # self.web_port: int = 7272
-        
-        # # Defaults
-        # self.default_skip_filters: bool = True
-        # self.default_skip_emotions: bool = True
-        # self.default_skip_ttsc: bool = True
-        # self.default_operations: List[Dict[str, str]] = list()
-        
-        # # Prompter
-        # self.PROMPT_DIR: str = portable_path(os.path.join(os.getcwd(), "prompts"))
-        # self.prompt_filename : str = None
-        # self.prompt_name_translations: str = dict()
-        # self.prompt_conversation_length: str = 10
-        
-        # # Kobold
-        # self.kobold_filepath: str = None
-        # self.kcpps_filepath: str = None
-        
-        # self.kobold_stt_suppress_non_speech: bool = True
-        # self.kobold_stt_langcode: str = 'en'
-        
-        # # OpenAI
-        # self.openai_t2t_base_url: str = None
-        # self.openai_t2t_model: str = None
-        
-        # self.openai_t2t_temperature: float = 1
-        # self.openai_t2t_top_p: float = 0.9
-        # self.openai_t2t_presence_penalty: float = 0
-        # self.openai_t2t_frequency_penalty: float = 0
-        
-        # self.openai_ttsg_base_url: str = None
-        # self.openai_ttsg_voice: str = None
-        # self.openai_ttsg_model: str = None
-        
-        # # Synthetic TTSG
-        # self.synth_ttsg_voice_name: str = None
-        # self.synth_ttsg_gender: str = 'female'
-        # self.synth_ttsg_working_file: str = portable_path(os.path.join(self.CONFIG_DIR,'ttsg-synth-out.wav'))
-        
-        # # RVC Project
-        # self.rvc_voice: str = None
-        # self.rvc_f0_up_key: int = 0
-        # self.rvc_f0_method: str = "rmvpe"
-        # self.rvc_f0_file: str | None = None
-        # self.rvc_index_file: str | None = None
-        # self.rvc_index_rate: float = 0.75
-        # self.rvc_filter_radius: int = 3
-        # self.rvc_resample_sr: int = 0
-        # self.rvc_rms_mix_rate: float = 0.25
-        # self.rvc_protect: float = 0.33
-    
+        # Every attribute must be typed for validation
         if args.config is not None: self.load_from_name(args.config)
         
     # Can raise: FileNotFoundError, 
     def load_from_name(self, config_name: str):
-        self.current_config = config_name
         
         with open(os.path.join(self.CONFIG_DIR, self.current_config+".yaml")) as f:
             conf_d = yaml.safe_load(f)
             
         self.load_from_dict(**conf_d)
+        self.current_config = config_name
         
     def load_from_dict(self, **conf_d):
         uncommitted = dict(conf_d)
@@ -172,6 +142,8 @@ class Config(metaclass=Singleton):
         # Commit config change request
         for field in uncommitted:
             setattr(self, field, uncommitted[field])
+            
+        self.current_config = "Unsaved"
             
     def save(self, config_name: str):
         with open(os.path.join(self.CONFIG_DIR, config_name)) as f:

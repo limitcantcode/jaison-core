@@ -14,16 +14,14 @@ from utils.helpers.multiplexor import multiplexor
 from utils.config import Config
 from utils.prompter import Prompter
 from utils.processes import ProcessManager
-from utils.operations import OperationManager
 from utils.operations import (
-    STT_TYPE, T2T_TYPE, TTSG_TYPE, TTSC_TYPE, 
-    CHUNKER_TYPE, FILTER_TYPE, EMOTION_TYPE
-)
-from utils.operations.error import (
-    InvalidOperationID,
-    InvalidOperationType,
-    UnloadedOperationError,
-    CompatibilityModeEnabled
+    OperationManager,
+    OpTypes,
+    Operation,
+    UnknownOpType,
+    UnknownOpID,
+    DuplicateFilter,
+    OperationUnloaded
 )
 
 class NonexistantJobException(Exception):
@@ -41,11 +39,12 @@ class JobType(StrEnum):
     CONTEXT_CUSTOM_REGISTER = 'context_custom_register'
     CONTEXT_CUSTOM_REMOVE = 'context_custom_remove'
     CONTEXT_CUSTOM_ADD = 'context_custom_add'
-    OPERATION_START = 'operation_start'
-    OPERATION_RELOAD = 'operation_reload'
+    OPERATION_LOAD = 'operation_load'
+    OPERATION_CONFIG_RELOAD = "operation_reload_from_config"
     OPERATION_UNLOAD = 'operation_unload'
     OPERATION_USE = 'operation_use'
     CONFIG_LOAD = 'config_load'
+    CONFIG_UPDATE = 'config_update'
     CONFIG_SAVE = 'config_save'
     
 class JAIson(metaclass=Singleton):
@@ -78,20 +77,14 @@ class JAIson(metaclass=Singleton):
         
         self.process_manager = ProcessManager()
         self.op_manager = OperationManager()
-        await self.start_operations('start',JobType.OPERATION_START,ops=Config().default_operations)
+        await self.start_operations('start',JobType.OPERATION_LOAD,ops=Config().default_operations)
+        await self.process_manager.reload()
         
     async def stop(self):
         logging.info("Shutting down JAIson application layer")
-        await self.op_manager.unload_all()
+        await self.op_manager.close_operation_all()
         await self.process_manager.unload()
         logging.info("JAIson application layer has been shut down")
-        
-    
-    async def reload(self):
-        logging.info("Reloading JAIson application layer")
-        await self.op_manager.reload_all()
-        await self.process_manager.reload()
-        logging.info("JAIson application layer has been reloaded")
     
     ## Job Queueing #########################
     
@@ -110,11 +103,12 @@ class JAIson(metaclass=Singleton):
         elif job_type_enum == JobType.CONTEXT_CUSTOM_REGISTER: coro = self.register_custom_context(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.CONTEXT_CUSTOM_REMOVE: coro = self.remove_custom_context(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.CONTEXT_CUSTOM_ADD: coro = self.add_custom_context(new_job_id, job_type_enum, **kwargs)
-        elif job_type_enum == JobType.OPERATION_START: coro = self.start_operations(new_job_id, job_type_enum, **kwargs)
-        elif job_type_enum == JobType.OPERATION_RELOAD: coro = self.reload_operations(new_job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.OPERATION_LOAD: coro = self.load_operations(new_job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.OPERATION_CONFIG_RELOAD: coro = self.load_operations_from_config(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.OPERATION_UNLOAD: coro = self.unload_operations(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.OPERATION_USE: coro = self.use_operation(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.CONFIG_LOAD: coro = self.load_config(new_job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONFIG_UPDATE: coro = self.update_config(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.CONFIG_SAVE: coro = self.save_config(new_job_id, job_type_enum, **kwargs)
         self.job_map[new_job_id] = (job_type_enum, coro)
         
@@ -155,6 +149,9 @@ class JAIson(metaclass=Singleton):
     async def _process_job_loop(self):
         while True:
             try:
+                await self.process_manager.reload()
+                await self.process_manager.unload()
+                
                 self.job_current_id = await self.job_queue.get()
                 job_type, coro = self.job_map[self.job_current_id]
                 
@@ -184,20 +181,23 @@ class JAIson(metaclass=Singleton):
     ## Regular Request Handlers ###################
     
     def get_loaded_operations(self):
-        return self.op_manager.get_loaded_operations()
+        op_d = self.op_manager.get_operations_all()
+        for key in op_d:
+            if isinstance(op_d[key], Operation):
+                op_d[key] = op_d[key].id
+            elif isinstance(op_d[key], list):
+                op_d[key] = list(map(lambda x: x.id, op_d[key]))
+            else:
+                op_d[key] = "unknown"
+                
+        return op_d
+                
 
     def get_current_config(self):
         return Config().get_config_dict()
             
     ## Async Job Handlers #########################
     
-    # Universal response pipeline
-    # TODO: consider the following
-    # Is it a good idea to omit input text/audio for this?
-    # Might include for simple overrides
-    # API options can be expanded to have those later, for now omit until decided to be a good decision
-    # Multi prompting? Have different prompting profiles and select which one? Idk, not for now.
-    # TODO: error handling, look into making a skip operation or no-op operation
     '''
     Generate responses from the current contexts.
     This does not take an input. Context for what to repond to must be added prior to running this.
@@ -206,86 +206,44 @@ class JAIson(metaclass=Singleton):
         self,
         job_id: str,
         job_type: JobType,
-        skip_ttsc: bool = None,
-        output_audio: bool = None
+        include_audio: bool = True
     ):
-        if output_audio is None: output_audio = False
-        if output_audio and self.op_manager.ttsg is None: raise UnloadedOperationError(TTSG_TYPE)
-        if skip_ttsc is None: skip_ttsc = self.op_manager.ttsc is None
         
-        # Prompting
+        # Adjust flags based on loaded ops
+        if not self.op_manager.get_operation(OpTypes.STT): include_audio = False
+        
+        # Broadcast start conditions
+        await self._handle_broadcast_start(job_id, job_type, {"include_audio": include_audio})
+        
+        # Get prompts
         system_prompt, user_prompt = self.prompter.get_sys_prompt(), self.prompter.get_user_prompt()
+        text_chunk = {"system_prompt": system_prompt, "user_prompt": user_prompt}
         
-        # T2T Generation
-        next_stream = list_to_agen([{"system_prompt":system_prompt,"user_prompt":user_prompt}])
-        t2t_stream_d, t2t_stream_task = multiplexor({
-            'broadcast': (lambda stream: self._handle_broadcast_stream(job_id, job_type, stream, base_payload={"output_type": "prompt"})),
-            T2T_TYPE: (lambda stream: self.op_manager.use(T2T_TYPE,in_stream=stream))
-        }, next_stream)
-        self.tasks_to_clean += [t2t_stream_task, asyncio.create_task(t2t_stream_d['broadcast'])]
-        next_stream = t2t_stream_d[T2T_TYPE]
+        # Appy t2t
+        t2t_result = ""
+        async for chunk_out in self.op_manager.use(OpTypes.T2T, {"system_prompt": system_prompt, "user_prompt": user_prompt}):
+            t2t_result += chunk_out["content"]
         
-        # Enforce sentence chunking
-        if self.op_manager.chunker is not None:
-            next_stream = self.op_manager.use(CHUNKER_TYPE, in_stream=next_stream)
+        # Broadcast raw result
+        await self._handle_broadcast_event(job_id, job_type, text_chunk | {"raw_content": t2t_result})
         
-        # Filters and emotions
-        t2t_consumers = {
-            'broadcast': (lambda stream: self._handle_broadcast_stream(job_id, job_type, stream, base_payload={"output_type": 'text_raw'})),
-            FILTER_TYPE: (lambda stream: self.op_manager.use(FILTER_TYPE,in_stream=stream))
-        }
-        if self.op_manager.emotion is not None: t2t_consumers = t2t_consumers | {EMOTION_TYPE: (lambda stream: self.op_manager.use(EMOTION_TYPE,in_stream=stream))}
-        t2t_post_stream_d, t2t_post_stream_task = multiplexor(t2t_consumers, next_stream)
-        self.tasks_to_clean += [t2t_post_stream_task, asyncio.create_task(t2t_post_stream_d['broadcast'])]
-        if self.op_manager.emotion is not None:
-            self.tasks_to_clean.append(
-                asyncio.create_task(
-                    self._handle_broadcast_stream(
-                        job_id, job_type,
-                        t2t_post_stream_d[EMOTION_TYPE],
-                        base_payload={"output_type": 'emotion'}
-            )))
+        text_chunk = text_chunk | {"content": t2t_result} # Get full result
         
-        
-        next_stream = t2t_post_stream_d[FILTER_TYPE]
-        t2t_post_consumers = {
-            'broadcast': (lambda stream: self._handle_broadcast_stream(job_id, job_type, stream, base_payload={"output_type": 'text_final'})),
-            'response_recorder': (lambda stream: self.prompter.add_chat_stream(Config().character_name,stream))
-        }
-        if not output_audio:
-            # Omit audio generation steps and just broadcast final text
-            final_stream_d, final_stream_task = multiplexor(t2t_post_consumers, next_stream)
-            self.tasks_to_clean += [
-                final_stream_task,
-                asyncio.create_task(final_stream_d['broadcast']),
-                asyncio.create_task(final_stream_d['response_recorder'])
-            ]
-        else:
-            # TTSG
-            t2t_post_consumers = t2t_post_consumers | {TTSG_TYPE: (lambda stream: self.op_manager.use(TTSG_TYPE,in_stream=stream))}
-            ttsg_stream_d, ttsg_stream_task = multiplexor(t2t_post_consumers, next_stream)
-            self.tasks_to_clean += [
-                ttsg_stream_task,
-                asyncio.create_task(ttsg_stream_d['broadcast']),
-                asyncio.create_task(ttsg_stream_d['response_recorder'])
-            ]
-            next_stream = ttsg_stream_d[TTSG_TYPE]
-            
-            if not skip_ttsc:
-                # TTSC
-                ttsg_consumers = {
-                    'broadcast': (lambda stream: self._handle_broadcast_stream(job_id, job_type, stream, base_payload={"output_type": 'tts_raw'})),
-                    TTSC_TYPE: (lambda stream: self.op_manager.use(TTSC_TYPE,in_stream=stream))
-                }
-                ttsc_stream_d, ttsc_stream_task = multiplexor(ttsg_consumers, next_stream)
-                self.tasks_to_clean += [ttsc_stream_task, asyncio.create_task(ttsc_stream_d['broadcast'])]
-                next_stream = ttsc_stream_d[TTSC_TYPE]
+        # Apply text filters
+        async for text_chunk_out in self.op_manager.use(OpTypes.FILTER_TEXT, text_chunk):
+            if include_audio:
+                # Apply tts
+                async for audio_chunk_out in self.op_manager.use(OpTypes.TTS, text_chunk_out):
+                    # Apply tts filters
+                    async for final_audio_chunk_out in self.op_manager.use(OpTypes.FILTER_AUDIO, audio_chunk_out):
+                        # boardcast results
+                        await self._handle_broadcast_event(job_id, job_type, final_audio_chunk_out)
+            else:
+                await self._handle_broadcast_event(job_id, job_type, text_chunk_out)
                         
-            # Signal finish
-            await self._handle_broadcast_stream(job_id, job_type, next_stream, base_payload={"output_type": 'tts_final'})
-            
-        # Wait and record response
-        await asyncio.wait(self.tasks_to_clean)
+        # Broadcast completion
+        await self._handle_broadcast_success(job_id, job_type)
+
 
     # Context modification
     async def clear_context(
@@ -293,8 +251,9 @@ class JAIson(metaclass=Singleton):
         job_id: str,
         job_type: JobType
     ):
+        await self._handle_broadcast_start(job_id, job_type, {})
         self.prompter.clear_history()
-        await self._handle_broadcast_event(job_id, job_type, {})
+        await self._handle_broadcast_success(job_id, job_type)
         
     async def append_request_context(
         self, 
@@ -302,8 +261,15 @@ class JAIson(metaclass=Singleton):
         job_type: JobType, 
         content: str = None
     ):
+        await self._handle_broadcast_start(job_id, job_type, {"content": content})
         self.prompter.add_request(content)
-        await self._handle_broadcast_event(job_id, job_type, {"content": content})
+        last_line_o = self.prompter.history[-1]
+        await self._handle_broadcast_event(job_id, job_type, {
+            "timestamp": last_line_o.time.timestamp(),
+            "content": last_line_o.message,
+            "line": last_line_o.to_line()
+        })
+        await self._handle_broadcast_success(job_id, job_type)
         
     async def append_conversation_context_text(
         self, 
@@ -313,6 +279,7 @@ class JAIson(metaclass=Singleton):
         timestamp: int = None, 
         content: str = None
     ):
+        await self._handle_broadcast_start(job_id, job_type, {"user": user, "timestamp": timestamp, "content": content})
         self.prompter.add_chat(
             user,
             content,
@@ -328,6 +295,7 @@ class JAIson(metaclass=Singleton):
             "content": last_line_o.message,
             "line": last_line_o.to_line()
         })
+        await self._handle_broadcast_success(job_id, job_type)
         
     async def append_conversation_context_audio(
         self,
@@ -340,10 +308,10 @@ class JAIson(metaclass=Singleton):
         sw: int = None,
         ch: int = None
     ):
+        await self._handle_broadcast_start(job_id, job_type, {"user": user, "timestamp": timestamp, "sr": sr, "sw": sw, "ch": ch, "audio_bytes": (audio_bytes is not None)}) # Don't send full audio bytes over websocket, just flag as gotten
         audio_bytes: bytes = base64.b64decode(audio_bytes)
         content = ""
-        next_stream = list_to_agen([{"audio_bytes": audio_bytes, "sr": sr, "sw": sw, "ch": ch}])
-        async for out_d in self.op_manager.use(STT_TYPE, in_stream=next_stream):
+        async for out_d in self.op_manager.use_operation(OpTypes.STT, {"audio_bytes": audio_bytes, "sr": sr, "sw": sw, "ch": ch}):
             content += out_d['transcription']
       
         self.prompter.add_chat(
@@ -361,6 +329,7 @@ class JAIson(metaclass=Singleton):
             "content": last_line_o.message,
             "line": last_line_o.to_line()
         })
+        await self._handle_broadcast_success(job_id, job_type)
         
     async def register_custom_context(
         self,
@@ -370,16 +339,18 @@ class JAIson(metaclass=Singleton):
         context_name: str = None,
         context_description: str = None
     ):
+        await self._handle_broadcast_start(job_id, job_type, {"context_id": context_id, "context_name": context_name, "context_description": context_description})
         self.prompter.register_custom_context(context_id, context_name, context_description=context_description)
-        await self._handle_broadcast_event(job_id, job_type, {"id": context_id, "name": context_name, "description": context_description})
+        await self._handle_broadcast_success(job_id, job_type)
     
     async def remove_custom_context(self,
         job_id: str,
         job_type: JobType,
         context_id: str = None
     ):
+        await self._handle_broadcast_start(job_id, job_type, {"context_id": context_id})
         self.prompter.remove_custom_context(context_id)
-        await self._handle_broadcast_event(job_id, job_type, {"id": context_id})
+        await self._handle_broadcast_success(job_id, job_type)
     
     async def add_custom_context(
         self,
@@ -389,30 +360,31 @@ class JAIson(metaclass=Singleton):
         context_contents: str = None,
         timestamp: int = None
     ):
+        await self._handle_broadcast_start(job_id, job_type, {"context_id": context_id, "context_contents": context_contents, "timestamp": timestamp})
         if timestamp is not None: timestamp = datetime.datetime.fromtimestamp(timestamp)
         self.prompter.add_custom_context(context_id, context_contents)
-        await self._handle_broadcast_event(job_id, job_type, {"id":context_id})
+        await self._handle_broadcast_success(job_id, job_type)
             
-    # Operation management
-    async def start_operations(
+    # Operation management    
+    async def load_operations(
         self,
         job_id: str,
         job_type: JobType,
         ops: List[Dict[str, str]] = []
     ):
+        await self._handle_broadcast_start(job_id, job_type, {"ops": ops})
         for op_d in ops:
             await self._handle_op_manager(job_id, job_type, op_d['type'], op_d['id'])
-        await self.process_manager.reload()
+        await self._handle_broadcast_success(job_id, job_type)
         
-    async def reload_operations(
+    async def load_operations_from_config(
         self,
         job_id: str,
         job_type: JobType,
-        ops: List[Dict[str, str]] = []
     ):
-        for op_d in ops:
-            await self._handle_op_manager(job_id, job_type, op_d['type'], op_d['id'])
-        await self.process_manager.reload()
+        await self._handle_broadcast_start(job_id, job_type, {})
+        await self.op_manager.load_operations_from_config()
+        await self._handle_broadcast_success(job_id, job_type)
         
     async def unload_operations(
         self,
@@ -420,14 +392,15 @@ class JAIson(metaclass=Singleton):
         job_type: JobType,
         ops: List[Dict[str, str]] = []
     ):
+        await self._handle_broadcast_start(job_id, job_type, {"ops": ops})
         for op_d in ops:
             await self._handle_op_manager(job_id, job_type, op_d['type'], op_d['id'])
-        await self.process_manager.unload()
+        await self._handle_broadcast_success(job_id, job_type)
     
     async def _handle_op_manager(self, job_id: str, job_type: JobType, op_type: str, op_id: str):
-        if job_type == JobType.OPERATION_START: await self.op_manager.start_operation(op_type,op_id)
-        elif job_type == JobType.OPERATION_RELOAD: await self.op_manager.reload_operation(op_type,op_id)
-        elif job_type == JobType.OPERATION_UNLOAD: await self.op_manager.unload_operation(op_type,op_id)
+        op_enum = OpTypes(op_type)
+        if job_type == JobType.OPERATION_LOAD: await self.op_manager.load_operation(op_enum,op_id)
+        elif job_type == JobType.OPERATION_UNLOAD: await self.op_manager.close_operation(op_enum,op_id)
         else: raise UnknownJobType(f"No known operation management job called {job_type}")
             
         await self._handle_broadcast_event(job_id, job_type, {
@@ -440,52 +413,79 @@ class JAIson(metaclass=Singleton):
         job_id: str,
         job_type: JobType,
         op_type: str = None,
+        op_id: str = None,
         payload: Dict[str, Any] = None
     ):
-        if op_type not in self.op_manager.op_collection:
-            raise InvalidOperationType(op_type)
+        await self._handle_broadcast_start(job_id, job_type, {"op_type": op_type, "op_id": op_id})
         
         if 'audio_bytes' in payload:
             payload['audio_bytes'] = base64.b64decode(payload['audio_bytes'])
             
-        out_stream = self.op_manager.use(op_type, in_stream=list_to_agen([payload]))
-        await self._handle_broadcast_stream(job_id, job_type, out_stream, base_payload={"type": op_type})
-        await self._handle_broadcast_event(job_id, job_type, base_payload={"finish": True})
+        try:
+            async for chunk_out in self.op_manager.use_operation(OpTypes(op_type), payload, op_id=op_id):
+                self._handle_broadcast_event(job_type, job_id, chunk_out)
+        except OperationUnloaded:
+            op = self.op_manager.loose_load_operation(OpTypes(op_type), op_id)
+            await op.start()
+            async for chunk_out in op(payload):
+                self._handle_broadcast_event(job_type, job_id, chunk_out)
+            await op.close()
             
+        await self._handle_broadcast_success(job_id, job_type)
     
     # Configuration
-    async def load_config(self, job_id: str, job_type: JobType, config_name: str): # TODO: handle non-existant configs
+    async def load_config(self, job_id: str, job_type: JobType, config_name: str):
+        await self._handle_broadcast_start(job_id, job_type, {"config_name": config_name})
         Config().load_from_name(config_name)
-        await self._handle_broadcast_event(job_id, job_type, {})
-    
-    async def save_config(self, job_id: str, job_type: JobType, config_name: str, config_d: Dict[str, Any]): # TODO: handle non-existant configs
+        await self._handle_broadcast_success(job_id, job_type)
+        
+    async def update_config(self, job_id: str, job_type: JobType, config_d: str):
+        await self._handle_broadcast_start(job_id, job_type, {"config_d": config_d})
         Config().load_from_dict(config_d)
+        await self._handle_broadcast_success(job_id, job_type)
+    
+    async def save_config(self, job_id: str, job_type: JobType, config_name: str):
+        await self._handle_broadcast_start(job_id, job_type, {"config_name": config_name})
         Config().save(config_name)
-        await self._handle_broadcast_event(job_id, job_type, {})
+        await self._handle_broadcast_success(job_id, job_type)
     
     ## General helpers ###############################
-    async def _handle_broadcast_event(self, job_id: str, job_type: JobType, base_payload: dict):
-        await self.event_server.broadcast_event(job_type.value, base_payload | {"job_id": job_id, "finished": False})
-        await self.event_server.broadcast_event(job_type.value, {"job_id": job_id, "finished": True, "success": True})
+    async def _handle_broadcast_start(self, job_id: str, job_type: JobType, payload: dict):
+        await self.event_server.broadcast_event(job_type.value, {
+            "job_id": job_id,
+            "start": payload
+        })
     
-    async def _handle_broadcast_stream(self, job_id: str, job_type: JobType, base_payload_stream: AsyncGenerator, base_payload: dict = {}):
-        async for out_d in base_payload_stream:
-            await self.event_server.broadcast_event(job_type.value, out_d | base_payload | {"job_id": job_id, "finished": False})
-        await self.event_server.broadcast_event(job_type.value, base_payload | {"job_id": job_id, "finished": True, "success": True})
+    async def _handle_broadcast_event(self, job_id: str, job_type: JobType, payload: dict):
+        await self.event_server.broadcast_event(job_type.value, {
+            "job_id": job_id,
+            "finished": False,
+            "result": payload
+        })
     
-    async def _handle_broadcast_error(self, job_id: str, job_type: JobType, err: Exception):
-        error_type = "unknown"
+    async def _handle_broadcast_success(self, job_id: str, job_type: JobType):
+        await self.event_server.broadcast_event(job_type.value, {
+            "job_id": job_id,
+            "finished": True,
+            "success": True
+        })
+        
+    async def _handle_broadcast_cancelled(self, job_id: str, job_type: JobType, err: Exception):
         # TODO: extend with all errors
-        if isinstance(err, InvalidOperationType): error_type = "type_error"
-        elif isinstance(err, InvalidOperationID): error_type = "type_error"
-        elif isinstance(err, CompatibilityModeEnabled): error_type = "compatibility"
-        elif isinstance(err, UnloadedOperationError): error_type = "unloaded"
-        elif isinstance(err, UnknownJobType): error_type = "job_error"
+        error_type = "unknown"
+        if isinstance(err, UnknownOpType): error_type = "operation_unknown_type"
+        elif isinstance(err, UnknownOpID): error_type = "operation_unknown_id"
+        elif isinstance(err, DuplicateFilter): error_type = "operation_duplicate"
+        elif isinstance(err, OperationUnloaded): error_type = "operation_unloaded"
+        elif isinstance(err, UnknownJobType): error_type = "job_unknown"
+        elif isinstance(err, asyncio.CancelledError): error_type = "job_cancelled"
         
         await self.event_server.broadcast_event(job_type.value, {
             "job_id": job_id,
             "finished": True,
-            "success": False, 
-            "error": error_type, 
-            "reason": str(err)
+            "success": False,
+            "result": {
+                "type": error_type,
+                "reason": str(err)
+            }
         })
