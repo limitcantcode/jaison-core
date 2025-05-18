@@ -27,7 +27,7 @@ class SocketServerObserver(BaseObserverClient, metaclass=Singleton):
             if isinstance(payload[key], bytes):
                   payload[key] = base64.b64encode(payload[key]).decode('utf-8')
         message = json.dumps(create_response(200, event_id, payload))
-        logging.info(f"Broadcasting event: {message:.400} to {len(self.connections)} clients")
+        logging.debug(f"Broadcasting event to {len(self.connections)} clients")
         for ws in set(self.connections):
             await ws.send(message)
             

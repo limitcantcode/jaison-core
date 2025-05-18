@@ -1,4 +1,6 @@
 from typing import Dict, Any, AsyncGenerator
+import time
+import logging
 
 from .error import StartActiveError, CloseInactiveError, UsedInactiveError
 
@@ -12,22 +14,27 @@ class Operation:
     async def __call__(self, chunk_in: Dict[str, Any]) -> AsyncGenerator[Dict[str, Any]]:
         '''Generates a stream of chunks similar to chunk_in but augmented with new data'''
         if not self.active: raise UsedInactiveError(self.op_type, self.op_id)
+        start_time = time.perf_counter()
         
         kwargs = await self.parse_chunk(chunk_in)
         
         async for chunk_out in self.generate(**kwargs):
             yield chunk_in | chunk_out
+        end_time = time.perf_counter()
+        logging.info("{} operation {} completed in {} ms".format(self.op_type, self.op_id, (end_time-start_time)/1000000.0))
     
     
     ## TO BE OVERRIDEN ####
     async def start(self) -> None:
         '''General setup needed to start generated'''
         if self.active: raise StartActiveError(self.op_type, self.op_id)
+        logging.info("Starting {} operation {}".format(self.op_type, self.op_id))
         self.active = True
     
     async def close(self) -> None:
         '''Clean up resources before unloading'''
         if not self.active: raise CloseInactiveError(self.op_type, self.op_id)
+        logging.info("Closing {} operation {}".format(self.op_type, self.op_id))
         self.active = False
     
     ## TO BE IMPLEMENTED ####

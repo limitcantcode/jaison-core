@@ -25,6 +25,6 @@ class KoboldCPPProcess(BaseProcess, metaclass=Singleton):
         
         # Start Kobold server on that port
         cmd = '{} --quiet --config "{}" --port {}'.format(config.kobold_filepath, config.kcpps_filepath, self.port)
-        logging.info(f"Running Koboldcpp server using command: \"{cmd}\"")
+        logging.debug(f"Running Koboldcpp server using command: \"{cmd}\"")
         self.process = subprocess.Popen(cmd, shell=True, stdout=DEVNULL, stderr=DEVNULL)
         logging.info(f"Opened Koboldcpp server (PID: {self.process.pid}) on port {self.port}")

@@ -39,6 +39,7 @@ class BaseProcess(): # Be sure to make it a singleton (metaclass=Singleton)
             logging.warning(f"Attempted to unload process {self.id} when it is already unloaded")
     
     async def link(self, link_id):
+        logging.debug("Adding link {} to process {}".format(link_id, self.id))
         if link_id in self.links:
             raise DuplicateLink(link_id, self.id)
         
@@ -48,6 +49,7 @@ class BaseProcess(): # Be sure to make it a singleton (metaclass=Singleton)
         self.links.add(link_id) # Add to links after loading process to ensure link established
         
     async def unlink(self, link_id):
+        logging.debug("Removing link {} from process {}".format(link_id, self.id))
         if link_id not in self.links:
             raise MissingLink(link_id, self.id)
         self.links.remove(link_id)

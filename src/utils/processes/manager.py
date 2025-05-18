@@ -5,6 +5,7 @@ Enables expensive processes used in one place to be reused elsewhere
 For example: Kobold server shared between STT and T2T operation implementation
 '''
 
+import logging
 from enum import StrEnum
 
 from utils.helpers.singleton import Singleton
@@ -19,6 +20,7 @@ class ProcessManager(metaclass=Singleton):
     
     '''Perform initial load'''
     async def load(self, process_type: ProcessType):
+        logging.info("Loading process by type {}".format(process_type.value))
         match process_type:
             case ProcessType.KOBOLD:
                 from .processes.koboldcpp import KoboldCPPProcess
@@ -31,12 +33,14 @@ class ProcessManager(metaclass=Singleton):
     async def reload(self):
         for process_type in self.loaded_processes:
             if self.loaded_processes[process_type] and self.loaded_processes[process_type].reload_signal:
+                logging.info("Reloading process {}".format(self.loaded_processes[process_type].id))
                 await self.loaded_processes[process_type].reload()
         
     '''Unload any process where unload_signal is True'''
     async def unload(self):
         for process_type in self.loaded_processes:
             if self.loaded_processes[process_type] and self.loaded_processes[process_type].unload_signal:
+                logging.info("Unloading process {}".format(self.loaded_processes[process_type].id))
                 await self.loaded_processes[process_type].unload()
                 
     async def link(self, link_id: str, process_type: ProcessType):

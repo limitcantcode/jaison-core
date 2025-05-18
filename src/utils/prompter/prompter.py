@@ -1,7 +1,6 @@
 
 import os
 import datetime
-import logging
 from typing import AsyncGenerator, Dict, List
 from utils.helpers.time import get_current_time
 from utils.helpers.singleton import Singleton
@@ -20,6 +19,10 @@ class Prompter(metaclass=Singleton):
     def insert_history(self, message: Message):
         self.history.append(message)
         self.history = self.history[-(Config().history_length):]
+        
+        with open(Config().history_filepath, 'a') as f:
+            f.write(message.to_line())
+            f.write("\n")
     
     # Custom context
     def register_custom_context(self, context_id: str, context_name: str, context_description: str = None):

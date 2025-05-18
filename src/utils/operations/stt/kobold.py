@@ -2,7 +2,6 @@ from io import BytesIO
 import wave
 import requests
 import base64
-import logging
 
 from utils.config import Config
 from utils.processes import ProcessManager, ProcessType

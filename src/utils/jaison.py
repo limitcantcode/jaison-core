@@ -21,7 +21,10 @@ from utils.operations import (
     UnknownOpType,
     UnknownOpID,
     DuplicateFilter,
-    OperationUnloaded
+    OperationUnloaded,
+    StartActiveError,
+    CloseInactiveError,
+    UsedInactiveError
 )
 
 class NonexistantJobException(Exception):
@@ -66,6 +69,7 @@ class JAIson(metaclass=Singleton):
         self.op_manager: OperationManager = None
     
     async def start(self):
+        logging.info("Starting JAIson application layer.")
         self.job_queue = asyncio.Queue()
         self.job_map = dict()
         self.job_skips = dict()
@@ -77,8 +81,9 @@ class JAIson(metaclass=Singleton):
         
         self.process_manager = ProcessManager()
         self.op_manager = OperationManager()
-        await self.start_operations('start',JobType.OPERATION_LOAD,ops=Config().default_operations)
+        await self.start_operations('start',JobType.OPERATION_LOAD,ops=Config().operations)
         await self.process_manager.reload()
+        logging.info("JAIson application layer has started.")
         
     async def stop(self):
         logging.info("Shutting down JAIson application layer")
@@ -114,7 +119,7 @@ class JAIson(metaclass=Singleton):
         
         await self.job_queue.put(new_job_id)
         
-        logging.info(f"Queued new job {new_job_id}")
+        logging.info("Queued new {} job {}".format(job_type_enum.value, new_job_id))
         return new_job_id
     
     async def cancel_job(self, job_id: str, reason: str = None):
@@ -451,36 +456,47 @@ class JAIson(metaclass=Singleton):
     
     ## General helpers ###############################
     async def _handle_broadcast_start(self, job_id: str, job_type: JobType, payload: dict):
-        await self.event_server.broadcast_event(job_type.value, {
+        to_broadcast = {
             "job_id": job_id,
             "start": payload
-        })
+        }
+        logging.debug("Broadcasting start ({}) {} {}".format(job_id, job_type.value, str(to_broadcast)))
+        await self.event_server.broadcast_event(job_type.value, to_broadcast)
     
     async def _handle_broadcast_event(self, job_id: str, job_type: JobType, payload: dict):
-        await self.event_server.broadcast_event(job_type.value, {
+        to_broadcast = {
             "job_id": job_id,
             "finished": False,
             "result": payload
-        })
+        }
+        logging.debug("Broadcasting event ({}) {} {}".format(job_id, job_type.value, str(to_broadcast)))
+        await self.event_server.broadcast_event(job_type.value, to_broadcast)
     
     async def _handle_broadcast_success(self, job_id: str, job_type: JobType):
-        await self.event_server.broadcast_event(job_type.value, {
+        to_broadcast = {
             "job_id": job_id,
             "finished": True,
             "success": True
-        })
+        }
+        logging.debug("Broadcasting success ({}) {} {}".format(job_id, job_type.value, str(to_broadcast)))
+        await self.event_server.broadcast_event(job_type.value, to_broadcast)
         
-    async def _handle_broadcast_cancelled(self, job_id: str, job_type: JobType, err: Exception):
+    async def _handle_broadcast_error(self, job_id: str, job_type: JobType, err: Exception):
         # TODO: extend with all errors
         error_type = "unknown"
         if isinstance(err, UnknownOpType): error_type = "operation_unknown_type"
         elif isinstance(err, UnknownOpID): error_type = "operation_unknown_id"
         elif isinstance(err, DuplicateFilter): error_type = "operation_duplicate"
         elif isinstance(err, OperationUnloaded): error_type = "operation_unloaded"
+        elif isinstance(err, StartActiveError): error_type = "operation_active"
+        elif isinstance(err, CloseInactiveError): error_type = "operation_inactive"
+        elif isinstance(err, UsedInactiveError): error_type = "operation_inactive"
+        elif isinstance(err, UnknownField): error_type = "config_unknown_field"
+        elif isinstance(err, UnknownFile): error_type = "config_unknown_file"
         elif isinstance(err, UnknownJobType): error_type = "job_unknown"
         elif isinstance(err, asyncio.CancelledError): error_type = "job_cancelled"
         
-        await self.event_server.broadcast_event(job_type.value, {
+        to_broadcast = {
             "job_id": job_id,
             "finished": True,
             "success": False,
@@ -488,4 +504,7 @@ class JAIson(metaclass=Singleton):
                 "type": error_type,
                 "reason": str(err)
             }
-        })
+        }
+        
+        logging.debug("Broadcasting error ({}) {} {}".format(job_id, job_type.value, str(to_broadcast)))
+        await self.event_server.broadcast_event(job_type.value, to_broadcast)
