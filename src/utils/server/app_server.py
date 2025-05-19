@@ -123,19 +123,19 @@ async def context_custom_add():
     return await _request_job(JobType.CONTEXT_CUSTOM_ADD)
 
 # Operation management
-@app.route('/api/operation/load', methods=['POST'])    
+@app.route('/api/operations/load', methods=['POST'])    
 async def operation_start():
     return await _request_job(JobType.OPERATION_LOAD)
 
-@app.route('/api/operation/reload', methods=['POST'])    
+@app.route('/api/operations/reload', methods=['POST'])    
 async def operation_reload():
     return await _request_job(JobType.OPERATION_CONFIG_RELOAD)
 
-@app.route('/api/operation/unload', methods=['POST'])    
+@app.route('/api/operations/unload', methods=['POST'])    
 async def operation_unload():
     return await _request_job(JobType.OPERATION_UNLOAD)
 
-@app.route('/api/operation/use', methods=['POST'])    
+@app.route('/api/operations/use', methods=['POST'])    
 async def operation_use():
     return await _request_job(JobType.OPERATION_USE)
 
@@ -186,19 +186,19 @@ async def preflight_context_custom():
 async def preflight_operations_info():
     return create_preflight('GET')
 
-@app.route('/api/operation/load', methods=['POST']) 
+@app.route('/api/operations/load', methods=['POST']) 
 async def preflight_operation_start():
     return create_preflight('POST')
 
-@app.route('/api/operation/reload', methods=['POST']) 
+@app.route('/api/operations/reload', methods=['POST']) 
 async def preflight_operation_reload():
     return create_preflight('POST')
 
-@app.route('/api/operation/unload', methods=['POST']) 
+@app.route('/api/operations/unload', methods=['POST']) 
 async def preflight_operation_unload():
     return create_preflight('POST')
 
-@app.route('/api/operation/use', methods=['POST'])
+@app.route('/api/operations/use', methods=['POST'])
 async def preflight_operation_use():
     return create_preflight('POST')
 
