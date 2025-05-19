@@ -25,8 +25,6 @@
 
 ## Key Features
 
-idk tbh
-
 - Configurable AI persona that integrates with applications for general interaction and streaming
 - Text and talk with AI persona in real-time
 - Support for various services and local models
@@ -43,10 +41,6 @@ Currently made applications:
 
 ## Install
 
-<p align="center">
-!! For beta-testing only, all dependencies will be installed !!
-</p>
-
 > **Note**
 > To simplify setup across platforms, setup now uses [conda](https://docs.conda.io/projects/conda/en/stable/user-guide/install/index.html). Conda is not necessary to run this project.
 
@@ -58,7 +52,7 @@ conda create -n jaison-core python=3.12 pip=24.0 -y
 conda activate jaison-core
 ```
 
-<br>
+<hr />
 
 Install [PyTorch 2.5.1](https://pytorch.org/get-started/previous-versions/) with the right integration. Example below for computers with RTX graphics card.
 ```bash
@@ -67,7 +61,7 @@ conda install pytorch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 pytorch-cuda=
 
 > For NVidia cards, ensure you have the latest drivers and [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit)
 
-<br>
+<hr />
 
 Install remaining dependencies.
 ```bash
@@ -75,7 +69,7 @@ pip install .
 python -m spacy download en_core_web_sm
 ```
 
-<br>
+<hr />
 
 Install FFmpeg
 #### For Ubuntu/Debian users
@@ -87,11 +81,16 @@ sudo apt install ffmpeg
 brew install ffmpeg
 ```
 #### For Windows users
-Download these files and place them in the root folder:
-- [ffmpeg.exe](https://huggingface.co/lj1995/VoiceConversionWebUI/blob/main/ffmpeg.exe)
+Download executables and place them in the root folder:
+- [Download latest `ffmpeg-git-essentials.7z`](https://www.gyan.dev/ffmpeg/builds/)
+- Extract and copy all contents from `bin/` to root of this project.
 
-- [ffprobe.exe](https://huggingface.co/lj1995/VoiceConversionWebUI/blob/main/ffprobe.exe)
+<hr />
 
+Add keys and other sensitive information for services you intend to use in `.env` (make a new file and copy the contents of [`.env-template`](.env-template))
+
+
+<hr />
 
 Dealing with duplicate `libiomp5md.dll`.
 1. Go to environment directory (where conda stores installed packages)
@@ -117,20 +116,9 @@ See [Operations](#operations-1) for the extensive list.
 
 ## Operations
 
-These are listed under `default_operations` in configuration. Each operation specified a `type` and an `id`. Valid options are descripted below.
+These are listed under `operations` in configuration. Each operation specified a `type` and an `id`. Valid options are descripted below.
 
 ### stt
-
-#### fish
-
-- **compatibility** -> all
-- **paid** -> yes
-
-Use [Fish Audio](https://fish.audio/) for speech-input.
-
-Add your API key to `.env` under `FISH_API_KEY`
-
-No additional configuration
 
 #### kobold
 
@@ -146,6 +134,43 @@ For configuration, add the absolute filepath of the executable to `kobold_filepa
 Additional configuration
 - `kobold_stt_suppress_non_speech` (bool) for skipping non-speech sounds
 - `kobold_stt_langcode` (str) for code of input language
+
+#### azure
+
+- **compatibility** -> all
+- **paid** -> no
+
+Use [Azure Speech Services](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/index-speech-to-text) for speech-input.
+
+Add your API key to `.env` under `AZURE_API_KEY` and [region](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/regions?tabs=geographies) under `AZURE_REGION`
+
+Configuration:
+- `azure_stt_language` (str) Input speech [language](azure_stt_language)
+
+#### fish
+
+- **compatibility** -> all
+- **paid** -> yes
+
+Use [Fish Audio](https://fish.audio/) for speech-input.
+
+Add your API key to `.env` under `FISH_API_KEY`
+
+No additional configuration
+
+#### openai
+
+- **compatibility** -> depends
+- **paid** -> depends
+
+Default to use [OpenAI's service](https://platform.openai.com/docs/overview), which is compatible with all but paid. Can also be used with applications/services that have OpenAI-like API such as Ollama.
+
+Add your API key to `.env` under `OPENAI_API_KEY`
+
+Configuration:
+- `openai_stt_base_url` (str) for specifying endpoint (OpenAI or some other application/service)
+- `openai_stt_model` (str) model to use
+- `openai_stt_language` (str) [language](https://github.com/openai/whisper/blob/main/whisper/tokenizer.py)
 
 ### t2t
 
@@ -166,7 +191,39 @@ Configuration:
 - `openai_t2t_presence_penalty` (float) for adjusting presence penalty
 - `openai_t2t_frequency_penalty` (float) for adjusting frequency penalty
 
-### ttsg
+#### kobold
+
+- **compatibility** -> limited
+- **paid** -> no
+
+Direct support for models on [KoboldCPP](https://github.com/LostRuins/koboldcpp). More flexible samplers than OpenAI-like APIs.
+
+- `kobold_t2t_max_context_length` (int) max context length of model
+- `kobold_t2t_max_length` (int) max length allowable for model
+- `kobold_t2t_quiet` (bool) quiet output
+- `kobold_t2t_rep_pen` (float) sampler
+- `kobold_t2t_rep_pen_range` (int) sampler
+- `kobold_t2t_rep_pen_slope` (int) sampler
+- `kobold_t2t_temperature` (float) sampler
+- `kobold_t2t_tfs` (int) sampler
+- `kobold_t2t_top_a` (int) sampler
+- `kobold_t2t_top_k` (int) sampler
+- `kobold_t2t_top_p` (float) sampler
+- `kobold_t2t_typical` (int) sampler
+
+### tts
+
+#### azure
+
+- **compatibility** -> all
+- **paid** -> no
+
+Use [Azure Speech Services](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/index-text-to-speech) for natural sounding synthesized speech.
+
+Add your API key to `.env` under `AZURE_API_KEY` and [region](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/regions?tabs=geographies) under `AZURE_REGION`
+
+Configuration:
+- `azure_ttsg_voice` (str) ID of void from [voice gallery](https://speech.microsoft.com/portal/voicegallery) (ID used in their sample code for `speech_synthesis_voice_name`)
 
 #### fish
 
@@ -208,7 +265,27 @@ Configuration:
 - `synth_ttsg_voice_name` (str) for voice ID (a list of these is printed on start when configured to be used)
 - `synth_ttsg_gender` (str) for voice gender if applicable
 
-### ttsc
+#### kobold
+
+- **compatibility** -> limited
+- **paid** -> no
+
+Use [KoboldCPP](https://github.com/LostRuins/koboldcpp) for TTS. Mostly for completion sake, and not recommended for use.
+
+Configuration:
+- `kobold_tts_voice` (str) voice to use
+
+### filter_audio
+
+#### pitch
+
+- **compatibility** -> all
+- **paid** -> no
+
+Pitch generated audio up and down a number of semi-tones
+
+Configuration:
+- `pitch_amount` (int) pitch shift in semi-tones
 
 #### rvc
 
@@ -235,9 +312,9 @@ Configuration:
 - `rvc_rms_mix_rate` (int)
 - `rvc_protect` (float)
 
-### chunker
+### filter_text
 
-#### sentence
+#### filter_clean
 
 - **compatibility** -> all
 - **paid** -> no
@@ -246,14 +323,16 @@ Accumulate output from T2T model into sentences before passing them down the pip
 
 No additional configuration
 
-### filter
+#### chunker_sentence
 
-> At least one filter must be configured. Currently, there is only `koala`, however this can be used even if not compatible. Just set `default_skip_filters` to `true` to skip using it.
+- **compatibility** -> all
+- **paid** -> no
 
-Universal configuration:
-- `default_skip_filters` (bool) whether to enable or disable filters
+Accumulate output from T2T model into sentences before passing them down the pipeline.
 
-#### koala
+No additional configuration
+
+#### mod_koala
 
 - **compatibility** -> limited
 - **paid** -> no
@@ -262,9 +341,7 @@ Use [Koala/Text-Moderation](https://huggingface.co/KoalaAI/Text-Moderation) to c
 
 No additional configuration
 
-### emotion
-
-#### roberta
+#### emotion_roberta
 
 - **compatibility** -> all
 - **paid** -> no
@@ -297,4 +374,4 @@ Join the community!
 
 ## License
 
-MIT
+[MIT](LICENSE)
