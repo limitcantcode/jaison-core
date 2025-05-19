@@ -92,13 +92,19 @@ Download these files and place them in the root folder:
 
 - [ffprobe.exe](https://huggingface.co/lj1995/VoiceConversionWebUI/blob/main/ffprobe.exe)
 
+
+Dealing with duplicate `libiomp5md.dll`.
+1. Go to environment directory (where conda stores installed packages)
+2. Search for `libiomp5md.dll`
+3. Delete the version under package `torch`
+
 ### Configuration
 
 An [example configuration](configs/example.yaml) is provided. Depending on which integrations are configured for use, additional setup is required.
 
 #### General
 
-- `compatibility_mode` (bool) when enabled, will disallow the loading of operations with limited compatibility
+- `web_host` (str) ip address of your server host. Default to 127.0.0.1 (if having issues connecting from another machine, try 0.0.0.0)
 - `web_port` (int) port to run REST API and websocket server on.
 
 #### Prompting

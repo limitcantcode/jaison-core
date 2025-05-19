@@ -31,6 +31,6 @@ dependencies = [
     "transformers>=4.48.0",
     "rvc @ git+https://github.com/RVC-Project/Retrieval-based-Voice-Conversion.git",
     "fairseq @ git+https://github.com/One-sixth/fairseq.git",
-    "spacy==3.8.4"
+    "spacy==3.8.4",
     "numpy==1.26"
 ]
