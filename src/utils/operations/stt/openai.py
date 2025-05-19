@@ -1,6 +1,6 @@
 import wave
-from io import BytesIO
 from openai import AsyncOpenAI
+from pathlib import Path
 
 from utils.config import Config
 
@@ -24,19 +24,18 @@ class OpenAISTT(STTOperation):
     
     async def _generate(self, prompt: str = None,  audio_bytes: bytes = None, sr: int = None, sw: int = None, ch: int = None, **kwargs):
         '''Generate a output stream'''
-        audio = BytesIO()
-        with wave.open(audio, 'w') as f:
+        with wave.open(Config().stt_working_src, 'w') as f:
             f.setframerate(sr)
             f.setsampwidth(sw)
             f.setnchannels(ch)
             f.writeframes(audio_bytes)
 
         transcription = await self.client.audio.transcriptions.create(
-            audio,
+            file=Path(Config().stt_working_src),
             model=Config().openai_stt_model,
             response_format="text",
             language=Config().openai_stt_language,
             prompt=prompt
         )
         
-        yield {"transcription": transcription.text}
+        yield {"transcription": transcription}

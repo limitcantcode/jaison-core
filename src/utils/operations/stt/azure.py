@@ -1,8 +1,7 @@
-import io
-import wave
 import os
 import asyncio
 import azure.cognitiveservices.speech as speechsdk
+import logging
 
 from utils.config import Config
 
@@ -44,8 +43,9 @@ class AzureSTT(STTOperation):
         done = asyncio.Event()
         done.clear()
         def transcribed_cb(evt):
+            nonlocal transcription
             if evt.result.reason == speechsdk.ResultReason.RecognizedSpeech:
-                transcription += evt.result.text
+                transcription += str(evt.result)
         
         def stop_cb(evt: speechsdk.SessionEventArgs):
             done.set()

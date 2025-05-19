@@ -23,7 +23,7 @@ class PyttsTTS(TTSOperation):
         
         self.engine = pyttsx3.init()
         voices = self.engine.getProperty('voices')
-        logging.info("Operation {}: Available voices are: {}".format(self.id, list(map(lambda x: x.id, voices))))
+        logging.info("Operation {}: Available voices are: {}".format(self.op_id, list(map(lambda x: x.id, voices))))
         
         self.engine.setProperty('voice', Config().synth_ttsg_voice_name)
         self.engine.setProperty('gender', Config().synth_ttsg_gender)

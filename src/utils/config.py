@@ -20,10 +20,17 @@ class Config(metaclass=Singleton):
     current_config: str = "Unsaved"
     
     # General
+    web_host: str = "127.0.0.1"
     web_port: int = 7272
     
     # Defaults
     operations: list = list()
+    
+    # Shared
+    stt_working_src: str = portable_path(os.path.join(WORKING_DIR,'stt_src.wav'))
+    ffmpeg_working_src: str = portable_path(os.path.join(WORKING_DIR,'ffmpeg_src.wav'))
+    ffmpeg_working_dest: str = portable_path(os.path.join(WORKING_DIR,'ffmpeg_dest.wav'))
+    spacy_model: str = None
     
     # Prompter
     PROMPT_DIR: str = portable_path(os.path.join(os.getcwd(), "prompts"))
@@ -108,13 +115,6 @@ class Config(metaclass=Singleton):
     
     # Pitch corrector
     pitch_amount: int = 0
-    
-    # Spacy
-    spacy_model: str = None
-    
-    # FFmpeg
-    ffmpeg_working_src: str = portable_path(os.path.join(WORKING_DIR,'ffmpeg_src.wav'))
-    ffmpeg_working_dest: str = portable_path(os.path.join(WORKING_DIR,'ffmpeg_dest.wav'))
 
     
     def __init__(self):

@@ -319,7 +319,7 @@ class JAIson(metaclass=Singleton):
     ):
         await self._handle_broadcast_start(job_id, job_type, {"user": user, "timestamp": timestamp, "sr": sr, "sw": sw, "ch": ch, "audio_bytes": (audio_bytes is not None)}) # Don't send full audio bytes over websocket, just flag as gotten
         audio_bytes: bytes = base64.b64decode(audio_bytes)
-        prompt = self.prompter.get_sys_prompt() + self.prompter.get_user_prompt()
+        prompt = self.prompter.get_user_prompt() or "You're name is {}".format(Config().character_name)
         content = ""
         async for out_d in self.op_manager.use_operation(OpTypes.STT, {"prompt": prompt, "audio_bytes": audio_bytes, "sr": sr, "sw": sw, "ch": ch}):
             content += out_d['transcription']

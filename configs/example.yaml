@@ -1,5 +1,5 @@
 # General
-compatibility_mode: false
+web_host: 127.0.0.1
 web_port: 7272
 
 # Defaults
@@ -67,7 +67,7 @@ openai_ttsg_model: tts-1
 
 # Openai STT https://platform.openai.com/docs/guides/speech-to-text
 openai_stt_model: gpt-4o-transcribe
-openai_stt_language: English # https://platform.openai.com/docs/guides/speech-to-text#supported-languages
+openai_stt_language: en # https://github.com/openai/whisper/blob/main/whisper/tokenizer.py
 
 # Azure TTSG
 azure_ttsg_voice: "en-US-AshleyNeural" # https://speech.microsoft.com/portal/voicegallery
