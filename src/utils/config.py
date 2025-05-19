@@ -78,6 +78,7 @@ class Config(metaclass=Singleton):
     openai_t2t_presence_penalty: float = 0
     openai_t2t_frequency_penalty: float = 0
     
+    openai_stt_base_url: str = None
     openai_stt_model: str = None
     openai_stt_language: str = None
     
@@ -85,12 +86,12 @@ class Config(metaclass=Singleton):
     openai_ttsg_voice: str = None
     openai_ttsg_model: str = None
         
-    # Synthetic TTSG
+    # Synthetic TTS
     synth_ttsg_voice_name: str = None
     synth_ttsg_gender: str = 'female'
     synth_ttsg_working_file: str = portable_path(os.path.join(WORKING_DIR,'ttsg-synth-out.wav'))
     
-    # Azure TTSG
+    # Azure
     azure_stt_language: str = None
     
     azure_ttsg_voice: str = None

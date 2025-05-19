@@ -14,7 +14,7 @@ class OpenAISTT(STTOperation):
     async def start(self) -> None:
         '''General setup needed to start generated'''
         await super().start()
-        self.client = AsyncOpenAI(base_url=Config().openai_ttsg_base_url)
+        self.client = AsyncOpenAI(base_url=Config().openai_stt_base_url)
     
     async def close(self) -> None:
         '''Clean up resources before unloading'''
