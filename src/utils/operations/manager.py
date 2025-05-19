@@ -162,6 +162,8 @@ class OperationManager:
         '''Load, start, and save all operations specified in config in the OperationManager'''
         config = Config()
         
+        await self.close_operation_all()
+        
         if config.op_stt_id: self.load_operation(OpTypes.STT, config.op_stt_id)
         if config.op_t2t_id: self.load_operation(OpTypes.T2T, config.op_t2t_id)
         if config.op_tts_id: self.load_operation(OpTypes.TTS, config.op_tts_id)
