@@ -12,19 +12,20 @@
   <img alt="GitHub pull requests" src="https://img.shields.io/github/issues-pr/limitcantcode/jaison-core" />
 </p>
 
-<p align="center">
+<p align="center" >
   <a href="#about-this-project">About This Project</a> •
   <a href="#key-features">Key Features</a> •
   <a href="#applications">Applications</a> •
   <a href="#install-from-scratch">Install From Scratch</a> •
   <a href="#operations">Operations</a> •
   <a href="#how-to-use">How To Use</a> •
+  <a href="#developer-guide">Developer Guide</a> •
   <a href="#Community">Community</a> •
   <a href="#thank-you-to-all-the-contributors">Credits</a> •
   <a href="#license">License</a>
 </p>
 
-## About Phis Project
+## About This Project
 
 This project is for a fully customizable AI persona usable for streaming or private companionship. Feel free to download and use how you wish. 
 
@@ -37,14 +38,13 @@ This software uses libraries from the FFmpeg project under the LGPLv2.1
 - Support for various services and local models
 - Support for custom contexts
 
-## Applications
+## Official Applications
 
-> **API DOCUMENTATION COMING SOON**
-
-Currently made applications:
 - [Discord bot integration](https://github.com/limitcantcode/app-jaison-discord-lcc)
 - [VTube Studio with emotions](https://github.com/limitcantcode/app-jaison-vts-hotkeys-lcc)
 - [Twitch Chat and Events content provider](https://github.com/limitcantcode/app-jaison-twitch-lcc)
+
+Feel free to build and share your own! See the [Developer Guide](#developer-guide) for more info.
 
 ## Install From Scratch
 
@@ -365,6 +365,14 @@ python ./src/main.py --help
 
 Example usage: `python ./src/main.py --config=example`
 
+## Developer Guide
+
+See the specification for building applciations for Project J.A.I.son, creating custom integrations, and configuration tips below:
+
+- [REST API spec](api.yaml)
+- [Development guide](DEVELOPER.md)
+- [Contributing guidelines](CONTRIBUTING.md)
+
 ## Community
 
 Join the community!
@@ -374,6 +382,8 @@ Join the community!
 - [Twitch](https://www.twitch.tv/atmylimit_)
 
 ## Thank you to all the contributors!
+
+[Become a contributor as well](CONTRIBUTING.md)
 
 <a href="https://github.com/limitcantcode/jaison-core/graphs/contributors" target="_blank">
   <img src="https://contrib.rocks/image?repo=limitcantcode/jaison-core" />
