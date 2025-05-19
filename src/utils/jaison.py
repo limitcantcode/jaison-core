@@ -373,6 +373,12 @@ class JAIson(metaclass=Singleton):
         await self._handle_broadcast_start(job_id, job_type, {"context_id": context_id, "context_contents": context_contents, "timestamp": timestamp})
         if timestamp is not None: timestamp = datetime.datetime.fromtimestamp(timestamp)
         self.prompter.add_custom_context(context_id, context_contents)
+        last_line_o = self.prompter.history[-1]
+        await self._handle_broadcast_event(job_id, job_type, {
+            "timestamp": last_line_o.time.timestamp(),
+            "content": last_line_o.message,
+            "line": last_line_o.to_line()
+        })
         await self._handle_broadcast_success(job_id, job_type)
             
     # Operation management    
