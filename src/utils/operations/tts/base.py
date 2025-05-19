@@ -14,19 +14,22 @@ from typing import Dict, Any, AsyncGenerator
 from ..base import Operation
 
 class TTSOperation(Operation):
+    def __init__(self, op_id: str):
+        super().__init__("TTS", op_id)
+        
     ## TO BE OVERRIDEN ####
     async def start(self) -> None:
         '''General setup needed to start generated'''
-        super().start()
+        await super().start()
     
     async def close(self) -> None:
         '''Clean up resources before unloading'''
-        super().close()
+        await super().close()
     
     async def _parse_chunk(self, chunk_in: Dict[str, Any]) -> Dict[str, Any]:
         '''Extract information from input for use in _generate'''
         assert "content" in chunk_in
-        assert isinstance(chunk_in["content"], bytes)
+        assert isinstance(chunk_in["content"], str)
         assert len(chunk_in["content"]) > 0
         
         return {
@@ -34,7 +37,7 @@ class TTSOperation(Operation):
         }
     
     ## TO BE IMPLEMENTED ####
-    async def _generate(self, content: str = None, **kwargs) -> AsyncGenerator[Dict[str, Any]]:
+    async def _generate(self, content: str = None, **kwargs) -> AsyncGenerator[Dict[str, Any], None]:
         '''Generate a output stream'''
         raise NotImplementedError
     

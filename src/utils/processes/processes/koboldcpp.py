@@ -16,6 +16,8 @@ class KoboldCPPProcess(BaseProcess, metaclass=Singleton):
         if self.process is not None:
             await self.unload()
         
+        await super().reload()
+        
         # Find open port
         config = Config()
         sock = socket.socket()

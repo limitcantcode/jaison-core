@@ -9,7 +9,7 @@ from .base import TTSOperation
 
 class AzureTTS(TTSOperation):
     def __init__(self):
-        super().__init__()
+        super().__init__("azure")
         self.client = None
         
     async def start(self) -> None:

@@ -1,5 +1,6 @@
 '''
 STT Operations (at minimum) require the following fields for input chunks:
+- prompt: (str) initial words to help with transcription (Optional)
 - audio_bytes: (bytes) pcm audio data
 - sr: (int) sample rate
 - sw: (int) sample width
@@ -14,14 +15,17 @@ from typing import Dict, Any, AsyncGenerator
 from ..base import Operation
 
 class STTOperation(Operation):
+    def __init__(self, op_id: str):
+        super().__init__("STT", op_id)
+        
     ## TO BE OVERRIDEN ####
     async def start(self) -> None:
         '''General setup needed to start generated'''
-        super().start()
+        await super().start()
     
     async def close(self) -> None:
         '''Clean up resources before unloading'''
-        super().close()
+        await super().close()
     
     async def _parse_chunk(self, chunk_in: Dict[str, Any]) -> Dict[str, Any]:
         '''Extract information from input for use in _generate'''
@@ -39,6 +43,7 @@ class STTOperation(Operation):
         assert chunk_in["ch"] > 0
         
         return {
+            "prompt": chunk_in.get("prompt", ""),
             "audio_bytes": chunk_in["audio_bytes"],
             "sr": chunk_in["sr"],
             "sw": chunk_in["sw"],
@@ -46,7 +51,7 @@ class STTOperation(Operation):
         }
     
     ## TO BE IMPLEMENTED ####
-    async def _generate(self, audio_bytes: bytes = None, sr: int = None, sw: int = None, ch: int = None, **kwargs) -> AsyncGenerator[Dict[str, Any]]:
+    async def _generate(self, prompt: str = None, audio_bytes: bytes = None, sr: int = None, sw: int = None, ch: int = None, **kwargs) -> AsyncGenerator[Dict[str, Any], None]:
         '''Generate a output stream'''
         raise NotImplementedError
     

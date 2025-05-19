@@ -45,15 +45,15 @@ class ProcessManager(metaclass=Singleton):
                 
     async def link(self, link_id: str, process_type: ProcessType):
         if not (process_type in self.loaded_processes and self.loaded_processes[process_type]):
-            self.load(process_type)
+            await self.load(process_type)
             
-        self.loaded_processes[process_type].link(link_id)
+        await self.loaded_processes[process_type].link(link_id)
         
     async def unlink(self, link_id: str, process_type: ProcessType):
         if not (process_type in self.loaded_processes and self.loaded_processes[process_type]):
             raise UnloadedProcessError(process_type.value)
             
-        self.loaded_processes[process_type].unlink(link_id)
+        await self.loaded_processes[process_type].unlink(link_id)
     
     def signal_reload(self, process_type: ProcessType):
         if not (process_type in self.loaded_processes and self.loaded_processes[process_type]):

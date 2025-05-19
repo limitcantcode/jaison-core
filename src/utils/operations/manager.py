@@ -67,10 +67,10 @@ class OperationManager:
                     return AzureSTT()
                 elif op_id == "openai":
                     from .stt.openai import OpenAISTT
-                    return AzureSTT()
+                    return OpenAISTT()
                 elif op_id == "kobold":
                     from .stt.kobold import KoboldSTT
-                    return AzureSTT()
+                    return KoboldSTT()
                 else:
                     raise UnknownOpID("STT", op_id)
             case OpTypes.T2T:
@@ -119,6 +119,9 @@ class OperationManager:
                 elif op_id == "mod_koala":
                     from .filter_text.mod_koala import KoalaModerationFilter
                     return KoalaModerationFilter()
+                elif op_id == "filter_clean":
+                    from .filter_text.filter_clean import ResponseCleaningFilter
+                    return ResponseCleaningFilter()
                 else:
                     raise UnknownOpID("FILTER_TEXT", op_id)
             case _:
@@ -230,7 +233,7 @@ class OperationManager:
         
     async def _use_filter(self, filter_list: List[Operation], filter_idx: int, chunk_in: Dict[str, Any]):
         if filter_idx == len(filter_list): yield chunk_in
-        if filter_idx < len(filter_list)-1: # Not last filter
+        elif filter_idx < len(filter_list)-1: # Not last filter
             async for result_chunk in filter_list[filter_idx](chunk_in):
                 async for chunk_out in self._use_filter(filter_list, filter_idx+1, result_chunk):
                     yield chunk_out
@@ -243,7 +246,7 @@ class OperationManager:
         op_type: OpTypes,
         chunk_in: Dict[str, Any],
         op_id: str = None
-    ) -> AsyncGenerator[Dict[str, Any]]:
+    ) -> AsyncGenerator[Dict[str, Any], None]:
         '''Use an operation that has already been loaded prior'''
         match op_type:
             case OpTypes.STT:

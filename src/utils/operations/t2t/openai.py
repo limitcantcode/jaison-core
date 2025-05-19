@@ -6,7 +6,7 @@ from .base import T2TOperation
 
 class OpenAIT2T(T2TOperation):
     def __init__(self):
-        super().__init__()
+        super().__init__("openai")
         self.client = None
         
     async def start(self):

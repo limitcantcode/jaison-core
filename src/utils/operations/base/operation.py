@@ -11,14 +11,14 @@ class Operation:
         
         self.active = False
     
-    async def __call__(self, chunk_in: Dict[str, Any]) -> AsyncGenerator[Dict[str, Any]]:
+    async def __call__(self, chunk_in: Dict[str, Any]) -> AsyncGenerator[Dict[str, Any], None]:
         '''Generates a stream of chunks similar to chunk_in but augmented with new data'''
         if not self.active: raise UsedInactiveError(self.op_type, self.op_id)
         start_time = time.perf_counter()
         
-        kwargs = await self.parse_chunk(chunk_in)
+        kwargs = await self._parse_chunk(chunk_in)
         
-        async for chunk_out in self.generate(**kwargs):
+        async for chunk_out in self._generate(**kwargs):
             yield chunk_in | chunk_out
         end_time = time.perf_counter()
         logging.info("{} operation {} completed in {} ms".format(self.op_type, self.op_id, (end_time-start_time)/1000000.0))
@@ -42,6 +42,6 @@ class Operation:
         '''Extract information from input for use in _generate'''
         raise NotImplementedError
     
-    async def _generate(self, **kwargs) -> AsyncGenerator[Dict[str, Any]]:
+    async def _generate(self, **kwargs) -> AsyncGenerator[Dict[str, Any], None]:
         '''Generate a output stream'''
         raise NotImplementedError

@@ -6,7 +6,7 @@ from .base import FilterTextOperation
 
 class RobertaEmotionFilter(FilterTextOperation):
     def __init__(self):
-        super().__init__()
+        super().__init__("roberta_emotion")
         self.classifier = None
         
     async def start(self):

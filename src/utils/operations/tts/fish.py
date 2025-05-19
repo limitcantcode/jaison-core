@@ -7,7 +7,7 @@ from .base import TTSOperation
 
 class FishTTS(TTSOperation):
     def __init__(self):
-        super().__init__()
+        super().__init__("fish")
         self.session = None
         
     async def start(self) -> None:

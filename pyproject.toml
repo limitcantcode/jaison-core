@@ -32,4 +32,5 @@ dependencies = [
     "rvc @ git+https://github.com/limitcantcode/Retrieval-based-Voice-Conversion.git",
     "fairseq @ git+https://github.com/One-sixth/fairseq.git",
     "spacy==3.8.4"
+    "numpy==1.26"
 ]

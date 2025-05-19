@@ -8,7 +8,7 @@ from .base import STTOperation
 
 class OpenAISTT(STTOperation):
     def __init__(self):
-        super().__init__()
+        super().__init__("openai")
         self.client = None
         
     async def start(self) -> None:
@@ -22,7 +22,7 @@ class OpenAISTT(STTOperation):
         self.client.close()
         self.client = None
     
-    async def _generate(self, audio_bytes: bytes = None, sr: int = None, sw: int = None, ch: int = None, **kwargs):
+    async def _generate(self, prompt: str = None,  audio_bytes: bytes = None, sr: int = None, sw: int = None, ch: int = None, **kwargs):
         '''Generate a output stream'''
         audio = BytesIO()
         with wave.open(audio, 'w') as f:
@@ -36,6 +36,7 @@ class OpenAISTT(STTOperation):
             model=Config().openai_stt_model,
             response_format="text",
             language=Config().openai_stt_language,
+            prompt=prompt
         )
         
         yield {"transcription": transcription.text}

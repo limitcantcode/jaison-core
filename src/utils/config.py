@@ -123,7 +123,7 @@ class Config(metaclass=Singleton):
         
     # Can raise: FileNotFoundError, 
     def load_from_name(self, config_name: str):
-        filepath = os.path.join(self.CONFIG_DIR, self.current_config+".yaml")
+        filepath = os.path.join(self.CONFIG_DIR, config_name+".yaml")
         if not os.path.isfile(filepath): raise UnknownFile(filepath)
         
         with open(filepath) as f:

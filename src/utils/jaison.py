@@ -3,15 +3,14 @@ import asyncio
 import uuid
 import base64
 import datetime
-from typing import Dict, Coroutine, List, Any, AsyncGenerator, Tuple
+from typing import Dict, Coroutine, List, Any, Tuple
 from enum import StrEnum
 
 from utils.helpers.singleton import Singleton
-from utils.helpers.iterable import list_to_agen
+from utils.helpers.iterable import chunk_buffer
 from utils.helpers.observer import ObserverServer
-from utils.helpers.multiplexor import multiplexor
 
-from utils.config import Config
+from utils.config import Config, UnknownField, UnknownFile
 from utils.prompter import Prompter
 from utils.processes import ProcessManager
 from utils.operations import (
@@ -81,7 +80,7 @@ class JAIson(metaclass=Singleton):
         
         self.process_manager = ProcessManager()
         self.op_manager = OperationManager()
-        await self.start_operations('start',JobType.OPERATION_LOAD,ops=Config().operations)
+        await self.load_operations('start',JobType.OPERATION_LOAD,ops=Config().operations)
         await self.process_manager.reload()
         logging.info("JAIson application layer has started.")
         
@@ -215,36 +214,41 @@ class JAIson(metaclass=Singleton):
     ):
         
         # Adjust flags based on loaded ops
-        if not self.op_manager.get_operation(OpTypes.STT): include_audio = False
+        if not self.op_manager.get_operation(OpTypes.TTS): include_audio = False
         
         # Broadcast start conditions
         await self._handle_broadcast_start(job_id, job_type, {"include_audio": include_audio})
         
         # Get prompts
         system_prompt, user_prompt = self.prompter.get_sys_prompt(), self.prompter.get_user_prompt()
-        text_chunk = {"system_prompt": system_prompt, "user_prompt": user_prompt}
         
         # Appy t2t
         t2t_result = ""
-        async for chunk_out in self.op_manager.use(OpTypes.T2T, {"system_prompt": system_prompt, "user_prompt": user_prompt}):
+        async for chunk_out in self.op_manager.use_operation(OpTypes.T2T, {"system_prompt": system_prompt, "user_prompt": user_prompt}):
             t2t_result += chunk_out["content"]
         
-        # Broadcast raw result
-        await self._handle_broadcast_event(job_id, job_type, text_chunk | {"raw_content": t2t_result})
-        
-        text_chunk = text_chunk | {"content": t2t_result} # Get full result
+        # Broadcast raw results
+        await self._handle_broadcast_event(job_id, job_type, {"system_prompt": system_prompt})
+        await self._handle_broadcast_event(job_id, job_type, {"user_prompt": user_prompt})
+        await self._handle_broadcast_event(job_id, job_type, {"raw_content": t2t_result})
         
         # Apply text filters
-        async for text_chunk_out in self.op_manager.use(OpTypes.FILTER_TEXT, text_chunk):
+        async for text_chunk_out in self.op_manager.use_operation(OpTypes.FILTER_TEXT, {"content": t2t_result}):
+            self.prompter.add_chat(Config().character_name, text_chunk_out['content'])
+            await self._handle_broadcast_event(job_id, job_type, text_chunk_out)
             if include_audio:
                 # Apply tts
-                async for audio_chunk_out in self.op_manager.use(OpTypes.TTS, text_chunk_out):
+                async for audio_chunk_out in self.op_manager.use_operation(OpTypes.TTS, text_chunk_out):
                     # Apply tts filters
-                    async for final_audio_chunk_out in self.op_manager.use(OpTypes.FILTER_AUDIO, audio_chunk_out):
-                        # boardcast results
-                        await self._handle_broadcast_event(job_id, job_type, final_audio_chunk_out)
-            else:
-                await self._handle_broadcast_event(job_id, job_type, text_chunk_out)
+                    async for final_audio_chunk_out in self.op_manager.use_operation(OpTypes.FILTER_AUDIO, audio_chunk_out):
+                        # Broadcast results (only the audio data for now)
+                        for ws_chunk in chunk_buffer(base64.b64encode(final_audio_chunk_out['audio_bytes']).decode('utf-8')):
+                            await self._handle_broadcast_event(job_id, job_type, {
+                                "audio_bytes": ws_chunk,
+                                "sr": final_audio_chunk_out['sr'],
+                                "sw": final_audio_chunk_out['sw'],
+                                "ch": final_audio_chunk_out['ch']
+                            })
                         
         # Broadcast completion
         await self._handle_broadcast_success(job_id, job_type)
@@ -315,8 +319,9 @@ class JAIson(metaclass=Singleton):
     ):
         await self._handle_broadcast_start(job_id, job_type, {"user": user, "timestamp": timestamp, "sr": sr, "sw": sw, "ch": ch, "audio_bytes": (audio_bytes is not None)}) # Don't send full audio bytes over websocket, just flag as gotten
         audio_bytes: bytes = base64.b64decode(audio_bytes)
+        prompt = self.prompter.get_sys_prompt() + self.prompter.get_user_prompt()
         content = ""
-        async for out_d in self.op_manager.use_operation(OpTypes.STT, {"audio_bytes": audio_bytes, "sr": sr, "sw": sw, "ch": ch}):
+        async for out_d in self.op_manager.use_operation(OpTypes.STT, {"prompt": prompt, "audio_bytes": audio_bytes, "sr": sr, "sw": sw, "ch": ch}):
             content += out_d['transcription']
       
         self.prompter.add_chat(
@@ -433,6 +438,7 @@ class JAIson(metaclass=Singleton):
             op = self.op_manager.loose_load_operation(OpTypes(op_type), op_id)
             await op.start()
             async for chunk_out in op(payload):
+                if "audio_bytes" in chunk_out: chunk_out["audio_bytes"] = base64.b64encode(chunk_out['audio_bytes']).decode('utf-8')
                 self._handle_broadcast_event(job_type, job_id, chunk_out)
             await op.close()
             
@@ -460,7 +466,7 @@ class JAIson(metaclass=Singleton):
             "job_id": job_id,
             "start": payload
         }
-        logging.debug("Broadcasting start ({}) {} {}".format(job_id, job_type.value, str(to_broadcast)))
+        logging.debug("Broadcasting start ({}) {} {:.500}".format(job_id, job_type.value, str(to_broadcast)))
         await self.event_server.broadcast_event(job_type.value, to_broadcast)
     
     async def _handle_broadcast_event(self, job_id: str, job_type: JobType, payload: dict):
@@ -469,7 +475,7 @@ class JAIson(metaclass=Singleton):
             "finished": False,
             "result": payload
         }
-        logging.debug("Broadcasting event ({}) {} {}".format(job_id, job_type.value, str(to_broadcast)))
+        logging.debug("Broadcasting event ({}) {} {:.500}".format(job_id, job_type.value, str(to_broadcast)))
         await self.event_server.broadcast_event(job_type.value, to_broadcast)
     
     async def _handle_broadcast_success(self, job_id: str, job_type: JobType):

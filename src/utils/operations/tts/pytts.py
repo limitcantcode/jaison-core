@@ -15,7 +15,7 @@ from .base import TTSOperation
 
 class PyttsTTS(TTSOperation):
     def __init__(self):
-        super().__init__()
+        super().__init__("pytts")
         self.engine = None
         
     async def start(self):

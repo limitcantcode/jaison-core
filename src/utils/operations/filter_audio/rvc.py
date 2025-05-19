@@ -11,7 +11,7 @@ class RVCFilter(FilterAudioOperation):
     TARGET_CH = 1
     
     def __init__(self):
-        super().__init__()
+        super().__init__("rvc")
         self.vc = None
         
     async def start(self):

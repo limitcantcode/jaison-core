@@ -10,7 +10,7 @@ from .base import STTOperation
 
 class AzureSTT(STTOperation):
     def __init__(self):
-        super().__init__()
+        super().__init__("azure")
         self.client = None
         
     async def start(self) -> None:
@@ -22,7 +22,7 @@ class AzureSTT(STTOperation):
             subscription=os.getenv("AZURE_API_KEY")
         )
         
-    async def _generate(self, audio_bytes: bytes = None, sr: int = None, sw: int = None, ch: int = None, **kwargs):
+    async def _generate(self, prompt: str = None,  audio_bytes: bytes = None, sr: int = None, sw: int = None, ch: int = None, **kwargs):
         '''Generate a output stream'''
         # Setup transcriber with audio metadata
         wave_format = speechsdk.audio.AudioStreamFormat(

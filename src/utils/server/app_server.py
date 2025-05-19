@@ -191,10 +191,6 @@ async def preflight_operation_start():
     return create_preflight('POST')
 
 @app.route('/api/operation/reload', methods=['POST']) 
-async def preflight_operation_start():
-    return create_preflight('POST')
-
-@app.route('/api/operation/reload', methods=['POST']) 
 async def preflight_operation_reload():
     return create_preflight('POST')
 
@@ -211,15 +207,15 @@ async def preflight_config():
     return create_preflight('GET')
 
 @app.route('/api/config/load', methods=['OPTIONS']) 
-async def preflight_config():
+async def preflight_config_load():
     return create_preflight('PUT')
 
 @app.route('/api/config/update', methods=['OPTIONS']) 
-async def preflight_config():
+async def preflight_config_update():
     return create_preflight('PUT')
 
 @app.route('/api/config/save', methods=['OPTIONS']) 
-async def preflight_config():
+async def preflight_config_save():
     return create_preflight('POST')
 
 ## START ###################################
@@ -231,4 +227,5 @@ async def start_web_server(): # TODO launch application plugins here as well
         await app.run_task(port=Config().web_port)
     except Exception as err:
         logging.error("Stopping server due to exception", exc_info=True)
+    finally:    
         await JAIson().stop()

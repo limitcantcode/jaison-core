@@ -8,7 +8,7 @@ from .base import STTOperation
 
 class FishSTT(STTOperation):
     def __init__(self):
-        super().__init__()
+        super().__init__("fish")
         self.session = None
         
     async def start(self):
@@ -20,7 +20,7 @@ class FishSTT(STTOperation):
         await self.session.close()
         self.session = None
         
-    async def _generate(self, audio_bytes: bytes = None, sr: int = None, sw: int = None, ch: int = None, **kwargs):
+    async def _generate(self, prompt: str = None,  audio_bytes: bytes = None, sr: int = None, sw: int = None, ch: int = None, **kwargs):
         '''Generate a output stream'''
         audio_data = io.BytesIO()
         with wave.open(audio_data, 'wb') as f:

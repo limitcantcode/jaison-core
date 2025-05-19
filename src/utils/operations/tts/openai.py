@@ -8,7 +8,7 @@ from .base import TTSOperation
 
 class OpenAITTS(TTSOperation):
     def __init__(self):
-        super().__init__()
+        super().__init__("openai")
         self.client = None
         
     async def start(self) -> None:

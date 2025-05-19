@@ -11,7 +11,7 @@ class KoboldTTS(T2TOperation):
     KOBOLD_LINK_ID = "kobold_tts"
     
     def __init__(self):
-        super().__init__()
+        super().__init__("kobold")
         self.uri = None
         
     async def start(self) -> None:

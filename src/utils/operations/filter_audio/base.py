@@ -17,14 +17,17 @@ from typing import Dict, Any, AsyncGenerator
 from ..base import Operation
 
 class FilterAudioOperation(Operation):
+    def __init__(self, op_id: str):
+        super().__init__("FILTER_AUDIO", op_id)
+        
     ## TO BE OVERRIDEN ####
     async def start(self) -> None:
         '''General setup needed to start generated'''
-        super().start()
+        await super().start()
     
     async def close(self) -> None:
         '''Clean up resources before unloading'''
-        super().close()
+        await super().close()
     
     async def _parse_chunk(self, chunk_in: Dict[str, Any]) -> Dict[str, Any]:
         '''Extract information from input for use in _generate'''
@@ -49,7 +52,7 @@ class FilterAudioOperation(Operation):
         }
     
     ## TO BE IMPLEMENTED ####
-    async def _generate(self, audio_bytes: bytes = None, sr: int = None, sw: int = None, ch: int = None, **kwargs) -> AsyncGenerator[Dict[str, Any]]:
+    async def _generate(self, audio_bytes: bytes = None, sr: int = None, sw: int = None, ch: int = None, **kwargs) -> AsyncGenerator[Dict[str, Any], None]:
         '''Generate a output stream'''
         raise NotImplementedError
     
