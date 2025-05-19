@@ -384,7 +384,7 @@ class JAIson(metaclass=Singleton):
     ):
         await self._handle_broadcast_start(job_id, job_type, {"ops": ops})
         for op_d in ops:
-            await self._handle_op_manager(job_id, job_type, op_d['type'], op_d['id'])
+            await self._handle_op_manager(job_id, job_type, op_d.get('type', ""), op_d.get('id', ""))
         await self._handle_broadcast_success(job_id, job_type)
         
     async def load_operations_from_config(
@@ -404,7 +404,7 @@ class JAIson(metaclass=Singleton):
     ):
         await self._handle_broadcast_start(job_id, job_type, {"ops": ops})
         for op_d in ops:
-            await self._handle_op_manager(job_id, job_type, op_d['type'], op_d['id'])
+            await self._handle_op_manager(job_id, job_type, op_d.get('type', ""), op_d.get('id', ""))
         await self._handle_broadcast_success(job_id, job_type)
     
     async def _handle_op_manager(self, job_id: str, job_type: JobType, op_type: str, op_id: str):
