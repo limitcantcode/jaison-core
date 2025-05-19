@@ -13,15 +13,22 @@
 </p>
 
 <p align="center">
+  <a href="#about-this-project">About This Project</a> •
   <a href="#key-features">Key Features</a> •
   <a href="#applications">Applications</a> •
-  <a href="#install">Install</a> •
+  <a href="#install-from-scratch">Install From Scratch</a> •
   <a href="#operations">Operations</a> •
   <a href="#how-to-use">How To Use</a> •
   <a href="#Community">Community</a> •
   <a href="#thank-you-to-all-the-contributors">Credits</a> •
   <a href="#license">License</a>
 </p>
+
+## About Phis Project
+
+This project is for a fully customizable AI persona usable for streaming or private companionship. Feel free to download and use how you wish. 
+
+This software uses libraries from the FFmpeg project under the LGPLv2.1
 
 ## Key Features
 
@@ -39,7 +46,7 @@ Currently made applications:
 - [VTube Studio with emotions](https://github.com/limitcantcode/app-jaison-vts-hotkeys-lcc)
 - [Twitch Chat and Events content provider](https://github.com/limitcantcode/app-jaison-twitch-lcc)
 
-## Install
+## Install From Scratch
 
 > **Note**
 > To simplify setup across platforms, setup now uses [conda](https://docs.conda.io/projects/conda/en/stable/user-guide/install/index.html). Conda is not necessary to run this project.
