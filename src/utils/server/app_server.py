@@ -224,7 +224,7 @@ async def start_web_server(): # TODO launch application plugins here as well
         global app
         await JAIson().start()
         SocketServerObserver()
-        await app.run_task(host=Config().web_host, port=Config().web_port)
+        await app.run_task(host=args.host, port=args.port)
     except Exception as err:
         logging.error("Stopping server due to exception", exc_info=True)
     finally:    

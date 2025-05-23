@@ -19,7 +19,7 @@ class OpenAITTS(TTSOperation):
     async def close(self) -> None:
         '''Clean up resources before unloading'''
         await super().close()
-        self.client.close()
+        await self.client.close()
         self.client = None
     
     async def _generate(self, content: str = None, **kwargs):
