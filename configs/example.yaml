@@ -1,23 +1,48 @@
-# General
-web_host: 127.0.0.1
-web_port: 7272
-
-# Defaults
+# Enabled operations
+# Uncomment the ones you want to use by default
+# Only one of STT, T2T, and TTS each
 operations:
+# STT
+# - type: stt
+#   id: azure
+# - type: stt
+#   id: fish
+# - type: stt
+#   id: kobold
 - type: stt
-  id: kobold
+  id: openai
+  # T2T
+# - type: t2t
+#   id: kobold
 - type: t2t
   id: openai
-- type: chunker
-  id: sentence
-- type: filter
-  id: koala
-- type: emotion
-  id: roberta
-- type: ttsg
+  # Text filters
+- type: filter_text
+  id: filter_clean
+- type: filter_text
+  id: emotion_roberta
+- type: filter_text
+  id: mod_koala
+- type: filter_text
+  id: chunker_sentence
+
+  # TTS
+# - type: tts
+#   id: azure
+# - type: tts
+#   id: fish
+# - type: tts
+#   id: kobold
+- type: tts
   id: openai
-- type: ttsc
-  id: rvc
+# - type: tts
+#   id: pytts
+
+  # Audio filters
+# - type: ttsc
+#   id: pitch
+# - type: ttsc
+#   id: rvc
 
 # Prompter
 instruction_prompt_filename: 'example.txt'
@@ -26,7 +51,7 @@ scene_prompt_filename: 'example.txt'
 
 character_name: "J.A.I.son"
 name_translations:
-  limit: Limit
+  "old name": "new name"
 history_length: 50
 
 # Kobold
@@ -53,7 +78,7 @@ kobold_tts_voice: kobo
 
 # OpenAI T2T
 openai_t2t_base_url: https://api.openai.com/v1/
-openai_t2t_model: ft:gpt-4o-mini-2024-07-18:lcc::AteqXgF6
+openai_t2t_model: gpt-4o
 
 openai_t2t_temperature: 1
 openai_t2t_top_p: 0.9

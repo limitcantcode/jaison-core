@@ -19,10 +19,6 @@ class Config(metaclass=Singleton):
     WORKING_DIR: str = portable_path(os.path.join(os.getcwd(),"output","temp"))
     current_config: str = "Unsaved"
     
-    # General
-    web_host: str = "127.0.0.1"
-    web_port: int = 7272
-    
     # Defaults
     operations: list = list()
     

@@ -56,11 +56,6 @@ name_translations:
     old-name: new-name
 ```
 
-#### Web hosting
-
-- `web_host` (str) ip address of your server host. Default to 127.0.0.1 (if having issues connecting from another machine, try 0.0.0.0)
-- `web_port` (int) port to run REST API and websocket server on.
-
 ### Operations
 
 [Take me to the top!](#developer-guide)

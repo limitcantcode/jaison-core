@@ -94,8 +94,13 @@ Download executables and place them in the root folder:
 
 <hr />
 
-Add keys and other sensitive information for services you intend to use in `.env` (make a new file and copy the contents of [`.env-template`](.env-template))
+Configuration
 
+Add keys and other sensitive information for services you intend to use in `.env` (make a new file and copy the contents of [`.env-template`](.env-template)).
+
+For immediate setup using the example configuration, just provide the OpenAI API key.
+
+Overall configuration can be done in `configs/` and an example with all configurable options is located in `configs/example.yaml`. See [Development guide](DEVELOPER.md) for details on configuration.
 
 <hr />
 
