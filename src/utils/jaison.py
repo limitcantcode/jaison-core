@@ -188,9 +188,9 @@ class JAIson(metaclass=Singleton):
         op_d = self.op_manager.get_operation_all()
         for key in op_d:
             if isinstance(op_d[key], Operation):
-                op_d[key] = op_d[key].id
+                op_d[key] = op_d[key].op_id
             elif isinstance(op_d[key], list):
-                op_d[key] = list(map(lambda x: x.id, op_d[key]))
+                op_d[key] = list(map(lambda x: x.op_id, op_d[key]))
             else:
                 op_d[key] = "unknown"
                 
