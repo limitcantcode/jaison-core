@@ -96,6 +96,8 @@ Download executables and place them in the root folder:
 
 Configuration
 
+**FOR A FREE, 3RD PARTY T2T INTEGRATION**: Use `openai` type but configure for use with [Groq](https://console.groq.com/home).
+
 Add keys and other sensitive information for services you intend to use in `.env` (make a new file and copy the contents of [`.env-template`](.env-template)).
 
 For immediate setup using the example configuration, just provide the OpenAI API key.
