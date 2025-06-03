@@ -3,7 +3,7 @@ import os
 
 args = argparse.ArgumentParser()
 args.add_argument('-e', '--env', default=None, type=str, help='Filepath to .env if located elsewhere')
-args.add_argument('-c', '--config', default=None, type=str, help='Filename to your json config. For example: "example" refers to configs/components/example.json')
+args.add_argument('-c', '--config', default=None, type=str, help='Filename to your yaml config. For example: "example" refers to configs/example.yaml')
 args.add_argument('--host', default='127.0.0.1', type=str, help='IP to use as host API and websocket server on. Try 0.0.0.0 for cross machine access to API.')
 args.add_argument('--port', default=7272, type=int, help='Post to host API and websocket server on.')
 args.add_argument('--log_level', default='INFO', type=str, choices=['DEBUG','INFO','WARNING','ERROR','CRITICAL'], help='Level of logs to show')
