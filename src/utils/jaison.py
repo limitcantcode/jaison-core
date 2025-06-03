@@ -185,7 +185,7 @@ class JAIson(metaclass=Singleton):
     ## Regular Request Handlers ###################
     
     def get_loaded_operations(self):
-        op_d = self.op_manager.get_operations_all()
+        op_d = self.op_manager.get_operation_all()
         for key in op_d:
             if isinstance(op_d[key], Operation):
                 op_d[key] = op_d[key].id
