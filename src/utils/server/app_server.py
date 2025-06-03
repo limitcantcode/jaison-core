@@ -60,7 +60,7 @@ async def get_current_config():
     return create_response(200, f"Current config gotten", JAIson().get_current_config(), cors_header)
 
 ## Job management endpoints ###########
-@app.route('/app/job', methods=['DELETE'])
+@app.route('/api/job', methods=['DELETE'])
 async def cancel_job():
     try:
         request_data = await request.get_json()
@@ -154,7 +154,7 @@ async def config_save():
     return await _request_job(JobType.CONFIG_SAVE)
 
 # Allow CORS
-@app.route('/app/job', methods=['OPTIONS']) 
+@app.route('/api/job', methods=['OPTIONS']) 
 async def preflight_job():
     return create_preflight('DELETE')
 
