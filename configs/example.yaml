@@ -91,6 +91,7 @@ openai_ttsg_voice: nova
 openai_ttsg_model: tts-1
 
 # Openai STT https://platform.openai.com/docs/guides/speech-to-text
+openai_stt_base_url: https://api.openai.com/v1/
 openai_stt_model: gpt-4o-transcribe
 openai_stt_language: en # https://github.com/openai/whisper/blob/main/whisper/tokenizer.py
 
