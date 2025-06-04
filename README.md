@@ -107,6 +107,9 @@ Overall configuration can be done in `configs/` and an example with all configur
 <hr />
 
 Dealing with duplicate `libiomp5md.dll`.
+
+It might not be necessary, but in case you encounter this error when running:
+
 1. Go to environment directory (where conda stores installed packages)
 2. Search for `libiomp5md.dll`
 3. Delete the version under package `torch`
