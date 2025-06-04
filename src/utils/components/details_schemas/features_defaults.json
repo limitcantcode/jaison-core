@@ -1,0 +1,14 @@
+{
+    "stt": {},
+    "t2t": {
+        "streamed_output": false
+    },
+    "ttsc": {
+        "streamed_output": false,
+        "streamed_input": false
+    },
+    "ttsg": {
+        "streamed_output": false,
+        "streamed_input": false
+    }
+}

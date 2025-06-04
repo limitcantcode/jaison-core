@@ -1,0 +1,9 @@
+{
+    "id": "str",
+    "name": "str",
+    "type": "str",
+    "windows_run_script": "str",
+    "unix_run_script": "str",
+    "is_windows_compatible": "bool",
+    "is_unix_compatible": "bool"
+}
