@@ -25,6 +25,7 @@ from utils.operations import (
     CloseInactiveError,
     UsedInactiveError
 )
+from utils.mcp import MCPManager
 
 class NonexistantJobException(Exception):
     pass
@@ -66,6 +67,7 @@ class JAIson(metaclass=Singleton):
         self.prompter: Prompter = None
         self.process_manager: ProcessManager = None
         self.op_manager: OperationManager = None
+        self.mcp_manager: MCPManager = None
     
     async def start(self):
         logging.info("Starting JAIson application layer.")
@@ -79,6 +81,9 @@ class JAIson(metaclass=Singleton):
         self.prompter = Prompter()
         
         self.process_manager = ProcessManager()
+        self.mcp_manager = MCPManager()
+        await self.mcp_manager.start()
+        self.prompter.add_mcp_usage_prompt(self.mcp_manager.tooling_prompt, self.mcp_manager.response_prompt) # debug
         self.op_manager = OperationManager()
         await self.load_operations('start',JobType.OPERATION_LOAD,ops=Config().operations)
         await self.process_manager.reload()
@@ -87,6 +92,7 @@ class JAIson(metaclass=Singleton):
     async def stop(self):
         logging.info("Shutting down JAIson application layer")
         await self.op_manager.close_operation_all()
+        await self.mcp_manager.close()
         await self.process_manager.unload()
         logging.info("JAIson application layer has been shut down")
     
@@ -219,6 +225,17 @@ class JAIson(metaclass=Singleton):
         # Broadcast start conditions
         await self._handle_broadcast_start(job_id, job_type, {"include_audio": include_audio})
         
+        # Handle MCP stuff
+        ## Getting context for MCP calls
+        ## Generating MCP tool prompts
+        mcp_sys_prompt, mcp_user_prompt = self.prompter.generate_mcp_system_context(), self.prompter.generate_mcp_user_context()
+        
+        ## Perform MCP tool calls
+        tool_call_results = await self.mcp_manager.use(mcp_sys_prompt, mcp_user_prompt)
+        
+        ## Add results and usage prompt to prompter
+        self.prompter.add_mcp_results(tool_call_results)
+
         # Get prompts
         system_prompt, user_prompt = self.prompter.get_sys_prompt(), self.prompter.get_user_prompt()
         

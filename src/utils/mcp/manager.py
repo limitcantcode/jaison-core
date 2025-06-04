@@ -1,0 +1,296 @@
+import os
+import json
+import datetime
+import re
+import urllib
+import logging
+from typing import List
+from mcp import ClientSession, StdioServerParameters, types
+from mcp.client.stdio import stdio_client
+from mcp.types import (
+    TextContent,
+    ImageContent,
+    EmbeddedResource,
+    TextResourceContents,
+    BlobResourceContents
+)
+
+from utils.config import Config
+
+from openai import OpenAI
+
+llm_client = OpenAI()
+
+    
+def parse_tool_result(result):
+    if isinstance(result, TextContent):
+        return result.text
+    elif isinstance(result, ImageContent):
+        return result.data
+    elif isinstance(result, EmbeddedResource):
+        return result.resource
+    elif isinstance(result, TextResourceContents):
+        return result.text
+    elif isinstance(result, BlobResourceContents):
+        return result.blob
+    else:
+        raise Exception("Unknown result type")
+
+def details_to_response_prompt(details):
+    tools = details['tools']
+    resources = details['resources']
+    templates = details['templates']
+    
+    print(
+        "DETAILS",
+        tools,
+        resources,
+        templates
+    )
+    
+    prompt = ""
+    
+    for tool in tools:
+        name = tool.name
+        description = tool.description
+        prompt += f"<{name}> {description}\n\n"
+        
+    for resource in resources:
+        name = resource.name
+        description = resource.description
+        prompt += f"<{name}> {description}\n"
+        
+    for template in templates:
+        name = template.name
+        description = template.description
+        prompt += f"<{name}> {description}\n\n"
+        
+    return prompt
+    
+def details_to_tool_prompt(details):
+    tools = details['tools']
+    resources = details['resources']
+    templates = details['templates']
+    
+    print(
+        "DETAILS",
+        tools,
+        resources,
+        templates
+    )
+    
+    prompt = ""
+    
+    for tool in tools:
+        name = tool.name
+        description = tool.description
+        inputSchema = json.dumps(tool.inputSchema)
+        prompt += f"<{name}> {description}\nThis is the input schema for {name}: {inputSchema}\n"
+        
+    for resource in resources:
+        name = resource.name
+        description = resource.description
+        prompt += f"<{name}> {description}\n"
+        
+    for template in templates:
+        name = template.name
+        description = template.description
+        uri_template = template.uriTemplate
+        prompt += f"<{name}> {description}\nThis is the URI template: {uri_template}\n"
+        
+    return prompt
+
+class MCPClient:
+    '''Managing of a single server instance'''
+    
+    def __init__(self, params: StdioServerParameters):
+        self.params = params
+        self.server_generator = None
+        self.server_read = None
+        self.server_write = None
+        self.session = None
+        
+        self.tools = list()
+        self.resources = list()
+        self.templates = list()
+        
+        self.tool_names = list()
+        self.resource_names = list()
+        self.template_names = list()
+        
+    async def start(self):
+        self.server_generator = stdio_client(self.params)
+        logging.debug("starting context")
+        self.server_read, self.server_write = await self.server_generator.__aenter__()
+        logging.debug("{} {}".format(type(self.server_read), type(self.server_write)))
+        logging.debug("starting session")
+        self.session = ClientSession(
+            self.server_read,
+            self.server_write,
+            # read_timeout_seconds=datetime.timedelta(seconds=5),
+            # sampling_callback=handle_sampling_message
+        )
+        
+        
+        logging.debug("initializing session")
+        await self.session.__aenter__()
+        await self.session.initialize()
+        
+    async def close(self):
+        await self.session.__aexit__(None, None, None)
+        await self.server_generator.__aexit__(None, None, None)
+        
+    async def get_details(self):
+        try:
+            self.tools = (await self.session.list_tools()).tools
+        except:
+            pass
+        try:
+            self.resources = (await self.session.list_resources()).resources
+        except:
+            pass
+        try:
+            self.templates = (await self.session.list_resource_templates()).resourceTemplates
+        except:
+            pass
+        
+        for tool in self.tools:
+            self.tool_names.append(tool.name)
+        for resource in self.resources:
+            self.resource_names.append(resource.name)
+        for template in self.templates:
+            self.template_names.append(template.name)
+        
+        return {
+            "tools": self.tools,
+            "resources": self.resources,
+            "templates": self.templates
+        }
+        
+class MCPManager:
+    tooling_prompt = """
+You are calling tools based on the user input to gather more information to enrich a role-playing response and to perform relevant actions. Only reply with the appropriate tool calls and nothing else.
+The tool name is in between angle brackets "<>". For example, a line with <tool-name> indicates a tool with name "tool-name". On this line, you will also see a description of what this tool does, and it may have a line after that containing a input schema or uri template with information of what parameters the tool takes.
+Input schemas are JSON objects, and the parameters for the function are the keys of object "properties" and their type is described in their paired object under key "type". For example, with input schema {"type": "object", "properties": {"name": {"type": "number"}, "description": {"type": "string"}}}, you have 2 parameters, name of type number and description of type string.
+URI templates have the parameters in curly brackets "{}". For example internet://{name}&{description} has parameters "name" and "description". They are any type.
+To call a tool, separate each tool call on a new line. Each line will have the following format: <name> {"param1":value1 "param2":value2}. It starts with the tool name followed by a JSON where each key is a parameter and the value is the associated value. If the value is a string, surround the string with "". Do not include " in values otherwise otherwise, even inside the string. If there are no parameters, just include the name and an empty JSON object. For example: <name> {}
+For example, to call tool <internet> with URI template internet://{name}&{description} with the name Limit and description "Limit is an idiot", you would respond with: <internet> name="Limit" description="Limit is an idiot"
+If you don't want to call any tools, simply reply with "<no-tool>"
+Below is a list of descriptions for all available tool:\n
+"""
+
+    response_prompt = """
+You are an assistant answer a user's question.
+You will be given the user's question under the header <QUESTION>. Answer this using the additional information. Do not hallucinate.
+You are given additional information to the actions and context retrieved prior to answering under the header <CONTEXT>.
+This additional information will each be on a new line, formated as follows: context_name: context_result
+For example, context by the name of "memories" that gave context "you are an ai" will look like "memories: you are an ai"
+Below is a list of all available contexts and their descriptions:
+"""
+
+    pattern = re.compile(r"^<[\S]*>")
+            
+    def __init__(self):
+        # servers are loaded at start and at no other point
+        self.client_params: List[StdioServerParameters] = list()
+        self.clients: List[MCPClient] = list()
+        
+    async def start(self):
+        config = Config()
+        for mcp_detail in config.mcp:
+            self.client_params.append(
+                StdioServerParameters(
+                    command=mcp_detail['command'],  # Executable
+                    args=mcp_detail['args'],  # Optional command line arguments
+                    env=os.environ,  # Optional environment variables
+                    cwd=mcp_detail['cwd']
+                )
+            )
+            
+                        
+        for client_param in self.client_params:
+            logging.debug("making mcpservers")
+            self.clients.append(MCPClient(client_param))
+            
+        # get tool/resource details
+        for client in self.clients:
+            logging.debug("starting mcpservers")
+            await client.start()
+            details = await client.get_details()
+            self.tooling_prompt += details_to_tool_prompt(details)
+            self.response_prompt += details_to_response_prompt(details)
+        
+        logging.debug("TOOLING_PROMPT: {}".format(self.tooling_prompt))
+            
+            
+    async def use(self, system_context: str, user_context: str):
+        messages =[
+            { "role": "system", "content": system_context},
+            { "role": "user", "content": user_context }
+        ]
+        
+        tool_calls =  llm_client.chat.completions.create( # TODO hook up with mcp-handling specific llm
+            messages=messages,
+            model="gpt-4o"
+        )
+        tool_calls = tool_calls.choices[0].message.content
+        
+        tool_calls = tool_calls.split("\n")
+        
+        parsed_tool_calls = list()
+        for tool_call in tool_calls:
+            match = self.pattern.search(tool_call)
+            name_token = tool_call[:match.span()[1]]
+            tool_call = tool_call[match.span()[1]:].rstrip(" ")
+            input_json = json.loads(tool_call) if len(tool_call) else dict()
+            
+            parsed_tool_calls.append({
+                "name": name_token,
+                "input": input_json
+            })
+        
+        result_list = list()
+        for tool in parsed_tool_calls:
+            tool_name = tool['name'].lstrip("<").rstrip(">")
+            result = None
+            for client in self.clients:
+                if tool_name in client.tool_names:
+                    result = await client.session.call_tool(tool_name, arguments=tool['input'])
+                    result = parse_tool_result(result.content[0])
+                    break
+                elif tool_name in client.resource_names:
+                    uri = None
+                    for resource in client.resources:
+                        if resource.name == tool_name:
+                            uri = resource.uri
+                            break
+                    result = await client.session.read_resource(uri)
+                    result = parse_tool_result(result.contents[0])
+                    break
+                elif tool_name in client.template_names:
+                    uri_template = None
+                    for templates in client.templates:
+                        if templates.name == tool_name:
+                            uri_template = templates.uriTemplate
+                            break
+                    for key in tool['input']:
+                        if isinstance(tool['input'][key], str):
+                            urllib.parse.quote(tool['input'][key])
+                            tool['input'][key] = urllib.parse.quote(tool['input'][key])
+                    logging.debug("Calling resource: {} {} {}".format(tool_name, tool['input'], uri_template))
+                    logging.debug(uri_template.format(**tool['input']))
+                    result = await client.session.read_resource(
+                        uri_template.format(**tool['input'])
+                    )
+                    result = parse_tool_result(result.contents[0])
+                    break
+            if result:
+                result_list.append((tool_name, result))
+        
+        # use self.response_prompt in prompter
+        # add tool call results to prompter
+        return result_list
+
+    async def close(self):
+        for client in self.clients:
+            await client.close()

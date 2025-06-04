@@ -6,7 +6,7 @@ from utils.helpers.time import get_current_time
 from utils.helpers.singleton import Singleton
 from utils.config import Config
 from .context import ContextMetadata
-from .message import Message, ChatMessage, RequestMessage, CustomMessage
+from .message import Message, ChatMessage, RequestMessage, MCPMessage, CustomMessage
 
 class Prompter(metaclass=Singleton):
     def __init__(self):
@@ -105,9 +105,10 @@ class Prompter(metaclass=Singleton):
             return f.read()
     
     def get_sys_prompt(self):
-        return "{instructions}\n{contexts}\n### Character ###\n{character}\n### Scene ###\n{scene}".format(
+        return "{instructions}\n{mcp_usage}\n{contexts}\n### Character ###\n{character}\n### Scene ###\n{scene}".format(
             instructions = self.get_instructions_prompt(),
             contexts = self.get_context_descriptions(),
+            mcp_usage = self.response_template,
             character = self.get_character_prompt(),
             scene = self.get_scene_prompt(),
         )
@@ -120,3 +121,30 @@ class Prompter(metaclass=Singleton):
             prompt += "\n{}".format(message_line)
             
         return prompt
+
+    # debug
+    # TODO update and polish to match rest, maybe integrate with MCP module properly
+    
+    def add_mcp_usage_prompt(self, tooling_prompt: str, response_template: str):
+        self.tooling_prompt = tooling_prompt
+        self.response_template = response_template
+        
+    def generate_mcp_system_context(self):
+        return self.tooling_prompt
+    
+    def generate_mcp_user_context(self):
+        user_prompt = self.get_user_prompt()
+        character = self.get_character_prompt()
+        scene = self.get_scene_prompt()
+        
+        return f"<CHARACTER>{character}<SCENE>{scene}<SCRIPT>{user_prompt}\n"
+
+    def add_mcp_results(self, results):
+        for result in results:
+            tool_name = result[0]
+            tool_result = result[1]
+            time = get_current_time(include_ms=False, as_str=False)
+            
+            self.insert_history(MCPMessage(tool_name, tool_result, time))
+            
+            

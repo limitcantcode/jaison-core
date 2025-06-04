@@ -26,6 +26,18 @@ class ChatMessage(Message):
         
     def to_line(self):
         return f"[{self.user}]: {self.message}"
+
+class MCPMessage(Message):
+    def __init__(self, tool_name: str, result: str, time: datetime.datetime):
+        assert tool_name is not None
+        assert result is not None and len(result) > 0
+        
+        self.tool_name = tool_name
+        self.result = result.replace("\n", "")
+        self.time = time
+        
+    def to_line(self):
+        return f"[MCP#{self.tool_name}]: {self.result}"
     
 class CustomMessage(Message):
     def __init__(self, context_metadata: ContextMetadata, message: str, time: datetime.datetime):
