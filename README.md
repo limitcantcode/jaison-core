@@ -71,6 +71,8 @@ conda install pytorch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 pytorch-cuda=
 <hr />
 
 Install remaining dependencies.
+
+If on Windows, please enable [Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development)
 ```bash
 pip install .
 python -m spacy download en_core_web_sm
