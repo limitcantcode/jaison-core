@@ -11,11 +11,13 @@ operations:
 #   id: kobold
 - type: stt
   id: openai
+  
   # T2T
 # - type: t2t
 #   id: kobold
 - type: t2t
   id: openai
+
   # Text filters
 - type: filter_text
   id: filter_clean
