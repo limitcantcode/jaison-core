@@ -1,374 +1,522 @@
-'''
-Main connecting layer between frontends and backend.
-
-This class encapsulates the main functionality of this project. 
-It manages the global configuration, orchestrates the AI models, 
-and is the interface for the frontend. All components communicate 
-through this layer.
-'''
-
-import os
-import datetime
+import logging
 import asyncio
 import uuid
 import base64
-from itertools import chain
+import datetime
+from typing import Dict, Coroutine, List, Any, Tuple
+from enum import StrEnum
 
 from utils.helpers.singleton import Singleton
-from utils.config import Configuration
-from utils.time import get_current_time
-from utils.logging import create_sys_logger, save_response
-from utils.observer import ObserverServer
-from utils.components.component_manager import ComponentManager
+from utils.helpers.iterable import chunk_buffer
+from utils.helpers.observer import ObserverServer
+
+from utils.config import Config, UnknownField, UnknownFile
 from utils.prompter import Prompter
-from utils.filter import ResponseFilter, FilteredException
+from utils.processes import ProcessManager
+from utils.operations import (
+    OperationManager,
+    OpTypes,
+    Operation,
+    UnknownOpType,
+    UnknownOpID,
+    DuplicateFilter,
+    OperationUnloaded,
+    StartActiveError,
+    CloseInactiveError,
+    UsedInactiveError
+)
 
-logger = create_sys_logger(use_stdout=True)
-
-class NonexistantRunException(Exception):
+class NonexistantJobException(Exception):
     pass
 
-class JAIson(metaclass=Singleton):
-    RESPONSE_PIPELINE_DEFAULT = {
-        'process_dialog': False,
-        'process_request': False,
-        'input_user': None,
-        'input_time': None,
-        'input_audio_bytes': None,
-        'input_audio_sample_rate': None,
-        'input_audio_sample_width': None,
-        'input_audio_channels': None,
-        'input_text': None,
-        'output_text': True,
-        'output_audio': True
-    }
-    MAX_CHUNK_BROADCAST_SIZE = 4096 # There is a size limit for websockets and http
+class UnknownJobType(Exception):
+    pass
 
-    def __init__(self):
-        # J.A.I.son configuration
-        self.config = Configuration()
-
-        # Manage runs
-        self.active_runs = None
-        self.run_queue = None
-
-        # Setup event broadcasting server
-        # List of events:
-        #   run_start: New response_pipeline run starts ({run_id, output_text, output_audio})
-        #   run_finish: response_pipeline run finishes successfully ({run_id, runtime})
-        #   run_cancel: response_pipeline cancelled for some reason and didn't finish successfully ({run_id, reason})
-        #   run_stt_start: STT stage began ({run_id})
-        #   run_stt_chunk: STT streamed result ({run_id, chunk, success})
-        #   run_stt_stop: STT stage completion ({run_id, success})
-        #   run_context_start: Context generation stage began ({run_id})
-        #   run_context_chunk: Context generation streamed result ({run_id, sys_chunk, user_chunk, success})
-        #   run_context_stop: Context generation stage completion ({run_id, success})
-        #   run_t2t_start: T2T stage began ({run_id})
-        #   run_t2t_chunk: T2T streamed result ({run_id, chunk, success})
-        #   run_t2t_stop: T2T stage completion ({run_id, success})
-        #   run_tts_start: TTS stage began ({run_id})
-        #   run_tts_chunk: TTS streamed result ({run_id, chunk, sample_rate, sample_width, channels, success}) (chunk is bytes in base64 utf-8)
-        #   run_tts_stop: TTS stage completion ({run_id, success})
-        #
-        # Event parameter notes:
-        # - "success" field indicates if event is part of normal generation (True) or some exception (False). If False, the unsuccessful chunks overwrite any of the older successful chunks of that stage.
-        # - "runtime" is time for pipeline to finish in seconds
-        self.broadcast_server = ObserverServer()
-
-        # Components
-        self.comp_manager = None
-        
-        # Other response_pipeline helpers
-        self.prompter = None
-        self.filter = None
-        self.RESPONSE_ERROR_MSG = 'There is a problem with my AI...'
-
-        logger.info("JAIson application layer initialized!")
-
-    async def setup(self):
-        self.comp_manager = ComponentManager()
-        await self.comp_manager.reload_config(os.path.join(self.config.plugins_config_dir, self.config.plugins_config_file))
-        self.comp_manager.load_components(self.config.active_plugins,reload=True)
-        self.prompter = Prompter()
-        self.filter = ResponseFilter()
-        self.active_runs = dict() # for tracking actively processing runs
-        self.run_queue_d = dict() # for tracking all runs
-        self.run_queue = asyncio.Queue() # for queueing up runcs to be processed
-        asyncio.create_task(self._process_run_loop())
-        logger.info("JAIson application layer setup!")
-
-    def cleanup(self):
-        logger.debug("JAIson application layer cleaning up")
-        if self.comp_manager:
-            self.comp_manager.cleanup()
-        logger.info("JAIson application layer cleaned up")
-
-    ## Response Run Management #################
-
-    # Add async task to Queue to be ran in the order it was requested
-    async def create_run(self, **kwargs):
-        new_run_id = str(uuid.uuid4())
-        assert(new_run_id not in self.run_queue_d)
-        logger.debug(f"Creating new run {new_run_id}")
-        self.run_queue_d[new_run_id] = self.response_pipeline(new_run_id, **kwargs)
-        await self.run_queue.put(self.run_queue_d[new_run_id])
-        return new_run_id
+class JobType(StrEnum):
+    RESPONSE = 'response'
+    CONTEXT_CLEAR = 'context_clear'
+    CONTEXT_REQUEST_ADD = 'context_request_add'
+    CONTEXT_CONVERSATION_ADD_TEXT = 'context_conversation_add_text'
+    CONTEXT_CONVERSATION_ADD_AUDIO = 'context_conversation_add_audio'
+    CONTEXT_CUSTOM_REGISTER = 'context_custom_register'
+    CONTEXT_CUSTOM_REMOVE = 'context_custom_remove'
+    CONTEXT_CUSTOM_ADD = 'context_custom_add'
+    OPERATION_LOAD = 'operation_load'
+    OPERATION_CONFIG_RELOAD = "operation_reload_from_config"
+    OPERATION_UNLOAD = 'operation_unload'
+    OPERATION_USE = 'operation_use'
+    CONFIG_LOAD = 'config_load'
+    CONFIG_UPDATE = 'config_update'
+    CONFIG_SAVE = 'config_save'
     
-    async def cancel_run(self, run_id: uuid.UUID, reason: str = None):
-        if self.run_queue_d.get(run_id) is None: raise NonexistantRunException(f"Run {run_id} does not exist or already finished")
+class JAIson(metaclass=Singleton):
+    def __init__(self): # attribute stubs
+        self.job_loop: asyncio.Task = None
+        self.job_queue: asyncio.Queue = None
+        self.job_map: Dict[str, Tuple[JobType, Coroutine]] = None
+        self.job_current_id: str = None
+        self.job_current: asyncio.Task = None
+        self.job_skips: dict = None
         
-        logger.debug(f"Cancelling run {run_id}")
-        cancel_message = f"Run {run_id} cancelled"
+        # Any asyncio.Tasks in this list will be cancelled before the next job runs
+        self.tasks_to_clean: List = list()
+        
+        self.event_server: ObserverServer = None
+        
+        self.prompter: Prompter = None
+        self.process_manager: ProcessManager = None
+        self.op_manager: OperationManager = None
+    
+    async def start(self):
+        logging.info("Starting JAIson application layer.")
+        self.job_queue = asyncio.Queue()
+        self.job_map = dict()
+        self.job_skips = dict()
+        self.job_loop = asyncio.create_task(self._process_job_loop())
+        
+        self.event_server = ObserverServer()
+        
+        self.prompter = Prompter()
+        
+        self.process_manager = ProcessManager()
+        self.op_manager = OperationManager()
+        await self.load_operations('start',JobType.OPERATION_LOAD,ops=Config().operations)
+        await self.process_manager.reload()
+        logging.info("JAIson application layer has started.")
+        
+    async def stop(self):
+        logging.info("Shutting down JAIson application layer")
+        await self.op_manager.close_operation_all()
+        await self.process_manager.unload()
+        logging.info("JAIson application layer has been shut down")
+    
+    ## Job Queueing #########################
+    
+    # Add async task to Queue to be ran in the order it was requested
+    async def create_job(self, job_type: StrEnum, **kwargs):
+        new_job_id = str(uuid.uuid4())
+        
+        job_type_enum = JobType(job_type)
+        
+        coro = None
+        if job_type_enum == JobType.RESPONSE: coro = self.response_pipeline(new_job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONTEXT_REQUEST_ADD: coro = self.append_request_context(new_job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONTEXT_CONVERSATION_ADD_TEXT: coro = self.append_conversation_context_text(new_job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONTEXT_CONVERSATION_ADD_AUDIO: coro = self.append_conversation_context_audio(new_job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONTEXT_CLEAR: coro = self.clear_context(new_job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONTEXT_CUSTOM_REGISTER: coro = self.register_custom_context(new_job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONTEXT_CUSTOM_REMOVE: coro = self.remove_custom_context(new_job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONTEXT_CUSTOM_ADD: coro = self.add_custom_context(new_job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.OPERATION_LOAD: coro = self.load_operations(new_job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.OPERATION_CONFIG_RELOAD: coro = self.load_operations_from_config(new_job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.OPERATION_UNLOAD: coro = self.unload_operations(new_job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.OPERATION_USE: coro = self.use_operation(new_job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONFIG_LOAD: coro = self.load_config(new_job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONFIG_UPDATE: coro = self.update_config(new_job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONFIG_SAVE: coro = self.save_config(new_job_id, job_type_enum, **kwargs)
+        self.job_map[new_job_id] = (job_type_enum, coro)
+        
+        await self.job_queue.put(new_job_id)
+        
+        logging.info("Queued new {} job {}".format(job_type_enum.value, new_job_id))
+        return new_job_id
+    
+    async def cancel_job(self, job_id: str, reason: str = None):
+        if job_id not in self.job_map: raise NonexistantJobException(f"Job {job_id} does not exist or already finished")
+        
+        cancel_message = f"Setting job {job_id} to cancel"
         if reason: cancel_message += f" because {reason}"
-        logger.debug(cancel_message)
+        logging.info(cancel_message)
 
-        run = self.active_runs.get(run_id)
-        if run is not None: # If run is outside of Queue and already running as a Task
-            run.cancel(cancel_message)
-        else: # If run is still in Queue
-            temp_queue = asyncio.Queue()
-            while not self.run_queue.empty(): # Transfer contents 1 by 1, skipping target
-                coro = await self.run_queue.get()
-                if coro is self.run_queue_d[run_id]: continue
-                await temp_queue.put(coro)
-            self.run_queue.shutdown(immediate=True) # Replace with new queue
-            self.run_queue = temp_queue
-            del self.run_queue_d[run_id]
-
-    # Side loop responsible for running the next run in the Queue
-    async def _process_run_loop(self):
+        if job_id == self.job_current_id:
+            # If job is already running
+            self._clear_current_job(reason=cancel_message)
+        else: 
+            # If job is still in Queue
+            # Simply flag to skip. Unzipping queue can potentially process a job out of order 
+            self.job_skips[job_id](cancel_message)
+            
+    def _clear_current_job(self, reason: str = None):
+        self.job_map.pop(self.job_current_id, None)
+        self.job_skips.pop(self.job_current_id, None)
+        self.job_current_id = None
+        
+        for task in self.tasks_to_clean:
+            task.cancel(reason)
+        self.tasks_to_clean.clear()
+        
+        if self.job_current is not None:
+            self.job_current.cancel(reason)
+            self.job_current = None
+        
+    # Side loop responsible for processing the next job in the Queue
+    async def _process_job_loop(self):
         while True:
             try:
-                coro = await self.run_queue.get()
-                run_id = list(self.run_queue_d.keys())[list(self.run_queue_d.values()).index(coro)]
-                self.active_runs[run_id] = asyncio.create_task(coro)
-                await asyncio.wait([self.active_runs[run_id]])
+                await self.process_manager.reload()
+                await self.process_manager.unload()
+                
+                self.job_current_id = await self.job_queue.get()
+                job_type, coro = self.job_map[self.job_current_id]
+                
+                if self.job_current_id in self.job_skips:
+                    # Skip cancelled jobs
+                    reason = self.job_skips[self.job_current_id]
+                    await self._handle_broadcast_error(self.job_current_id, job_type, asyncio.CancelledError(reason))
+                    self._clear_current_job(reason=reason)
+                    del coro
+                else:
+                    # Run and wait for completion
+                    self.job_current = asyncio.create_task(coro)
+                    await asyncio.wait([self.job_current])
+                    
+                    # Handle finishing with error
+                    err = self.job_current.exception() if self.job_current else None
+                    if err is not None:
+                        logging.warning(f"Job was cancelled due to an error: {err}", exc_info=err)
+                        await self._handle_broadcast_error(self.job_current_id, job_type, err)
+                    
+                    # Cleanup
+                    self._clear_current_job()
             except Exception as err:
-                logger.error("Encountered error in main run processing loop", exc_info=True)
-                asyncio.sleep(1)
-
-    # Helper for streaming contents to fix websocket size constraints
-    def _generate_iterable(self, base_d: dict, chunk_key: str, slicable_chunk: bytes | str):
-        iterable = []
-        while len(slicable_chunk) > 0:
-            iterable.append(base_d | { chunk_key: slicable_chunk[:self.MAX_CHUNK_BROADCAST_SIZE] })
-            slicable_chunk = slicable_chunk[self.MAX_CHUNK_BROADCAST_SIZE:]
-        return iter(iterable)
-            
-    '''
-    Main response generating pipeline
-
-    Note:
-
-    If process_dialog is True, inputs will be added to the main conversation history 
-    and new conversation history will be used to prompt JAIson.
-
-    If process_request is True, inputs will not be added to main conversation history.
-    These inputs will not be stored between generations. (So like a one time request)
-
-    If output_text if False, no text OR AUDIO is generated. This is simply for adding to
-    the conversation/context without trying to generate a response, effectively queuing it 
-    for the next response generation
-
-    Requirements:
-    - Exactly one of process_dialog and process_request must be set
-    - Audio inputs include all kwargs starting with 'input_audio_...'. Either all of these are set, or 'input_text' is set, but not both
+                logging.error("Encountered error in main job processing loop", exc_info=True)
+                await asyncio.sleep(1)
+                
+    ## Regular Request Handlers ###################
     
-    Input:
-    - run_id: (str): Unique uuid.UUID run id as string
-    - process_dialog: (optional bool) Process input as a line in conversation
-    - process_request: (optional bool) Process input as a special request from anyone
-    - input_user: (optional str) User in conversation input is associated with (if not a request)
-    - input_time: (optional datetime.datetime) Time associated with line in conversation
-    - input_audio_bytes: (optional bytes | str) Audio bytes (or str representing bytes in base64 utf-8) to transcribe and use as input
-    - input_audio_sample_rate: (optional int) Audio sample rate if audio bytes is used
-    - input_audio_sample_width: (optional int) Audio sample width if audio bytes is used
-    - input_audio_channels: (optional int) Audio channels if audio bytes is used
-    - input_text: (optional str) Text to use as input
-    - output_text: (optional bool) Whether to consume inputs to generate up to end of T2T generation
-    - output_audio: (optional bool) Whether to consume inputs to generate up to end of TTS generation (all)
-    Output:
-    - broadcasts: [
-        run_start,
-        run_finish,
-        run_cancel,
-        run_stt_start,
-        run_stt_chunk,
-        run_stt_stop,
-        run_context_start,
-        run_context_chunk,
-        run_context_stop,
-        run_t2t_start,
-        run_t2t_chunk,
-        run_t2t_stop,
-        run_tts_start,
-        run_tts_chunk,
-        run_tts_stop
-    ]
+    def get_loaded_operations(self):
+        op_d = self.op_manager.get_operation_all()
+        for key in op_d:
+            if isinstance(op_d[key], Operation):
+                op_d[key] = op_d[key].op_id
+            elif isinstance(op_d[key], list):
+                op_d[key] = list(map(lambda x: x.op_id, op_d[key]))
+            else:
+                op_d[key] = "unknown"
+                
+        return op_d
+                
+
+    def get_current_config(self):
+        return Config().get_config_dict()
+            
+    ## Async Job Handlers #########################
+    
+    '''
+    Generate responses from the current contexts.
+    This does not take an input. Context for what to repond to must be added prior to running this.
     '''
     async def response_pipeline(
         self,
-        run_id: str,
-        input_user: str = None,
-        input_time: datetime.datetime = None,
-        input_audio_bytes: bytes = None,
-        input_audio_sample_rate: int = None,
-        input_audio_sample_width: int = None,
-        input_audio_channels: int = None,
-        input_text: str = None,
-        process_dialog: bool = False,
-        process_request: bool = False,
-        output_text: bool = True,
-        output_audio: bool = True
-    ) -> None:
-        try:
-            logger.debug(f"Starting response_pipeline for run {run_id}")
-            await self.broadcast_server.broadcast_event("run_start", {"run_id": run_id, "output_text": output_text or output_audio, "output_audio": output_audio})
-            
-            # Basic request validation
-            if (input_text is None) == (input_audio_bytes is None): raise Exception("Exactly one text of audio can be used as input")
-            if not ((input_audio_bytes is None) or (input_audio_bytes and input_audio_sample_rate and input_audio_sample_width and input_audio_channels)): raise Exception("Audio needs to specify input_audio_bytes, input_audio_sample_rate, input_audio_sample_width, and input_audio_channels")
-            if process_dialog == process_request: raise Exception("Exactly one of process_dialog and process_request must be True")
-            if process_dialog and not input_user: raise Exception("input_user must be specified for processing dialog")
+        job_id: str,
+        job_type: JobType,
+        include_audio: bool = True
+    ):
+        
+        # Adjust flags based on loaded ops
+        if not self.op_manager.get_operation(OpTypes.TTS): include_audio = False
+        
+        # Broadcast start conditions
+        await self._handle_broadcast_start(job_id, job_type, {"include_audio": include_audio})
+        
+        # Get prompts
+        system_prompt, user_prompt = self.prompter.get_sys_prompt(), self.prompter.get_user_prompt()
+        
+        # Appy t2t
+        t2t_result = ""
+        async for chunk_out in self.op_manager.use_operation(OpTypes.T2T, {"system_prompt": system_prompt, "user_prompt": user_prompt}):
+            t2t_result += chunk_out["content"]
+        
+        # Broadcast raw results
+        await self._handle_broadcast_event(job_id, job_type, {"system_prompt": system_prompt})
+        await self._handle_broadcast_event(job_id, job_type, {"user_prompt": user_prompt})
+        await self._handle_broadcast_event(job_id, job_type, {"raw_content": t2t_result})
+        
+        # Apply text filters
+        async for text_chunk_out in self.op_manager.use_operation(OpTypes.FILTER_TEXT, {"content": t2t_result}):
+            self.prompter.add_chat(Config().character_name, text_chunk_out['content'])
+            await self._handle_broadcast_event(job_id, job_type, text_chunk_out)
+            if include_audio:
+                # Apply tts
+                async for audio_chunk_out in self.op_manager.use_operation(OpTypes.TTS, text_chunk_out):
+                    # Apply tts filters
+                    async for final_audio_chunk_out in self.op_manager.use_operation(OpTypes.FILTER_AUDIO, audio_chunk_out):
+                        # Broadcast results (only the audio data for now)
+                        for ws_chunk in chunk_buffer(base64.b64encode(final_audio_chunk_out['audio_bytes']).decode('utf-8')):
+                            await self._handle_broadcast_event(job_id, job_type, {
+                                "audio_bytes": ws_chunk,
+                                "sr": final_audio_chunk_out['sr'],
+                                "sw": final_audio_chunk_out['sw'],
+                                "ch": final_audio_chunk_out['ch']
+                            })
+                        
+        # Broadcast completion
+        await self._handle_broadcast_success(job_id, job_type)
 
-            # Generate textual response from input
-            try:
-                start_time = get_current_time(as_str=False) # For metrics
 
-                if input_time is None:
-                    input_time = get_current_time(include_ms=False)
-                    logger.debug(f"Run {run_id} default using current time {input_time}")
-
-                # STT Generation
-                if input_audio_bytes:
-                    await self.broadcast_server.broadcast_event("run_stt_start", {"run_id": run_id})
-                    logger.debug(f"Run {run_id} using STT")
-                    if isinstance(input_audio_bytes, str): input_audio_bytes = base64.b64decode(input_audio_bytes)
-                    input_text = ""
-                    async for response_chunk in self.comp_manager.use("stt", self._generate_iterable(
-                        {
-                            "run_id": run_id,
-                            "sample_rate": input_audio_sample_rate,
-                            "sample_width": input_audio_sample_width,
-                            "channels": input_audio_channels
-                        },
-                        "audio_chunk", input_audio_bytes
-                    )):
-                        chunk = response_chunk['content_chunk']
-                        input_text += chunk
-                        for msg in self._generate_iterable({"run_id": run_id, "success": True}, "chunk", chunk):
-                            await self.broadcast_server.broadcast_event("run_stt_chunk", msg)
-                    await self.broadcast_server.broadcast_event("run_stt_stop", {"run_id": run_id, "success": True})
-                    logger.debug(f"Run {run_id} finished STT with result: {input_text:.50}")
-
-                # Save to conversation or request context
-                logger.debug(f"Run {run_id} using input text: {input_text:.50}")
-                if process_dialog:
-                    logger.debug(f"Run {run_id} adding to history under user {input_user}")
-                    self.prompter.add_history(input_time, input_user, input_text)
-                elif process_request:
-                    logger.debug(f"Run {run_id} adding to special requests")
-                    self.prompter.add_special_request(input_text)
-                else:
-                    raise Exception("process_dialog and process_request are both false when exactly one should be true")
-                
-                if not (output_text or output_audio): # Skip all generation if just adding to contexts
-                    stop_time = get_current_time(as_str=False)
-                    duration = (stop_time-start_time).total_seconds()
-                    logger.info(f"Finished response_pipeline {run_id} generation in {duration} seconds", exc_info=True, stack_info=True)
-                    await self.broadcast_server.broadcast_event("run_finish", {"run_id": run_id, "runtime": duration})
-                    return
-                
-                # Getting prompts
-                # special requests are the only way for applications to add additional context to prompt
-                logger.debug(f"Run {run_id} using contexts and getting prompts")
-                await self.broadcast_server.broadcast_event("run_context_start", {"run_id": run_id})
-                sys_prompt = self.prompter.get_sys_prompt()
-                user_prompt = self.prompter.get_user_prompt()
-                for msg in self._generate_iterable({"run_id": run_id, "user_chunk": "", "success": True}, "sys_chunk", sys_prompt):
-                    await self.broadcast_server.broadcast_event("run_context_chunk", msg)
-                for msg in self._generate_iterable({"run_id": run_id, "sys_chunk": "", "success": True}, "user_chunk", user_prompt):
-                    await self.broadcast_server.broadcast_event("run_context_chunk", msg)
-                logger.debug(f"Run {run_id} got following prompts")
-                logger.debug(f"Run {run_id} sys_prompt: {sys_prompt:.200}")
-                logger.debug(f"Run {run_id} user_prompt: {user_prompt:.200}")
-
-                # T2T Generation
-                logger.debug(f"Run {run_id} using T2T")
-                await self.broadcast_server.broadcast_event("run_t2t_start", {"run_id": run_id})
-                t2t_result = ""
-                async for response_chunk in self.comp_manager.use(
-                    "t2t",
-                    chain(
-                        self._generate_iterable({"run_id": run_id, "user_input_chunk": ""}, "system_input_chunk", sys_prompt),
-                        self._generate_iterable({"run_id": run_id, "system_input_chunk": ""}, "user_input_chunk", user_prompt)
-                    )
-                ):
-                    chunk = response_chunk['content_chunk']
-                    t2t_result += chunk
-                    if self.filter(t2t_result):
-                        for msg in self._generate_iterable({"run_id": run_id, "success": True}, "chunk", chunk):
-                            await self.broadcast_server.broadcast_event("run_t2t_chunk", msg)
-                await self.broadcast_server.broadcast_event("run_t2t_stop", {"run_id": run_id, "success": True})
-            except asyncio.CancelledError:
-                raise
-            except FilteredException as err:
-                logger.warning(f"Response was filtered with result so far: {t2t_result}")
-                t2t_result = self.filter.FILTERED_MESSAGE
-                await self.broadcast_server.broadcast_event("run_t2t_chunk", {"run_id": run_id, "chunk": t2t_result, "success": False})
-                await self.broadcast_server.broadcast_event("run_t2t_stop", {"run_id": run_id, "success": False})
-            except Exception as err:
-                logger.error("Error occured during text response generation", exc_info=True, stack_info=True)
-                t2t_result = self.RESPONSE_ERROR_MSG
-                await self.broadcast_server.broadcast_event("run_t2t_chunk", {"run_id": run_id, "chunk": t2t_result, "success": False})
-                await self.broadcast_server.broadcast_event("run_t2t_stop", {"run_id": run_id, "success": False})
-            logger.debug(f"Run {run_id} finished T2T with result: {t2t_result}")
-
-            # Process audio if appropriate
-            if output_audio:
-                # TTSG and TTSC generation (streaming continuous streaming)
-                logger.debug(f"Run {run_id} using TTS")
-                await self.broadcast_server.broadcast_event("run_tts_start", {"run_id": run_id})
-                ttsg_stream = self.comp_manager.use("ttsg",iter([{"run_id": run_id, "content_chunk":t2t_result},]))
-                async for response_chunk in self.comp_manager.use("ttsc", ttsg_stream):
-                    chunk = response_chunk['audio_chunk']
-                    for msg in self._generate_iterable(
-                        {"run_id": run_id, "sample_rate": response_chunk['sample_rate'], "sample_width": response_chunk['sample_width'], "channels": response_chunk['channels'], "success": True},
-                        "chunk", base64.b64encode(chunk).decode('utf-8')
-                    ):
-                        await self.broadcast_server.broadcast_event("run_tts_chunk", msg)
-                await self.broadcast_server.broadcast_event("run_tts_stop", {"run_id": run_id, "success": True})
-                logger.debug(f"Run {run_id} finished TTS")
-            stop_time = get_current_time(as_str=False)
-            duration = (stop_time-start_time).total_seconds()
-            logger.info(f"Finished response_pipeline {run_id} generation in {duration} seconds")
-            await self.broadcast_server.broadcast_event("run_finish", {"run_id": run_id, "runtime": duration})
-
-            # Add response to contexts
-            self.prompter.add_history(
-                start_time,
-                self.prompter.SELF_IDENTIFIER,
-                t2t_result
+    # Context modification
+    async def clear_context(
+        self,
+        job_id: str,
+        job_type: JobType
+    ):
+        await self._handle_broadcast_start(job_id, job_type, {})
+        self.prompter.clear_history()
+        await self._handle_broadcast_success(job_id, job_type)
+        
+    async def append_request_context(
+        self, 
+        job_id: str, 
+        job_type: JobType, 
+        content: str = None
+    ):
+        await self._handle_broadcast_start(job_id, job_type, {"content": content})
+        self.prompter.add_request(content)
+        last_line_o = self.prompter.history[-1]
+        await self._handle_broadcast_event(job_id, job_type, {
+            "timestamp": last_line_o.time.timestamp(),
+            "content": last_line_o.message,
+            "line": last_line_o.to_line()
+        })
+        await self._handle_broadcast_success(job_id, job_type)
+        
+    async def append_conversation_context_text(
+        self, 
+        job_id: str, 
+        job_type: JobType, 
+        user: str = None, 
+        timestamp: int = None, 
+        content: str = None
+    ):
+        await self._handle_broadcast_start(job_id, job_type, {"user": user, "timestamp": timestamp, "content": content})
+        self.prompter.add_chat(
+            user,
+            content,
+            time=(
+                datetime.datetime.fromtimestamp(timestamp) \
+                if not isinstance(timestamp, datetime.datetime) else timestamp
             )
-            # Log result
-            save_response(sys_prompt, user_prompt, t2t_result)
-        except asyncio.CancelledError as err:
-            logger.warning(f"Cancelled response_pipeline {run_id} generation", exc_info=True, stack_info=True)
-            await self.broadcast_server.broadcast_event('run_cancel', {"run_id": run_id, "reason": str(err)})
-        except Exception as err:
-            logger.error(f"Something went wrong during response_pipeline {run_id} generation", exc_info=True, stack_info=True)
-            await self.broadcast_server.broadcast_event('run_cancel', {"run_id": run_id, "reason": str(err)})
-        finally:
-            del self.active_runs[run_id]
-            del self.run_queue_d[run_id]
-
-    ## Context Management #################
-
-    def register_context(self, context_id, context_title, context_description):
-        self.prompter.add_optional_context(context_id, context_title, context_description=context_description)
-
-    def update_context(self, context_id, context_contents):
-        self.prompter.update_optional_context(context_id, contents=context_contents)
-
-    def unregister_context(self, context_id):
-        self.prompter.remove_optional_context(context_id)
+        )
+        last_line_o = self.prompter.history[-1]
+        await self._handle_broadcast_event(job_id, job_type, {
+            "user": last_line_o.user,
+            "timestamp": last_line_o.time.timestamp(),
+            "content": last_line_o.message,
+            "line": last_line_o.to_line()
+        })
+        await self._handle_broadcast_success(job_id, job_type)
+        
+    async def append_conversation_context_audio(
+        self,
+        job_id: str,
+        job_type: JobType,
+        user: str = None,
+        timestamp: int = None,
+        audio_bytes: str = None,
+        sr: int = None,
+        sw: int = None,
+        ch: int = None
+    ):
+        await self._handle_broadcast_start(job_id, job_type, {"user": user, "timestamp": timestamp, "sr": sr, "sw": sw, "ch": ch, "audio_bytes": (audio_bytes is not None)}) # Don't send full audio bytes over websocket, just flag as gotten
+        audio_bytes: bytes = base64.b64decode(audio_bytes)
+        prompt = self.prompter.get_user_prompt() or "You're name is {}".format(Config().character_name)
+        content = ""
+        async for out_d in self.op_manager.use_operation(OpTypes.STT, {"prompt": prompt, "audio_bytes": audio_bytes, "sr": sr, "sw": sw, "ch": ch}):
+            content += out_d['transcription']
+      
+        self.prompter.add_chat(
+            user,
+            content,
+            time=(
+                datetime.datetime.fromtimestamp(timestamp) \
+                if isinstance(timestamp, int) else timestamp
+            )
+        )
+        last_line_o = self.prompter.history[-1]
+        await self._handle_broadcast_event(job_id, job_type, {
+            "user": last_line_o.user,
+            "timestamp": last_line_o.time.timestamp(),
+            "content": last_line_o.message,
+            "line": last_line_o.to_line()
+        })
+        await self._handle_broadcast_success(job_id, job_type)
+        
+    async def register_custom_context(
+        self,
+        job_id: str,
+        job_type: JobType,
+        context_id: str = None,
+        context_name: str = None,
+        context_description: str = None
+    ):
+        await self._handle_broadcast_start(job_id, job_type, {"context_id": context_id, "context_name": context_name, "context_description": context_description})
+        self.prompter.register_custom_context(context_id, context_name, context_description=context_description)
+        await self._handle_broadcast_success(job_id, job_type)
+    
+    async def remove_custom_context(self,
+        job_id: str,
+        job_type: JobType,
+        context_id: str = None
+    ):
+        await self._handle_broadcast_start(job_id, job_type, {"context_id": context_id})
+        self.prompter.remove_custom_context(context_id)
+        await self._handle_broadcast_success(job_id, job_type)
+    
+    async def add_custom_context(
+        self,
+        job_id: str,
+        job_type: JobType,
+        context_id: str = None,
+        context_contents: str = None,
+        timestamp: int = None
+    ):
+        await self._handle_broadcast_start(job_id, job_type, {"context_id": context_id, "context_contents": context_contents, "timestamp": timestamp})
+        if timestamp is not None: timestamp = datetime.datetime.fromtimestamp(timestamp)
+        self.prompter.add_custom_context(context_id, context_contents)
+        last_line_o = self.prompter.history[-1]
+        await self._handle_broadcast_event(job_id, job_type, {
+            "timestamp": last_line_o.time.timestamp(),
+            "content": last_line_o.message,
+            "line": last_line_o.to_line()
+        })
+        await self._handle_broadcast_success(job_id, job_type)
+            
+    # Operation management    
+    async def load_operations(
+        self,
+        job_id: str,
+        job_type: JobType,
+        ops: List[Dict[str, str]] = []
+    ):
+        await self._handle_broadcast_start(job_id, job_type, {"ops": ops})
+        for op_d in ops:
+            await self._handle_op_manager(job_id, job_type, op_d.get('type', ""), op_d.get('id', ""))
+        await self._handle_broadcast_success(job_id, job_type)
+        
+    async def load_operations_from_config(
+        self,
+        job_id: str,
+        job_type: JobType,
+    ):
+        await self._handle_broadcast_start(job_id, job_type, {})
+        await self.op_manager.load_operations_from_config()
+        await self._handle_broadcast_success(job_id, job_type)
+        
+    async def unload_operations(
+        self,
+        job_id: str,
+        job_type: JobType,
+        ops: List[Dict[str, str]] = []
+    ):
+        await self._handle_broadcast_start(job_id, job_type, {"ops": ops})
+        for op_d in ops:
+            await self._handle_op_manager(job_id, job_type, op_d.get('type', ""), op_d.get('id', ""))
+        await self._handle_broadcast_success(job_id, job_type)
+    
+    async def _handle_op_manager(self, job_id: str, job_type: JobType, op_type: str, op_id: str):
+        op_enum = OpTypes(op_type)
+        if job_type == JobType.OPERATION_LOAD: await self.op_manager.load_operation(op_enum,op_id)
+        elif job_type == JobType.OPERATION_UNLOAD: await self.op_manager.close_operation(op_enum,op_id)
+        else: raise UnknownJobType(f"No known operation management job called {job_type}")
+            
+        await self._handle_broadcast_event(job_id, job_type, {
+            "type": op_type, 
+            "id": op_id, 
+        })
+        
+    async def use_operation(
+        self,
+        job_id: str,
+        job_type: JobType,
+        op_type: str = None,
+        op_id: str = None,
+        payload: Dict[str, Any] = None
+    ):
+        await self._handle_broadcast_start(job_id, job_type, {"op_type": op_type, "op_id": op_id})
+        
+        if 'audio_bytes' in payload:
+            payload['audio_bytes'] = base64.b64decode(payload['audio_bytes'])
+            
+        try:
+            async for chunk_out in self.op_manager.use_operation(OpTypes(op_type), payload, op_id=op_id):
+                self._handle_broadcast_event(job_type, job_id, chunk_out)
+        except OperationUnloaded:
+            op = self.op_manager.loose_load_operation(OpTypes(op_type), op_id)
+            await op.start()
+            async for chunk_out in op(payload):
+                if "audio_bytes" in chunk_out: chunk_out["audio_bytes"] = base64.b64encode(chunk_out['audio_bytes']).decode('utf-8')
+                self._handle_broadcast_event(job_type, job_id, chunk_out)
+            await op.close()
+            
+        await self._handle_broadcast_success(job_id, job_type)
+    
+    # Configuration
+    async def load_config(self, job_id: str, job_type: JobType, config_name: str):
+        await self._handle_broadcast_start(job_id, job_type, {"config_name": config_name})
+        Config().load_from_name(config_name)
+        await self._handle_broadcast_success(job_id, job_type)
+        
+    async def update_config(self, job_id: str, job_type: JobType, config_d: str):
+        await self._handle_broadcast_start(job_id, job_type, {"config_d": config_d})
+        Config().load_from_dict(config_d)
+        await self._handle_broadcast_success(job_id, job_type)
+    
+    async def save_config(self, job_id: str, job_type: JobType, config_name: str):
+        await self._handle_broadcast_start(job_id, job_type, {"config_name": config_name})
+        Config().save(config_name)
+        await self._handle_broadcast_success(job_id, job_type)
+    
+    ## General helpers ###############################
+    async def _handle_broadcast_start(self, job_id: str, job_type: JobType, payload: dict):
+        to_broadcast = {
+            "job_id": job_id,
+            "start": payload
+        }
+        logging.debug("Broadcasting start ({}) {} {:.500}".format(job_id, job_type.value, str(to_broadcast)))
+        await self.event_server.broadcast_event(job_type.value, to_broadcast)
+    
+    async def _handle_broadcast_event(self, job_id: str, job_type: JobType, payload: dict):
+        to_broadcast = {
+            "job_id": job_id,
+            "finished": False,
+            "result": payload
+        }
+        logging.debug("Broadcasting event ({}) {} {:.500}".format(job_id, job_type.value, str(to_broadcast)))
+        await self.event_server.broadcast_event(job_type.value, to_broadcast)
+    
+    async def _handle_broadcast_success(self, job_id: str, job_type: JobType):
+        to_broadcast = {
+            "job_id": job_id,
+            "finished": True,
+            "success": True
+        }
+        logging.debug("Broadcasting success ({}) {} {}".format(job_id, job_type.value, str(to_broadcast)))
+        await self.event_server.broadcast_event(job_type.value, to_broadcast)
+        
+    async def _handle_broadcast_error(self, job_id: str, job_type: JobType, err: Exception):
+        # TODO: extend with all errors
+        error_type = "unknown"
+        if isinstance(err, UnknownOpType): error_type = "operation_unknown_type"
+        elif isinstance(err, UnknownOpID): error_type = "operation_unknown_id"
+        elif isinstance(err, DuplicateFilter): error_type = "operation_duplicate"
+        elif isinstance(err, OperationUnloaded): error_type = "operation_unloaded"
+        elif isinstance(err, StartActiveError): error_type = "operation_active"
+        elif isinstance(err, CloseInactiveError): error_type = "operation_inactive"
+        elif isinstance(err, UsedInactiveError): error_type = "operation_inactive"
+        elif isinstance(err, UnknownField): error_type = "config_unknown_field"
+        elif isinstance(err, UnknownFile): error_type = "config_unknown_file"
+        elif isinstance(err, UnknownJobType): error_type = "job_unknown"
+        elif isinstance(err, asyncio.CancelledError): error_type = "job_cancelled"
+        
+        to_broadcast = {
+            "job_id": job_id,
+            "finished": True,
+            "success": False,
+            "result": {
+                "type": error_type,
+                "reason": str(err)
+            }
+        }
+        
+        logging.debug("Broadcasting error ({}) {} {}".format(job_id, job_type.value, str(to_broadcast)))
+        await self.event_server.broadcast_event(job_type.value, to_broadcast)

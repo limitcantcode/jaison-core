@@ -1,6 +1,6 @@
 # Custom
-vts_token_events.txt
-vts_token_main.txt
+ffmpeg.exe
+ffprobe.exe
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

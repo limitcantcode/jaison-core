@@ -1,0 +1,644 @@
+openapi: 3.1.0
+info:
+  title: jaison-core REST API overview
+  description: |-
+    This is an overview of the REST API for jaison-core. This is only the REST API endpoints and does not cover websocket or websocket events. For that, see DEVELOPER.md
+  version: 1.0.0
+externalDocs:
+  description: Find out more in developer docs
+  url: https://github.com/limitcantcode/jaison-core/blob/main/DEVELOPER.md
+servers:
+  - url: http://localhost:7272/api
+tags:
+  - name: misc
+    description: General management
+  - name: response
+    description: Request running of various generation pipelines
+  - name: context
+    description: Add information to the script
+  - name: operation
+    description: Manage and use specific operations
+  - name: configuration
+    description: Save, load, and modify configuration
+  
+paths:
+  # MISC
+  /job:
+    delete:
+      tags:
+        - misc
+      summary: Cancel a job
+      description: Immediately cancel a queued or already running job by job_id. Will fail if job finished or doesn't exist. Cancellation will be reported over websockets.
+      operationId: jobCancel
+      requestBody:
+        description: Target a job by UUID
+        required: True
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - job_id
+              properties:
+                job_id:
+                  type: string
+                  format: uuid
+                  description: Job ID to cancel
+                reason:
+                  type: string
+                  format: uuid
+                  description: Reason for cancelling
+      responses:
+        '200':
+          description: Successfully cancelled job
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - message
+                  - response
+                properties:
+                  status:
+                    type: integer
+                    enum: [200]
+                  message:
+                    type: string
+                    enum: ["Job flagged for cancellation"]
+                    description: Description of response result
+                  response:
+                    type: object
+                    description: Empty object
+        '400':
+          description: Invalid job request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - message
+                  - response
+                properties:
+                  status:
+                    type: integer
+                    enum: [400]
+                  message:
+                    type: string
+                    enum: ["Job ID does not exist or already finished","Request missing job_id"]
+                    description: Description of response result
+                  response:
+                    type: object
+                    description: Empty object
+        '500':
+          $ref: '#/components/responses/InternalErrorResponse'
+  # RESPONSE
+  /response:
+    post:
+      tags:
+        - response
+      summary: Request a text/audio response
+      description: Add a text/audio response job to the job queue. Results will be communicated over websockets.
+      operationId: responseAdd
+      requestBody:
+        description: Response request arguments
+        required: False
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                include_audio:
+                  type: boolean
+                  description: Whether to try and generate audio
+      responses:
+        '200':
+          $ref: '#/components/responses/JobResponse'
+        '500':
+          $ref: '#/components/responses/InternalErrorResponse'
+  # CONTEXT
+  /context:
+    delete:
+      tags:
+        - context
+      summary: Clear all history
+      description: Clear cached script including conversation history, context history, etc. Status is communicated over websockets.
+      operationId: contextDelete
+      responses:
+        '200':
+          $ref: '#/components/responses/JobResponse'
+        '500':
+          $ref: '#/components/responses/InternalErrorResponse'
+  /context/request:
+    post:
+      tags:
+        - context
+      summary: Append request in script
+      description: Add a request to the script for the LLM to process in conversation. Status is communicated over websockets.
+      operationId: responseRequestAdd
+      requestBody:
+        description: Content of the request
+        required: True
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+                  description: Request to be given to the LLM
+      responses:
+        '200':
+          $ref: '#/components/responses/JobResponse'
+        '500':
+          $ref: '#/components/responses/InternalErrorResponse'
+  /context/conversation/text:
+    post:
+      tags:
+        - context
+      summary: Append conversation text in script
+      description: Add a conversational text to the script. Status is communicated over websockets.
+      operationId: responseConvTextAdd
+      requestBody:
+        description: Content of the request
+        required: True
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user
+                - content
+              properties:
+                user:
+                  type: string
+                  description: Name of user associated with content
+                timestamp:
+                  type: integer
+                  minimum: 0
+                  maximum: 9999999999
+                  description: UNIX timestamp of message 
+                content:
+                  type: string
+                  description: Message from user
+      responses:
+        '200':
+          $ref: '#/components/responses/JobResponse'
+        '500':
+          $ref: '#/components/responses/InternalErrorResponse'
+  /context/conversation/audio:
+    post:
+      tags:
+        - context
+      summary: Append conversation audio to script
+      description: Transcribe conversational audio and add to the script. Status is communicated over websockets.
+      operationId: responseConvAudioAdd
+      requestBody:
+        description: Content of the request
+        required: True
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user
+                - audio_bytes
+                - sr
+                - sw
+                - ch
+              properties:
+                user:
+                  type: string
+                  description: Name of user associated with speech
+                timestamp:
+                  type: integer
+                  minimum: 0
+                  maximum: 9999999999
+                  description: UNIX timestamp of message
+                audio_bytes:
+                  type: string
+                  format: byte
+                  description: PCM audio bytes containing speech
+                sr:
+                  type: integer
+                  minimum: 0
+                  description: Sample rate of audio
+                sw:
+                  type: integer
+                  minimum: 0
+                  description: Number of bytes per audio sample
+                ch:
+                  type: integer
+                  minimum: 0
+                  description: Number of audio channels
+      responses:
+        '200':
+          $ref: '#/components/responses/JobResponse'
+        '500':
+          $ref: '#/components/responses/InternalErrorResponse'
+  /context/custom:
+    put:
+      tags:
+        - context
+      summary: Register custom context
+      description: Register custom context details for use in script for later use describing things outside of conversation and requests. Status is communicated over websockets.
+      operationId: responseCustomRegister
+      requestBody:
+        description: Details of custom context to register
+        required: True
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - context_id
+                - context_name
+              properties:
+                context_id:
+                  type: string
+                  description: Custom context id used by future requests
+                context_name:
+                  type: string
+                  description: Name of the context as will appear in the script
+                context_description:
+                  type: string
+                  description: Context description as will be described to the LLM
+      responses:
+        '200':
+          $ref: '#/components/responses/JobResponse'
+        '500':
+          $ref: '#/components/responses/InternalErrorResponse'
+    delete:
+      tags:
+        - context
+      summary: Unregister a custom context
+      description: Remove a previously registered custom context so it is no longer described or addable to the script. Status is communicated over websockets.
+      operationId: responseCustomRemove
+      requestBody:
+        description: Target custom context to remove
+        required: True
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - context_id
+              properties:
+                context_id:
+                  type: string
+                  description: Targetted context id to delete
+      responses:
+        '200':
+          $ref: '#/components/responses/JobResponse'
+        '500':
+          $ref: '#/components/responses/InternalErrorResponse'
+    post:
+      tags:
+        - context
+      summary: Add custom context to script
+      description: Add custom context to script for external descriptions alongside conversation and requests. Status is communicated over websockets.
+      operationId: responseCustomAppend
+      requestBody:
+        description: Content of the custom context
+        required: True
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - context_id
+                - context_contents
+              properties:
+                context_id:
+                  type: string
+                context_contents:
+                  type: string
+                timestamp:
+                  type: integer
+                  minimum: 0
+                  maximum: 9999999999
+      responses:
+        '200':
+          $ref: '#/components/responses/JobResponse'
+        '500':
+          $ref: '#/components/responses/InternalErrorResponse'
+  # OPERATION
+  /operations:
+    get:
+      tags:
+        - operation
+      summary: Get all loaded operations
+      description: Get names of which operations are loaded for which operation type if available.
+      operationId: operationGet
+      responses:
+        '200':
+          description: Successfully got loaded operations
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - message
+                  - response
+                properties:
+                  status:
+                    type: integer
+                    enum: [200]
+                  message:
+                    type: string
+                    enum: ["Loaded operations gotten"]
+                    description: Description of response result
+                  response:
+                    type: object
+                    description: Mapping of operation type to loaded operation id
+                    properties:
+                      stt:
+                        type: string
+                      t2t:
+                        type: string
+                      tts:
+                        type: string
+                      filter_audio:
+                        type: array
+                        items:
+                          type: string
+                      filter_text:
+                        type: array
+                        items:
+                          type: string
+  /operations/use:
+    post:
+      tags:
+        - operation
+      summary: Use an operation
+      description: Use a specific operation (loaded or not). Results returned over websockets.
+      operationId: operationUse
+      requestBody:
+        description: Target and input for operation
+        required: True
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - op_type
+                - payload
+              properties:
+                op_type:
+                  type: string
+                  enum: ['stt', 't2t', 'tts', 'filter_audio', 'filter_text']
+                  description: Operation type to use
+                op_id:
+                  type: string
+                  description: Specific operation under type to use. Defaults to already loaded operation.
+                payload:
+                  type: object
+                  description: Input chunk/payload for operation to process (see DEVELOPER.md for payload details per operation)
+      responses:
+        '200':
+          $ref: '#/components/responses/JobResponse'
+        '500':
+          $ref: '#/components/responses/InternalErrorResponse'
+  /operations/load:
+    post:
+      tags:
+        - operation
+      summary: Load operations for later use
+      description: Load a list of operations into operation manager for default use. Will unload any existing operations and load new ones. Status is communicated over websockets.
+      operationId: operationLoad
+      requestBody:
+        description: Operations to load
+        required: True
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ops
+              properties:
+                ops:
+                  type: array
+                  description: List of operation identifiers
+                  items:
+                    type: object
+                    required:
+                      - type
+                      - id
+                    properties:
+                      type:
+                        type: string
+                        enum: ['stt', 't2t', 'tts', 'filter_audio', 'filter_text']
+                        description: Operation type to load
+                      id:
+                        type: string
+                        description: Operation under specified type to load
+      responses:
+        '200':
+          $ref: '#/components/responses/JobResponse'
+        '500':
+          $ref: '#/components/responses/InternalErrorResponse'
+  /operations/reload:
+    post:
+      tags:
+        - operation
+      summary: Load all operations as configured in configuration
+      description: Load all operations as configured in current configuration, unloading any existing operations as necessary. Status is communicated over websockets.
+      operationId: operationReload
+      responses:
+        '200':
+          $ref: '#/components/responses/JobResponse'
+        '500':
+          $ref: '#/components/responses/InternalErrorResponse'
+  /operations/unload:
+    post:
+      tags:
+        - operation
+      summary: Unload operations so they can no longer be used
+      description: Unload a list of operations from the operation manager so they no longer get used by default. Nothing will take its place until requested. Status is communicated over websockets.
+      operationId: operationUnload
+      requestBody:
+        description: Operations to unload
+        required: True
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ops
+              properties:
+                ops:
+                  type: array
+                  description: List of operation identifiers
+                  items:
+                    type: object
+                    required:
+                      - type
+                    properties:
+                      type:
+                        type: string
+                        enum: ['stt', 't2t', 'tts', 'filter_audio', 'filter_text']
+                        description: Operation type to unload
+                      id:
+                        type: string
+                        description: Specific operation to unload
+      responses:
+        '200':
+          $ref: '#/components/responses/JobResponse'
+        '500':
+          $ref: '#/components/responses/InternalErrorResponse'
+  # CONFIGURATION
+  /config:
+    get:
+      tags:
+        - configuration
+      summary: Get current configuration
+      description: Get all fields and values in the current configuration state. Configuration will be passed in response property.
+      operationId: configGet
+      responses:
+        '200':
+          description: Successfully got current configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - message
+                  - response
+                properties:
+                  status:
+                    type: integer
+                    enum: [200]
+                  message:
+                    type: string
+                    enum: ["Current config gotten"]
+                  response:
+                    type: object
+  /config/load:
+    post:
+      tags:
+        - configuration
+      summary: Load a saved config
+      description: Load a saved config from file. Status is communicated over websockets.
+      operationId: configLoad
+      requestBody:
+        description: Configuration to load
+        required: True
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - config_name
+              properties:
+                config_name:
+                  type: string
+                  description: Name of config to load
+      responses:
+        '200':
+          $ref: '#/components/responses/JobResponse'
+        '500':
+          $ref: '#/components/responses/InternalErrorResponse'
+  /config/update:
+    post:
+      tags:
+        - configuration
+      summary: Update the current config.
+      description: Update the current configuration without saving to file. Status is communicated over websockets.
+      operationId: configUpdate
+      requestBody:
+        description: Configuration fields to update.
+        required: True
+        content:
+          application/json:
+            schema:
+              type: object
+              description: JSON equivilant of YAML configuration with fields to be updated
+      responses:
+        '200':
+          $ref: '#/components/responses/JobResponse'
+        '500':
+          $ref: '#/components/responses/InternalErrorResponse'
+  /config/save:
+    post:
+      tags:
+        - configuration
+      summary: Save current configuration to file.
+      description: Save the current configuration to file using the name specified. Will overwrite configurations with the same name. Status is communicated over websockets.
+      operationId: configSave
+      requestBody:
+        description: Config name to save to
+        required: True
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - config_name
+              properties:
+                config_name:
+                  type: string
+                  description: Name of config to save to
+      responses:
+        '200':
+          $ref: '#/components/responses/JobResponse'
+        '500':
+          $ref: '#/components/responses/InternalErrorResponse'
+components:
+  schemas:
+    Job:
+      type: object
+      required:
+        - status
+        - message
+        - response
+      properties:
+        status:
+          type: integer
+          enum: [200]
+        message:
+          type: string
+          enum: ["... job created"]
+          description: Description of response result
+        response:
+          type: object
+          required:
+            - job_id
+          properties:
+            job_id:
+              type: string
+              format: uuid
+              description: Job ID of job created for this request
+    InternalError:
+      type: object
+      required:
+        - status
+        - message
+        - response
+      properties:
+        status:
+          type: integer
+          enum: [500]
+        message:
+          type: string
+          description: Description of response result
+        response:
+          type: object
+          description: Empty object
+  responses:
+    JobResponse:
+      description: Successfully requested job
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Job'
+    InternalErrorResponse:
+      description: Unexpected internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InternalError'
