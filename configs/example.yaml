@@ -39,9 +39,9 @@ operations:
 #   id: pytts
 
   # Audio filters
-# - type: ttsc
+# - type: filter_audio
 #   id: pitch
-# - type: ttsc
+# - type: filter_audio
 #   id: rvc
 
 # Prompter
