@@ -20,6 +20,8 @@ class OperationManager:
         self.filter_audio = list()
         self.filter_text = list()
         
+        self.loose_loaded_ops = dict()
+        
     def get_operation(self, op_type: OpTypes) -> Operation:
         match op_type:
             case OpTypes.STT:
@@ -45,7 +47,7 @@ class OperationManager:
             "filter_text": self.get_operation(OpTypes.FILTER_TEXT),
         }
         
-    def loose_load_operation(
+    def _loose_load_operation(
         self,
         op_type: OpTypes,
         op_id: str = None
@@ -127,6 +129,11 @@ class OperationManager:
             case _:
                 # Should never get here if op_type is indeed OpTypes
                 raise UnknownOpType(op_type)
+    
+    async def loose_load_operation(self, op_type: OpTypes, op_id: str, loose_key: str):
+        if loose_key in self.loose_loaded_ops:
+            await self.loose_loaded_ops[loose_key].close()
+        self.loose_loaded_ops[loose_key] = self._loose_load_operation(op_type, op_id)
         
     async def load_operation(self, op_type: OpTypes, op_id: str) -> None:
         '''Load, start, and save an Operation in the OperationManager'''
@@ -137,7 +144,7 @@ class OperationManager:
             for op in self.filter_text:
                 if op.op_id == op_id: raise DuplicateFilter("FILTER_TEXT", op_id)
                 
-        new_op = self.loose_load_operation(op_type, op_id)
+        new_op = self._loose_load_operation(op_type, op_id)
         await new_op.start()
         
         match op_type:
@@ -171,6 +178,12 @@ class OperationManager:
             self.load_operation(OpTypes.FILTER_AUDIO, op_id)
         for op_id in config.op_filter_text_id:
             self.load_operation(OpTypes.FILTER_TEXT, op_id)
+        
+    async def close_loose_operation(self, loose_key: str) -> None:
+        if loose_key in self.loose_loaded_ops:
+            await self.loose_loaded_ops[loose_key].close()
+        else:
+            raise OperationUnloaded("LOOSE", op_id=loose_key)
         
     async def close_operation(self, op_type: OpTypes, op_id: str = None) -> None:
         match op_type:
@@ -233,6 +246,10 @@ class OperationManager:
             await op.close()
         self.filter_text.clear()
         
+        for loose_key in self.loose_loaded_ops:
+            await self.loose_loaded_ops[loose_key].close()
+        self.loose_loaded_ops = dict()
+        
     async def _use_filter(self, filter_list: List[Operation], filter_idx: int, chunk_in: Dict[str, Any]):
         if filter_idx == len(filter_list): yield chunk_in
         elif filter_idx < len(filter_list)-1: # Not last filter
@@ -291,3 +308,10 @@ class OperationManager:
             case _:
                 # Should never get here if op_type is indeed OpTypes
                 raise UnknownOpType(op_type)
+
+    def use_loose_operation(self, loose_key, payload):
+        op = self.loose_loaded_ops.get(loose_key, None)
+        if op:
+            return op(payload)
+        else :
+            raise OperationUnloaded("LOOSE", op_id=loose_key)

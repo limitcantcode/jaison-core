@@ -4,7 +4,7 @@ import datetime
 import re
 import urllib
 import logging
-from typing import List
+from typing import List, Dict
 from mcp import ClientSession, StdioServerParameters, types
 from mcp.client.stdio import stdio_client
 from mcp.types import (
@@ -41,13 +41,6 @@ def details_to_response_prompt(details):
     resources = details['resources']
     templates = details['templates']
     
-    print(
-        "DETAILS",
-        tools,
-        resources,
-        templates
-    )
-    
     prompt = ""
     
     for tool in tools:
@@ -71,13 +64,6 @@ def details_to_tool_prompt(details):
     tools = details['tools']
     resources = details['resources']
     templates = details['templates']
-    
-    print(
-        "DETAILS",
-        tools,
-        resources,
-        templates
-    )
     
     prompt = ""
     
@@ -103,7 +89,8 @@ def details_to_tool_prompt(details):
 class MCPClient:
     '''Managing of a single server instance'''
     
-    def __init__(self, params: StdioServerParameters):
+    def __init__(self, mcp_id: str, params: StdioServerParameters):
+        self.mcp_id = mcp_id
         self.params = params
         self.server_generator = None
         self.server_read = None
@@ -118,6 +105,9 @@ class MCPClient:
         self.resource_names = list()
         self.template_names = list()
         
+        self.tool_prompt = ""
+        self.response_prompt = ""
+        
     async def start(self):
         self.server_generator = stdio_client(self.params)
         logging.debug("starting context")
@@ -127,7 +117,7 @@ class MCPClient:
         self.session = ClientSession(
             self.server_read,
             self.server_write,
-            # read_timeout_seconds=datetime.timedelta(seconds=5),
+            read_timeout_seconds=datetime.timedelta(seconds=5),
             # sampling_callback=handle_sampling_message
         )
         
@@ -135,6 +125,10 @@ class MCPClient:
         logging.debug("initializing session")
         await self.session.__aenter__()
         await self.session.initialize()
+        
+        details = await self.get_details()
+        self.tool_prompt = details_to_tool_prompt(details)
+        self.response_prompt = details_to_response_prompt(details)
         
     async def close(self):
         await self.session.__aexit__(None, None, None)
@@ -192,50 +186,49 @@ Below is a list of all available contexts and their descriptions:
             
     def __init__(self):
         # servers are loaded at start and at no other point
-        self.client_params: List[StdioServerParameters] = list()
-        self.clients: List[MCPClient] = list()
+        # self.client_params: List[StdioServerParameters] = list()
+        self.clients: Dict[str, MCPClient] = list()
         
     async def start(self):
         config = Config()
         for mcp_detail in config.mcp:
-            self.client_params.append(
-                StdioServerParameters(
-                    command=mcp_detail['command'],  # Executable
-                    args=mcp_detail['args'],  # Optional command line arguments
-                    env=os.environ,  # Optional environment variables
-                    cwd=mcp_detail['cwd']
-                )
-            )
-            
-                        
-        for client_param in self.client_params:
-            logging.debug("making mcpservers")
-            self.clients.append(MCPClient(client_param))
-            
-        # get tool/resource details
-        for client in self.clients:
-            logging.debug("starting mcpservers")
-            await client.start()
-            details = await client.get_details()
-            self.tooling_prompt += details_to_tool_prompt(details)
-            self.response_prompt += details_to_response_prompt(details)
+            await self.load_mcp(mcp_detail)
         
-        logging.debug("TOOLING_PROMPT: {}".format(self.tooling_prompt))
-            
-            
-    async def use(self, system_context: str, user_context: str):
-        messages =[
-            { "role": "system", "content": system_context},
-            { "role": "user", "content": user_context }
-        ]
+    async def load_mcp(self, mcp_detail: Dict):
+        # TODO validate the mcp_detail 
         
-        tool_calls =  llm_client.chat.completions.create( # TODO hook up with mcp-handling specific llm
-            messages=messages,
-            model="gpt-4o"
+        params = StdioServerParameters(
+            command=mcp_detail['command'],  # Executable
+            args=mcp_detail['args'],  # Optional command line arguments
+            env=os.environ,  # Optional environment variables
+            cwd=mcp_detail['cwd']
         )
-        tool_calls = tool_calls.choices[0].message.content
+        client = MCPClient(params)
+        await client.start()
+        self.clients[mcp_detail['mcp_id']] = client
         
-        tool_calls = tool_calls.split("\n")
+    async def close_mcp(self, mcp_id: str):
+        target = self.clients.get(mcp_id, None)
+        if target:
+            await target.close()
+            del self.clients[mcp_id]
+            
+    def get_tooling_prompt(self):
+        prompt = self.tooling_prompt
+        for client_key in self.clients:
+            prompt += self.clients[client_key].tool_prompt
+            
+        return prompt
+    
+    def get_response_prompt(self):
+        prompt = self.response_prompt
+        for client_key in self.clients:
+            prompt += self.clients[client_key].response_prompt
+            
+        return prompt
+            
+    async def use(self, tooling_response: str):
+        tool_calls = tooling_response.split("\n")
         
         parsed_tool_calls = list()
         for tool_call in tool_calls:
@@ -292,5 +285,5 @@ Below is a list of all available contexts and their descriptions:
         return result_list
 
     async def close(self):
-        for client in self.clients:
-            await client.close()
+        for client_key in self.clients:
+            await self.clients[client_key].close()

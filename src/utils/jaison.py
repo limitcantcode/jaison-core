@@ -81,10 +81,11 @@ class JAIson(metaclass=Singleton):
         self.prompter = Prompter()
         
         self.process_manager = ProcessManager()
+        self.op_manager = OperationManager()
         self.mcp_manager = MCPManager()
         await self.mcp_manager.start()
         self.prompter.add_mcp_usage_prompt(self.mcp_manager.tooling_prompt, self.mcp_manager.response_prompt) # debug
-        self.op_manager = OperationManager()
+        await self.op_manager.loose_load_operation(OpTypes("t2t"), Config().mcp_llm, "mcp")
         await self.load_operations('start',JobType.OPERATION_LOAD,ops=Config().operations)
         await self.process_manager.reload()
         logging.info("JAIson application layer has started.")
@@ -224,14 +225,16 @@ class JAIson(metaclass=Singleton):
         
         # Broadcast start conditions
         await self._handle_broadcast_start(job_id, job_type, {"include_audio": include_audio})
-        
+    
         # Handle MCP stuff
-        ## Getting context for MCP calls
-        ## Generating MCP tool prompts
+        self.promtper.add_mcp_usage_prompt(self.mcp_manager.get_tooling_prompt(), self.mcp_manager.get_response_prompt())
         mcp_sys_prompt, mcp_user_prompt = self.prompter.generate_mcp_system_context(), self.prompter.generate_mcp_user_context()
+        tooling_response = ""
+        for chunk in self.op_manager.use_loose_operation("mcp", {"system_prompt": mcp_sys_prompt, "user_prompt": mcp_user_prompt}):
+            tooling_response += chunk['content']
         
         ## Perform MCP tool calls
-        tool_call_results = await self.mcp_manager.use(mcp_sys_prompt, mcp_user_prompt)
+        tool_call_results = await self.mcp_manager.use(tooling_response)
         
         ## Add results and usage prompt to prompter
         self.prompter.add_mcp_results(tool_call_results)

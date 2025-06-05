@@ -1,1 +1,1 @@
-+from .manager import MCPManager
+from .manager import MCPManager

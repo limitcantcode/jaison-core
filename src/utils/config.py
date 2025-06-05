@@ -43,6 +43,11 @@ class Config(metaclass=Singleton):
     history_length: int = 50
     history_filepath: str = portable_path(os.path.join(os.getcwd(),"output","history.txt"))
     
+    # MCP
+    MCP_DIR: str = portable_path(os.path.join(os.getcwd(), "models", "mcp"))
+    mcp: list = list()
+    mcp_llm: str = None
+
     # Kobold
     kobold_filepath: str = None
     kcpps_filepath: str = None

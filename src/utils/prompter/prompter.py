@@ -122,9 +122,6 @@ class Prompter(metaclass=Singleton):
             
         return prompt
 
-    # debug
-    # TODO update and polish to match rest, maybe integrate with MCP module properly
-    
     def add_mcp_usage_prompt(self, tooling_prompt: str, response_template: str):
         self.tooling_prompt = tooling_prompt
         self.response_template = response_template

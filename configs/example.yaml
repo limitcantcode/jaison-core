@@ -5,18 +5,42 @@ operations:
 # STT
 # - type: stt
 #   id: azure
+#   azure_stt_language: en-US # https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support?tabs=stt
 # - type: stt
 #   id: fish
 # - type: stt
 #   id: kobold
+#   kobold_stt_suppress_non_speech: true
+#   kobold_stt_langcode: en
 - type: stt
-  id: openai
+  id: openai # Openai STT https://platform.openai.com/docs/guides/speech-to-text
+  openai_stt_base_url: https://api.openai.com/v1/
+  openai_stt_model: gpt-4o-transcribe
+  openai_stt_language: en # https://github.com/openai/whisper/blob/main/whisper/tokenizer.py
   
   # T2T
 # - type: t2t
 #   id: kobold
+#   kobold_t2t_max_context_length: 2048
+#   kobold_t2t_max_length: 100
+#   kobold_t2t_quiet: true
+#   kobold_t2t_rep_pen: 1.1
+#   kobold_t2t_rep_pen_range: 256
+#   kobold_t2t_rep_pen_slope: 1
+#   kobold_t2t_temperature: 0.5
+#   kobold_t2t_tfs: 1
+#   kobold_t2t_top_a: 0
+#   kobold_t2t_top_k: 100
+#   kobold_t2t_top_p: 0.9
+#   kobold_t2t_typical: 1
 - type: t2t
   id: openai
+  openai_t2t_base_url: https://api.openai.com/v1/
+  openai_t2t_model: gpt-4o
+  openai_t2t_temperature: 1
+  openai_t2t_top_p: 0.9
+  openai_t2t_presence_penalty: 1
+  openai_t2t_frequency_penalty: 1
 
   # Text filters
 - type: filter_text
@@ -26,25 +50,48 @@ operations:
 - type: filter_text
   id: mod_koala
 - type: filter_text
+  spacy_model: en_core_web_sm
   id: chunker_sentence
 
   # TTS
 # - type: tts
 #   id: azure
+#   azure_ttsg_voice: "en-US-AshleyNeural" # https://speech.microsoft.com/portal/voicegallery
 # - type: tts
 #   id: fish
+#   fish_model_id: c9198512a4164a18b11a3bf96e5c668f
+#   fish_model_backend: speech-1.6
+#   fish_normalize: true
+#   fish_latency: normal
 # - type: tts
 #   id: kobold
+#   kobold_tts_voice: kobo
 - type: tts
-  id: openai
+  id: openai # OpenAI TTSG https://platform.openai.com/docs/guides/text-to-speech
+  openai_ttsg_base_url: https://api.openai.com/v1/
+  openai_ttsg_voice: nova
+  openai_ttsg_model: tts-1
 # - type: tts
 #   id: pytts
+#   synth_ttsg_voice_name: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_MS_EN-US_ZIRA_11.0'
+#   synth_ttsg_gender: female
 
   # Audio filters
 # - type: filter_audio
 #   id: pitch
+#   pitch_amount: 0
 # - type: filter_audio
 #   id: rvc
+#   rvc_voice: my-voice-model
+#   rvc_f0_up_key: 0
+#   rvc_f0_method: rmvpe
+#   rvc_f0_file: null
+#   rvc_index_file: null
+#   rvc_index_rate: 0.0
+#   rvc_filter_radius: 3
+#   rvc_resample_sr: 0
+#   rvc_rms_mix_rate: 0
+#   rvc_protect: 0.5
 
 # Prompter
 instruction_prompt_filename: 'example.txt'
@@ -59,64 +106,3 @@ history_length: 50
 # Kobold
 kobold_filepath: E:\\jaison-core\\models\\kobold\\koboldcpp_cu12.exe # must be absolute
 kcpps_filepath: E:\\jaison-core\\models\\kobold\\save.kcpps # must be absolute
-
-kobold_stt_suppress_non_speech: true
-kobold_stt_langcode: en
-
-kobold_t2t_max_context_length: 2048
-kobold_t2t_max_length: 100
-kobold_t2t_quiet: true
-kobold_t2t_rep_pen: 1.1
-kobold_t2t_rep_pen_range: 256
-kobold_t2t_rep_pen_slope: 1
-kobold_t2t_temperature: 0.5
-kobold_t2t_tfs: 1
-kobold_t2t_top_a: 0
-kobold_t2t_top_k: 100
-kobold_t2t_top_p: 0.9
-kobold_t2t_typical: 1
-
-kobold_tts_voice: kobo
-
-# OpenAI T2T
-openai_t2t_base_url: https://api.openai.com/v1/
-openai_t2t_model: gpt-4o
-
-openai_t2t_temperature: 1
-openai_t2t_top_p: 0.9
-openai_t2t_presence_penalty: 1
-openai_t2t_frequency_penalty: 1
-
-# OpenAI TTSG https://platform.openai.com/docs/guides/text-to-speech
-openai_ttsg_base_url: https://api.openai.com/v1/
-openai_ttsg_voice: nova
-openai_ttsg_model: tts-1
-
-# Openai STT https://platform.openai.com/docs/guides/speech-to-text
-openai_stt_base_url: https://api.openai.com/v1/
-openai_stt_model: gpt-4o-transcribe
-openai_stt_language: en # https://github.com/openai/whisper/blob/main/whisper/tokenizer.py
-
-# Azure TTSG
-azure_ttsg_voice: "en-US-AshleyNeural" # https://speech.microsoft.com/portal/voicegallery
-
-# Azure STT
-azure_stt_language: en-US # https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support?tabs=stt
-
-# Spacy NLP
-spacy_model: en_core_web_sm
-
-# RVC Project
-rvc_voice: my-voice-model
-rvc_f0_up_key: 0
-rvc_f0_method: rmvpe
-rvc_f0_file: null
-rvc_index_file: null
-rvc_index_rate: 0.0
-rvc_filter_radius: 3
-rvc_resample_sr: 0
-rvc_rms_mix_rate: 0
-rvc_protect: 0.5
-
-# Pitch filter
-pitch_amount: 0
