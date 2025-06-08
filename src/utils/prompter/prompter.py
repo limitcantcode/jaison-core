@@ -20,7 +20,7 @@ class Prompter(metaclass=Singleton):
         self.history.append(message)
         self.history = self.history[-(Config().history_length):]
         
-        with open(Config().history_filepath, 'a') as f:
+        with open(Config().history_filepath, 'a', encoding="utf-8") as f:
             f.write(message.to_line())
             f.write("\n")
     
