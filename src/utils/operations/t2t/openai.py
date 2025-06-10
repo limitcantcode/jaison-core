@@ -9,15 +9,50 @@ class OpenAIT2T(T2TOperation):
         super().__init__("openai")
         self.client = None
         
+        self.base_url = "https://api.openai.com/v1/"
+        self.model = "gpt-4o"
+        self.temperature = 1
+        self.top_p = 0.9
+        self.presence_penalty = 0
+        self.frequency_penalty = 0
+        
     async def start(self):
         await super().start()
-        self.client = AsyncOpenAI(base_url=Config().openai_t2t_base_url)
+        self.client = AsyncOpenAI(base_url=self.base_url)
         
     async def close(self):
         await super().close()
         await self.client.close()
         self.client = None
         
+    async def configure(self, config_d):
+        '''Configure and validate operation-specific configuration'''
+        if "base_url" in config_d: self.base_url = str(config_d['base_url'])
+        if "model" in config_d: self.model = str(config_d['model'])
+
+        if "temperature" in config_d: self.temperature = float(config_d['temperature'])
+        if "top_p" in config_d: self.top_p = float(config_d['top_p'])
+        if "presence_penalty" in config_d: self.presence_penalty = float(config_d['presence_penalty'])
+        if "frequency_penalty" in config_d: self.frequency_penalty = float(config_d['frequency_penalty'])
+        
+        assert self.base_url is not None and len(self.base_url) > 0
+        assert self.model is not None and len(self.model) > 0
+        assert self.temperature >= 0 and self.temperature <= 2
+        assert self.top_p >= 0 and self.top_p <= 1
+        assert self.presence_penalty >= 0 and self.presence_penalty <= 1
+        assert self.frequency_penalty >= 0 and self.frequency_penalty <= 1
+        
+    async def get_configuration(self):
+        '''Returns values of configurable fields'''
+        return {
+            "base_url": self.base_url,
+            "model": self.model,
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+            "presence_penalty": self.presence_penalty,
+            "frequency_penalty": self.frequency_penalty,
+        }
+
     async def _generate(self, system_prompt: str = None, user_prompt: str = None, **kwargs):
         messages=[
             { "role": "system", "content": system_prompt },
@@ -26,12 +61,12 @@ class OpenAIT2T(T2TOperation):
 
         stream = await self.client.chat.completions.create(
             messages=messages,
-            model=Config().openai_t2t_model,
+            model=self.model,
             stream=True,
-            temperature=Config().openai_t2t_temperature,
-            top_p=Config().openai_t2t_top_p,
-            presence_penalty=Config().openai_t2t_presence_penalty,
-            frequency_penalty=Config().openai_t2t_frequency_penalty
+            temperature=self.temperature,
+            top_p=self.top_p,
+            presence_penalty=self.presence_penalty,
+            frequency_penalty=self.frequency_penalty
         )
 
         full_response = ""

@@ -1,9 +1,10 @@
 
 import os
 import datetime
-from typing import AsyncGenerator, Dict, List
+from typing import AsyncGenerator, Dict, List, Any
 from utils.helpers.time import get_current_time
 from utils.helpers.singleton import Singleton
+from utils.helpers.path import portable_path
 from utils.config import Config
 from .context import ContextMetadata
 from .message import Message, ChatMessage, RequestMessage, MCPMessage, CustomMessage
@@ -13,12 +14,59 @@ class Prompter(metaclass=Singleton):
         self.context_metadata: Dict[str, ContextMetadata] = dict()
         self.history: List[Message] = list()
         
+        self.instruction_prompt_filename: str = 'example.txt'
+        self.character_prompt_filename: str = 'example.txt'
+        self.scene_prompt_filename: str = 'example.txt'
+
+        self.character_name: str = "J.A.I.son"
+        self.name_translations: Dict[str, str] = {"old name": "new:name"}
+        self.history_length: int = 50
+        
+    async def configure(self, config_d: Dict[str, Any]):
+        if "instruction_prompt_filename" in config_d: self.instruction_prompt_filename = str(config_d["instruction_prompt_filename"])
+        if "character_prompt_filename" in config_d: self.character_prompt_filename = str(config_d["character_prompt_filename"])
+        if "scene_prompt_filename" in config_d: self.scene_prompt_filename = str(config_d["scene_prompt_filename"])
+        if "character_name" in config_d: self.character_name = str(config_d["character_name"])
+        if "name_translations" in config_d: self.name_translations = dict(config_d["name_translations"])
+        if "history_length" in config_d: self.history_length = int(config_d["history_length"])
+        
+        assert (
+            self.instruction_prompt_filename is not None and 
+            len(self.instruction_prompt_filename) > 0 and 
+            os.path.isfile(portable_path(os.path.join(
+                Config().PROMPT_DIR,
+                Config().PROMPT_INSTRUCTION_SUBDIR,
+                self.instruction_prompt_filename
+            )))
+        )
+        assert (
+            self.character_prompt_filename is not None and 
+            len(self.character_prompt_filename) > 0 and 
+            os.path.isfile(portable_path(os.path.join(
+                Config().PROMPT_DIR,
+                Config().PROMPT_INSTRUCTION_SUBDIR,
+                self.character_prompt_filename
+            )))
+        )
+        assert (
+            self.scene_prompt_filename is not None and 
+            len(self.scene_prompt_filename) > 0 and 
+            os.path.isfile(portable_path(os.path.join(
+                Config().PROMPT_DIR,
+                Config().PROMPT_INSTRUCTION_SUBDIR,
+                self.scene_prompt_filename
+            )))
+        )
+        assert self.character_name is not None and len(self.character_name)
+        assert self.history_length > 0
+        
+        
     def clear_history(self):
         self.history = list()
         
     def insert_history(self, message: Message):
         self.history.append(message)
-        self.history = self.history[-(Config().history_length):]
+        self.history = self.history[-(self.history_length):]
         
         with open(Config().history_filepath, 'a', encoding="utf-8") as f:
             f.write(message.to_line())
@@ -43,7 +91,7 @@ class Prompter(metaclass=Singleton):
 
     # Main conversation
     def translate_name(self, name: str):
-        return Config().name_translations.get(name, name)
+        return self.name_translations.get(name, name)
     
     def add_chat(self, name: str, message: str, time: datetime.datetime = None):
         assert name and len(name) > 0
@@ -71,11 +119,11 @@ class Prompter(metaclass=Singleton):
         
     # Prompt generators
     def get_instructions_prompt(self):
-        with open(os.path.join(
+        with open(portable_path(os.path.join(
             Config().PROMPT_DIR,
             Config().PROMPT_INSTRUCTION_SUBDIR,
-            Config().instruction_prompt_filename
-        ), 'r') as f:
+            self.instruction_prompt_filename
+        )), 'r') as f:
             return f.read()
         
     def get_context_descriptions(self):
@@ -89,19 +137,19 @@ class Prompter(metaclass=Singleton):
         return result
             
     def get_character_prompt(self):
-        with open(os.path.join(
+        with open(portable_path(os.path.join(
             Config().PROMPT_DIR,
             Config().PROMPT_CHARACTER_SUBDIR,
-            Config().character_prompt_filename
-        ), 'r') as f:
+            self.character_prompt_filename
+        )), 'r') as f:
             return f.read()
         
     def get_scene_prompt(self):
-        with open(os.path.join(
+        with open(portable_path(os.path.join(
             Config().PROMPT_DIR,
             Config().PROMPT_SCENE_SUBDIR,
-            Config().scene_prompt_filename
-        ), 'r') as f:
+            self.scene_prompt_filename
+        )), 'r') as f:
             return f.read()
     
     def get_sys_prompt(self):

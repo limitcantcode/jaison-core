@@ -20,6 +20,15 @@ class FishSTT(STTOperation):
         await self.session.close()
         self.session = None
         
+                    
+    async def configure(self, config_d):
+        '''Configure and validate operation-specific configuration'''
+        return
+    
+    async def get_configuration(self):
+        '''Returns values of configurable fields'''
+        return {}
+
     async def _generate(self, prompt: str = None,  audio_bytes: bytes = None, sr: int = None, sw: int = None, ch: int = None, **kwargs):
         '''Generate a output stream'''
         audio_data = io.BytesIO()

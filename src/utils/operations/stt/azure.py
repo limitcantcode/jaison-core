@@ -12,6 +12,8 @@ class AzureSTT(STTOperation):
         super().__init__("azure")
         self.client = None
         
+        self.language: str = "en-US"
+        
     async def start(self) -> None:
         '''General setup needed to start generated'''
         await super().start()
@@ -21,6 +23,16 @@ class AzureSTT(STTOperation):
             subscription=os.getenv("AZURE_API_KEY")
         )
         
+    async def configure(self, config_d):
+        '''Configure and validate operation-specific configuration'''
+        if "language" in config_d: self.model_id = str(config_d["language"])
+
+        assert self.language is not None and len(self.language) > 0
+    
+    async def get_configuration(self):
+        '''Returns values of configurable fields'''
+        return {"language": self.language}
+
     async def _generate(self, prompt: str = None,  audio_bytes: bytes = None, sr: int = None, sw: int = None, ch: int = None, **kwargs):
         '''Generate a output stream'''
         # Setup transcriber with audio metadata
@@ -35,7 +47,7 @@ class AzureSTT(STTOperation):
         transcriber = speechsdk.transcription.ConversationTranscriber(
             speech_config=self.speech_config,
             audio_config=audio_config,
-            language=Config().azure_stt_language
+            language=self.language
         )
 
         # Setup event callbacks

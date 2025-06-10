@@ -106,3 +106,20 @@ history_length: 50
 # Kobold
 kobold_filepath: E:\\jaison-core\\models\\kobold\\koboldcpp_cu12.exe # must be absolute
 kcpps_filepath: E:\\jaison-core\\models\\kobold\\save.kcpps # must be absolute
+
+mcp:
+  servers:
+  - command: python
+    args: ["internet.py"]
+    cwd: "E:\\projects\\new-jaison\\models\\mcp\\limit_internet"
+  - command: python
+    args: ["memory.py"]
+    cwd: "E:\\projects\\new-jaison\\models\\mcp\\limit_memory"
+  llm:
+    id: kobold
+    openai_t2t_base_url: https://api.openai.com/v1/
+    openai_t2t_model: gpt-4o-mini
+    openai_t2t_temperature: 1
+    openai_t2t_top_p: 0.9
+    openai_t2t_presence_penalty: 1
+    openai_t2t_frequency_penalty: 1

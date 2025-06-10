@@ -47,6 +47,62 @@ class OperationManager:
             "filter_text": self.get_operation(OpTypes.FILTER_TEXT),
         }
         
+    async def get_configuration(
+        self,
+        op_type: OpTypes,
+        op_id: str = None
+    ):
+        '''Get configuration for a loaded operation'''
+        match op_type:
+            case OpTypes.STT:
+                if not self.stt:
+                    raise OperationUnloaded("STT")
+                elif op_id and self.stt and self.stt.op_id != op_id:
+                    raise OperationUnloaded("STT", op_id=op_id)
+                
+                return await self.stt.get_configuration()
+            case OpTypes.T2T:
+                if not self.t2t:
+                    raise OperationUnloaded("T2T")
+                elif op_id and self.t2t and self.t2t.op_id != op_id:
+                    raise OperationUnloaded("T2T", op_id=op_id)
+                
+                return await self.t2t.get_configuration()
+            case OpTypes.TTS:
+                if not self.tts:
+                    raise OperationUnloaded("TTS")
+                elif op_id and self.tts and self.tts.op_id != op_id:
+                    raise OperationUnloaded("TTS", op_id=op_id)
+                
+                return await self.tts.get_configuration()
+            case OpTypes.FILTER_AUDIO:
+                assert op_id is not None
+                
+                for op in self.filter_audio:
+                    if op.op_id == op_id:
+                        return await op.get_configuration()
+                raise OperationUnloaded("FILTER_AUDIO", op_id=op_id)
+            case OpTypes.FILTER_TEXT:
+                assert op_id is not None
+                
+                for op in self.filter_text:
+                    if op.op_id == op_id:
+                        return await op.get_configuration()
+                raise OperationUnloaded("FILTER_AUDIO", op_id=op_id)
+            case _:
+                # Should never get here if op_type is indeed OpTypes
+                raise UnknownOpType(op_type)
+        
+    async def get_configuration_loose(self,
+        loose_key: str,
+    ):
+        '''Get configuration for a loosely loaded operation'''
+        op = self.loose_loaded_ops.get(loose_key, None)
+        if op:
+            return await op.get_configuration()
+        else :
+            raise OperationUnloaded("LOOSE", op_id=loose_key)
+        
     def _loose_load_operation(
         self,
         op_type: OpTypes,
@@ -171,13 +227,17 @@ class OperationManager:
         
         await self.close_operation_all()
         
-        if config.op_stt_id: self.load_operation(OpTypes.STT, config.op_stt_id)
-        if config.op_t2t_id: self.load_operation(OpTypes.T2T, config.op_t2t_id)
-        if config.op_tts_id: self.load_operation(OpTypes.TTS, config.op_tts_id)
-        for op_id in config.op_filter_audio_id:
-            self.load_operation(OpTypes.FILTER_AUDIO, op_id)
-        for op_id in config.op_filter_text_id:
-            self.load_operation(OpTypes.FILTER_TEXT, op_id)
+        operations = Config().operations
+        for op_details in operations:
+            op_type = OpTypes(op_details['type'])
+            op_id = op_details['id']
+            await self.load_operation(op_type, op_id)
+            await self.configure(op_type, op_details)
+            
+        mcp_details = Config().mcp.get("llm", None)
+        if mcp_details and len(mcp_details) > 0:
+            await self.loose_load_operation(OpTypes.T2T, mcp_details['id'] ,"mcp")
+            await self.configure_loose("mcp", mcp_details)
         
     async def close_loose_operation(self, loose_key: str) -> None:
         if loose_key in self.loose_loaded_ops:
@@ -250,6 +310,63 @@ class OperationManager:
             await self.loose_loaded_ops[loose_key].close()
         self.loose_loaded_ops = dict()
         
+    async def configure(self,
+        op_type: OpTypes,
+        config_d: Dict[str, Any],
+        op_id: str = None
+    ):
+        '''Configure an operation that has already been loaded prior'''
+        match op_type:
+            case OpTypes.STT:
+                if not self.stt:
+                    raise OperationUnloaded("STT")
+                elif op_id and self.stt and self.stt.op_id != op_id:
+                    raise OperationUnloaded("STT", op_id=op_id)
+                
+                return await self.stt.configure(config_d)
+            case OpTypes.T2T:
+                if not self.t2t:
+                    raise OperationUnloaded("T2T")
+                elif op_id and self.t2t and self.t2t.op_id != op_id:
+                    raise OperationUnloaded("T2T", op_id=op_id)
+                
+                return await self.t2t.configure(config_d)
+            case OpTypes.TTS:
+                if not self.tts:
+                    raise OperationUnloaded("TTS")
+                elif op_id and self.tts and self.tts.op_id != op_id:
+                    raise OperationUnloaded("TTS", op_id=op_id)
+                
+                return await self.tts.configure(config_d)
+            case OpTypes.FILTER_AUDIO:
+                assert op_id is not None
+                
+                for op in self.filter_audio:
+                    if op.op_id == op_id:
+                        return await op.configure(config_d)
+                raise OperationUnloaded("FILTER_AUDIO", op_id=op_id)
+            case OpTypes.FILTER_TEXT:
+                assert op_id is not None
+                
+                for op in self.filter_text:
+                    if op.op_id == op_id:
+                        return await op.configure(config_d)
+                raise OperationUnloaded("FILTER_AUDIO", op_id=op_id)
+            case _:
+                # Should never get here if op_type is indeed OpTypes
+                raise UnknownOpType(op_type)
+        
+    async def configure_loose(self,
+        loose_key: str,
+        config_d: Dict[str, Any],
+    ):
+        '''Configure an operation that has already been loosely loaded prior'''
+        op = self.loose_loaded_ops.get(loose_key, None)
+        if op:
+            return await op.configure(config_d)
+        else :
+            raise OperationUnloaded("LOOSE", op_id=loose_key)
+        
     async def _use_filter(self, filter_list: List[Operation], filter_idx: int, chunk_in: Dict[str, Any]):
         if filter_idx == len(filter_list): yield chunk_in
         elif filter_idx < len(filter_list)-1: # Not last filter
@@ -310,6 +427,7 @@ class OperationManager:
                 raise UnknownOpType(op_type)
 
     def use_loose_operation(self, loose_key, payload):
+        '''Use an operation that has already been loosely loaded prior'''
         op = self.loose_loaded_ops.get(loose_key, None)
         if op:
             return op(payload)

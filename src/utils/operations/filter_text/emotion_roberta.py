@@ -17,6 +17,14 @@ class RobertaEmotionFilter(FilterTextOperation):
         await super().close()
         del self.classifier
         if torch.cuda.is_available(): torch.cuda.empty_cache() # clean cache on cuda
-        
+    
+    async def configure(self, config_d):
+        '''Configure and validate operation-specific configuration'''
+        return
+    
+    async def get_configuration(self):
+        '''Returns values of configurable fields'''
+        return {}
+
     async def _generate(self, content: str = None, **kwargs):
         yield {"emotion": self.classifier(content)[0][0]['label']}
