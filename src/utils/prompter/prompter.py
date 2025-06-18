@@ -22,6 +22,9 @@ class Prompter(metaclass=Singleton):
         self.name_translations: Dict[str, str] = {"old name": "new:name"}
         self.history_length: int = 50
         
+        self.tooling_prompt = ""
+        self.response_template = ""
+        
     async def configure(self, config_d: Dict[str, Any]):
         if "instruction_prompt_filename" in config_d: self.instruction_prompt_filename = str(config_d["instruction_prompt_filename"])
         if "character_prompt_filename" in config_d: self.character_prompt_filename = str(config_d["character_prompt_filename"])
@@ -44,7 +47,7 @@ class Prompter(metaclass=Singleton):
             len(self.character_prompt_filename) > 0 and 
             os.path.isfile(portable_path(os.path.join(
                 Config().PROMPT_DIR,
-                Config().PROMPT_INSTRUCTION_SUBDIR,
+                Config().PROMPT_CHARACTER_SUBDIR,
                 self.character_prompt_filename
             )))
         )
@@ -53,7 +56,7 @@ class Prompter(metaclass=Singleton):
             len(self.scene_prompt_filename) > 0 and 
             os.path.isfile(portable_path(os.path.join(
                 Config().PROMPT_DIR,
-                Config().PROMPT_INSTRUCTION_SUBDIR,
+                Config().PROMPT_SCENE_SUBDIR,
                 self.scene_prompt_filename
             )))
         )

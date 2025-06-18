@@ -187,7 +187,7 @@ Below is a list of all available contexts and their descriptions:
     def __init__(self):
         # servers are loaded at start and at no other point
         # self.client_params: List[StdioServerParameters] = list()
-        self.clients: Dict[str, MCPClient] = list()
+        self.clients: Dict[str, MCPClient] = dict()
         
     async def start(self):
         config = Config()
@@ -203,9 +203,9 @@ Below is a list of all available contexts and their descriptions:
             env=os.environ,  # Optional environment variables
             cwd=mcp_detail['cwd']
         )
-        client = MCPClient(params)
+        client = MCPClient(mcp_detail["id"], params)
         await client.start()
-        self.clients[mcp_detail['mcp_id']] = client
+        self.clients[mcp_detail['id']] = client
         
     async def close_mcp(self, mcp_id: str):
         target = self.clients.get(mcp_id, None)
@@ -230,53 +230,59 @@ Below is a list of all available contexts and their descriptions:
     async def use(self, tooling_response: str):
         tool_calls = tooling_response.split("\n")
         
-        parsed_tool_calls = list()
-        for tool_call in tool_calls:
-            match = self.pattern.search(tool_call)
-            name_token = tool_call[:match.span()[1]]
-            tool_call = tool_call[match.span()[1]:].rstrip(" ")
-            input_json = json.loads(tool_call) if len(tool_call) else dict()
-            
-            parsed_tool_calls.append({
-                "name": name_token,
-                "input": input_json
-            })
-        
         result_list = list()
-        for tool in parsed_tool_calls:
-            tool_name = tool['name'].lstrip("<").rstrip(">")
+        
+        for tool_call in tool_calls:
             result = None
-            for client in self.clients:
-                if tool_name in client.tool_names:
-                    result = await client.session.call_tool(tool_name, arguments=tool['input'])
-                    result = parse_tool_result(result.content[0])
-                    break
-                elif tool_name in client.resource_names:
-                    uri = None
-                    for resource in client.resources:
-                        if resource.name == tool_name:
-                            uri = resource.uri
-                            break
-                    result = await client.session.read_resource(uri)
-                    result = parse_tool_result(result.contents[0])
-                    break
-                elif tool_name in client.template_names:
-                    uri_template = None
-                    for templates in client.templates:
-                        if templates.name == tool_name:
-                            uri_template = templates.uriTemplate
-                            break
-                    for key in tool['input']:
-                        if isinstance(tool['input'][key], str):
-                            urllib.parse.quote(tool['input'][key])
-                            tool['input'][key] = urllib.parse.quote(tool['input'][key])
-                    logging.debug("Calling resource: {} {} {}".format(tool_name, tool['input'], uri_template))
-                    logging.debug(uri_template.format(**tool['input']))
-                    result = await client.session.read_resource(
-                        uri_template.format(**tool['input'])
-                    )
-                    result = parse_tool_result(result.contents[0])
-                    break
+            tool_name = ""
+            try:
+                match = self.pattern.search(tool_call)
+                if match is None: continue
+                name_token = tool_call[:match.span()[1]]
+                tool_name = name_token.lstrip("<").rstrip(">")
+                if name_token == "no_op": continue
+                tool_call = tool_call[match.span()[1]:].rstrip(" ")
+                input_json = json.loads(tool_call) if len(tool_call) else dict()
+                
+                tool = {
+                    "name": name_token,
+                    "input": input_json
+                }
+                
+                for client in self.clients:
+                    if tool_name in self.clients[client].tool_names:
+                        result = await self.clients[client].session.call_tool(tool_name, arguments=tool['input'])
+                        result = parse_tool_result(result.content[0])
+                        break
+                    elif tool_name in self.clients[client].resource_names:
+                        uri = None
+                        for resource in self.clients[client].resources:
+                            if resource.name == tool_name:
+                                uri = resource.uri
+                                break
+                        result = await self.clients[client].session.read_resource(uri)
+                        result = parse_tool_result(result.contents[0])
+                        break
+                    elif tool_name in self.clients[client].template_names:
+                        uri_template = None
+                        for templates in self.clients[client].templates:
+                            if templates.name == tool_name:
+                                uri_template = templates.uriTemplate
+                                break
+                        for key in tool['input']:
+                            if isinstance(tool['input'][key], str):
+                                urllib.parse.quote(tool['input'][key])
+                                tool['input'][key] = urllib.parse.quote(tool['input'][key])
+                        logging.debug("Calling resource: {} {} {}".format(tool_name, tool['input'], uri_template))
+                        logging.debug(uri_template.format(**tool['input']))
+                        result = await self.clients[client].session.read_resource(
+                            uri_template.format(**tool['input'])
+                        )
+                        result = parse_tool_result(result.contents[0])
+                        break
+            except Exception as err:
+                logging.critical("Error occured during MCP", exc_info=True)
+                result = "Attempt to use MCP tool failed due to {}".format(str(err))
             if result:
                 result_list.append((tool_name, result))
         

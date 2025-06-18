@@ -1,3 +1,3 @@
-from .manager import OpTypes, OperationManager
+from .manager import OpRoles, OperationManager
 from .base import Operation, StartActiveError, CloseInactiveError, UsedInactiveError
-from .error import UnknownOpType, UnknownOpID, DuplicateFilter, OperationUnloaded
+from .error import UnknownOpType, UnknownOpRole, UnknownOpID, DuplicateFilter, OperationUnloaded

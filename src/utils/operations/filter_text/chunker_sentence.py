@@ -6,7 +6,7 @@ from .base import FilterTextOperation
 
 class SentenceChunkerFilter(FilterTextOperation):
     def __init__(self):
-        super().__init__("sentence_chunker")
+        super().__init__("chunker_sentence")
         self.nlp = None
         
     async def start(self):

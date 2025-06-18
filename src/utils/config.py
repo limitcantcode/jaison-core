@@ -22,27 +22,29 @@ class Config(metaclass=Singleton):
     # Defaults
     operations: list = list()
     
+    # Prompter
+    PROMPT_DIR: str = portable_path(os.path.join(os.getcwd(), "prompts"))
+    PROMPT_INSTRUCTION_SUBDIR: str = "instructions"
+    PROMPT_CHARACTER_SUBDIR: str = "characters"
+    PROMPT_SCENE_SUBDIR: str = "scenes"
+    
+    prompter: dict = dict()
+    history_filepath: str = portable_path(os.path.join(os.getcwd(), "output", "history.txt")) # debug
+
+    # MCP
+    MCP_DIR: str = portable_path(os.path.join(os.getcwd(), "models", "mcp"))
+    mcp: list = list()
+
+    # Kobold
+    kobold_filepath: str = None
+    kcpps_filepath: str = None
+
     # Shared
     stt_working_src: str = portable_path(os.path.join(WORKING_DIR,'stt_src.wav'))
     ffmpeg_working_src: str = portable_path(os.path.join(WORKING_DIR,'ffmpeg_src.wav'))
     ffmpeg_working_dest: str = portable_path(os.path.join(WORKING_DIR,'ffmpeg_dest.wav'))
     spacy_model: str = None
     
-    # Prompter
-    PROMPT_DIR: str = portable_path(os.path.join(os.getcwd(), "prompts"))
-    PROMPT_INSTRUCTION_SUBDIR: str = "instructions"
-    PROMPT_CHARACTER_SUBDIR: str = "characters"
-    PROMPT_SCENE_SUBDIR: str = "scenes"
-
-    # MCP
-    MCP_DIR: str = portable_path(os.path.join(os.getcwd(), "models", "mcp"))
-    mcp: list = list()
-    mcp_llm: str = None
-
-    # Kobold
-    kobold_filepath: str = None
-    kcpps_filepath: str = None
-
     def __init__(self):
         # Every attribute must be typed for validation
         if args.config is not None: self.load_from_name(args.config)

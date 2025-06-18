@@ -6,7 +6,7 @@ class KoalaModerationFilter(FilterTextOperation):
     GOOD_LABEL = "OK"
     
     def __init__(self):
-        super().__init__("koala_mod")
+        super().__init__("mod_koala")
         self.model, self.tokenizer = None, None
         
     async def start(self):
