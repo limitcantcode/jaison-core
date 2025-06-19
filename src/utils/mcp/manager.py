@@ -17,11 +17,6 @@ from mcp.types import (
 
 from utils.config import Config
 
-from openai import OpenAI
-
-llm_client = OpenAI()
-
-    
 def parse_tool_result(result):
     if isinstance(result, TextContent):
         return result.text
