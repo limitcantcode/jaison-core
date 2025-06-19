@@ -1,5 +1,7 @@
 import wave
 from rvc.modules.vc.modules import VC
+import torch
+import fairseq
 
 from utils.config import Config
 
@@ -24,6 +26,8 @@ class RVCFilter(FilterAudioOperation):
         self.resample_sr: int  = 0
         self.rms_mix_rate: float = 0
         self.protect: float = 0.5
+        
+        torch.serialization.add_safe_globals([fairseq.data.dictionary.Dictionary])
         
     async def start(self):
         await super().start()
@@ -68,7 +72,7 @@ class RVCFilter(FilterAudioOperation):
             f.setnchannels(ch)
             f.writeframes(audio_bytes)
             
-        tgt_sr, audio_opt, times, _ = self.vc.vc_inference(
+        tgt_sr, audio_opt, times, _ = self.vc.vc_single(
             1,
             Config().ffmpeg_working_src,
             f0_up_key=self.f0_up_key,
