@@ -4,7 +4,7 @@ import uuid
 import base64
 import datetime
 from typing import Dict, Coroutine, List, Any, Tuple
-from enum import StrEnum
+from enum import Enum
 
 from utils.helpers.singleton import Singleton
 from utils.helpers.iterable import chunk_buffer
@@ -34,7 +34,7 @@ class NonexistantJobException(Exception):
 class UnknownJobType(Exception):
     pass
 
-class JobType(StrEnum):
+class JobType(Enum):
     RESPONSE = 'response'
     CONTEXT_CLEAR = 'context_clear'
     CONTEXT_CONFIGURE = "context_configure"
@@ -103,7 +103,7 @@ class JAIson(metaclass=Singleton):
     ## Job Queueing #########################
     
     # Add async task to Queue to be ran in the order it was requested
-    async def create_job(self, job_type: StrEnum, **kwargs):
+    async def create_job(self, job_type: Enum, **kwargs):
         new_job_id = str(uuid.uuid4())
         
         job_type_enum = JobType(job_type)
