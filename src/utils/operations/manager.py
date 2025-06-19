@@ -84,6 +84,9 @@ def load_op(op_type: OpTypes, op_id: str):
             elif op_id == "kobold":
                 from .tts.kobold import KoboldTTS
                 return KoboldTTS()
+            elif op_id == "melo":
+                from .tts.melo import MeloTTS
+                return MeloTTS()
             elif op_id == "pytts":
                 from .tts.pytts import PyttsTTS
                 return PyttsTTS()
