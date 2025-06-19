@@ -38,6 +38,9 @@ class Config(metaclass=Singleton):
     # Kobold
     kobold_filepath: str = None
     kcpps_filepath: str = None
+    
+    # Melo
+    MELO_DIR: str = portable_path(os.path.join(os.getcwd(), "models", "melotts"))
 
     # Shared
     stt_working_src: str = portable_path(os.path.join(WORKING_DIR,'stt_src.wav'))
