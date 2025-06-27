@@ -1,2 +1,2 @@
-from .gemini import GeminiSTTOperation
-__all__ = ['GeminiSTTOperation']
+from .gemini import GeminiSTT
+__all__ = ['GeminiSTT']
