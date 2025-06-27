@@ -71,6 +71,9 @@ class OperationManager:
                 elif op_id == "kobold":
                     from .stt.kobold import KoboldSTT
                     return KoboldSTT()
+                elif op_id == "gemini"
+                    from .stt.gemini import GeminiSTT
+                    return GeminiSTT()
                 else:
                     raise UnknownOpID("STT", op_id)
             case OpTypes.T2T:
@@ -80,6 +83,9 @@ class OperationManager:
                 elif op_id == "kobold":
                     from .t2t.kobold import KoboldT2T
                     return KoboldT2T()
+                elif op_id == "gemini":
+                    from .t2t.gemini import GeminiT2T
+                    return GeminiT2T()
                 else:
                     raise UnknownOpID("T2T", op_id)
             case OpTypes.TTS:
