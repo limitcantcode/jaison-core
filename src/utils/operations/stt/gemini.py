@@ -6,7 +6,7 @@ from utils.config import Config
 import io
 import os
 
-class GeminiSTTOperation(STTOperation):
+class GeminiSTT(STTOperation):
     def __init__(self):
         super().__init__("gemini")
         self.api_key = os.environ.get("GEMINI_API_KEY")
