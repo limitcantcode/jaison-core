@@ -6,7 +6,7 @@ from utils.config import Config
 import json
 import os
 
-class GeminiT2TOperation(T2TOperation):
+class GeminiT2T(T2TOperation):
 
     def __init__(self):
         super().__init__("gemini")
