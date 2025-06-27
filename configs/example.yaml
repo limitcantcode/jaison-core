@@ -9,15 +9,19 @@ operations:
 #   id: fish
 # - type: stt
 #   id: kobold
+# - type: stt
+#   id: openai
 - type: stt
-  id: openai
-  
+  id: gemini
   # T2T
 # - type: t2t
 #   id: kobold
+# - type: t2t
+#   id: openai
 - type: t2t
-  id: openai
+  id: gemini
 
+  
   # Text filters
 - type: filter_text
   id: filter_clean
