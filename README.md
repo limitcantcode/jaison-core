@@ -33,10 +33,10 @@ This software uses libraries from the FFmpeg project under the LGPLv2.1
 
 ## Key Features
 
-- Configurable AI persona that integrates with applications for general interaction and streaming
-- Text and talk with AI persona in real-time
-- Support for various services and local models
-- Support for custom contexts
+- Realtime promptable AI personality with text and speech input
+- Support for MCP
+- REST API and websocket server for building applications on top of this server
+- Options to run fully local
 
 ## Official Applications
 
@@ -84,6 +84,7 @@ python -m unidic download
 > 3. Delete the version under package `torch`
 
 > If on Windows, please enable [Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development)
+
 <hr />
 
 Install [PyTorch 2.7.1](https://pytorch.org/get-started/previous-versions/) with the right integration. Example below for computers with RTX graphics card.

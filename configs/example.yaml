@@ -1,25 +1,24 @@
 # Enabled operations
 # Uncomment the ones you want to use by default
-# Only one of STT, T2T, and TTS each
 operations:
 # STT
-# - type: stt
+# - role: stt
 #   id: azure
 #   azure_stt_language: en-US # https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support?tabs=stt
-# - type: stt
+# - role: stt
 #   id: fish
-# - type: stt
+# - role: stt
 #   id: kobold
 #   kobold_stt_suppress_non_speech: true
 #   kobold_stt_langcode: en
-- type: stt
+- role: stt
   id: openai # Openai STT https://platform.openai.com/docs/guides/speech-to-text
   openai_stt_base_url: https://api.openai.com/v1/
   openai_stt_model: gpt-4o-transcribe
   openai_stt_language: en # https://github.com/openai/whisper/blob/main/whisper/tokenizer.py
   
   # T2T
-# - type: t2t
+# - role: t2t
 #   id: kobold
 #   kobold_t2t_max_context_length: 2048
 #   kobold_t2t_max_length: 100
@@ -33,7 +32,7 @@ operations:
 #   kobold_t2t_top_k: 100
 #   kobold_t2t_top_p: 0.9
 #   kobold_t2t_typical: 1
-- type: t2t
+- role: t2t
   id: openai
   openai_t2t_base_url: https://api.openai.com/v1/
   openai_t2t_model: gpt-4o
@@ -43,44 +42,54 @@ operations:
   openai_t2t_frequency_penalty: 1
 
   # Text filters
-- type: filter_text
+- role: filter_text
   id: filter_clean
-- type: filter_text
+- role: filter_text
   id: emotion_roberta
-- type: filter_text
+- role: filter_text
   id: mod_koala
-- type: filter_text
-  spacy_model: en_core_web_sm
+- role: filter_text
   id: chunker_sentence
 
   # TTS
-# - type: tts
+# - role: tts
 #   id: azure
 #   azure_ttsg_voice: "en-US-AshleyNeural" # https://speech.microsoft.com/portal/voicegallery
-# - type: tts
+# - role: tts
 #   id: fish
 #   fish_model_id: c9198512a4164a18b11a3bf96e5c668f
 #   fish_model_backend: speech-1.6
 #   fish_normalize: true
 #   fish_latency: normal
-# - type: tts
+# - role: tts
 #   id: kobold
 #   kobold_tts_voice: kobo
-- type: tts
+- role: tts
   id: openai # OpenAI TTSG https://platform.openai.com/docs/guides/text-to-speech
   openai_ttsg_base_url: https://api.openai.com/v1/
   openai_ttsg_voice: nova
   openai_ttsg_model: tts-1
-# - type: tts
+# - role: tts
 #   id: pytts
 #   synth_ttsg_voice_name: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_MS_EN-US_ZIRA_11.0'
 #   synth_ttsg_gender: female
+# - role: tts
+#   id: melo
+#   config_filepath: null
+#   model_filepath: null
+#   speaker_id: EN-Default
+#   device: cuda
+#   language: EN
+#   sdp_ratio: 0.8
+#   noise_scale: 0.6
+#   noise_scale_w: 0.8
+#   speed: 1.0
 
   # Audio filters
-# - type: filter_audio
+# - role: filter_audio
 #   id: pitch
 #   pitch_amount: 0
-# - type: filter_audio
+# - role: filter_audio
 #   id: rvc
 #   rvc_voice: my-voice-model
 #   rvc_f0_up_key: 0
@@ -93,33 +102,43 @@ operations:
 #   rvc_rms_mix_rate: 0
 #   rvc_protect: 0.5
 
-# Prompter
-instruction_prompt_filename: 'example.txt'
-character_prompt_filename: 'example.txt'
-scene_prompt_filename: 'example.txt'
+  # MCP LLM
+- role: mcp
+  id: openai
+  base_url: https://api.openai.com/v1/
+  model: gpt-4o
+  temperature: 0.25
+  top_p: 0.9
+  presence_penalty: 0.2
+  frequency_penalty: 0.2
 
-character_name: "J.A.I.son"
-name_translations:
-  "old name": "new name"
-history_length: 50
+  # Embedding model
+- role: embedding
+  id: openai
+  base_url: https://api.openai.com/v1/
+  model: text-embedding-3-small
+
+# Connect MCP servers, example commented
+mcp:
+# - id: example_server
+#   command: python
+#   args: ["example_mcp_server.py"]
+#   cwd: "path/to/server/directory"
+
+# Prompter
+prompter:
+  instruction_prompt_filename: 'example.txt'
+  character_prompt_filename: 'example.txt'
+  scene_prompt_filename: 'example.txt'
+
+  character_name: "J.A.I.son"
+  name_translations:
+    "old name": "new name"
+  history_length: 20
 
 # Kobold
 kobold_filepath: E:\\jaison-core\\models\\kobold\\koboldcpp_cu12.exe # must be absolute
 kcpps_filepath: E:\\jaison-core\\models\\kobold\\save.kcpps # must be absolute
 
-mcp:
-  servers:
-  - command: python
-    args: ["internet.py"]
-    cwd: "E:\\projects\\new-jaison\\models\\mcp\\limit_internet"
-  - command: python
-    args: ["memory.py"]
-    cwd: "E:\\projects\\new-jaison\\models\\mcp\\limit_memory"
-  llm:
-    id: kobold
-    openai_t2t_base_url: https://api.openai.com/v1/
-    openai_t2t_model: gpt-4o-mini
-    openai_t2t_temperature: 1
-    openai_t2t_top_p: 0.9
-    openai_t2t_presence_penalty: 1
-    openai_t2t_frequency_penalty: 1
+# Spacy NLP
+spacy_model: en_core_web_sm

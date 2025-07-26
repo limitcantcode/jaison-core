@@ -440,7 +440,7 @@ paths:
                     properties:
                       role:
                         type: string
-                        enum: ['stt', 'mcp', 't2t', 'tts', 'filter_audio', 'filter_text']
+                        enum: ['stt', 'mcp', 't2t', 'tts', 'filter_audio', 'filter_text', 'embedding']
                         description: Operation role to load
                       id:
                         type: string
@@ -471,10 +471,10 @@ paths:
                 - type
                 - payload
               properties:
-                ole:
+                role:
                   type: string
-                  enum: ['stt', 'mcp', 't2t', 'tts', 'filter_audio', 'filter_text']
-                  description: Operation tyrolespe to use
+                  enum: ['stt', 'mcp', 't2t', 'tts', 'filter_audio', 'filter_text', 'embedding']
+                  description: Operation role to use
                 id:
                   type: string
                   description: Specific operation under role's type to use. Defaults to already loaded operation.
@@ -512,9 +512,9 @@ paths:
                       - role
                       - id
                     properties:
-                      type:
+                      role:
                         type: string
-                        enum: ['stt', 'mcp', 't2t', 'tts', 'filter_audio', 'filter_text']
+                        enum: ['stt', 'mcp', 't2t', 'tts', 'filter_audio', 'filter_text', 'embedding']
                         description: Operation role to load
                       id:
                         type: string
@@ -563,7 +563,7 @@ paths:
                     properties:
                       role:
                         type: string
-                        enum: ['stt', 'mcp', 't2t', 'tts', 'filter_audio', 'filter_text']
+                        enum: ['stt', 'mcp', 't2t', 'tts', 'filter_audio', 'filter_text', 'embedding']
                         description: Operation role to unload
                       id:
                         type: string
