@@ -16,6 +16,7 @@ from mcp.types import (
 )
 
 from utils.config import Config
+from utils.operations import OperationManager, OpRoles
 
 def parse_tool_result(result):
     if isinstance(result, TextContent):
@@ -112,10 +113,9 @@ class MCPClient:
         self.session = ClientSession(
             self.server_read,
             self.server_write,
-            read_timeout_seconds=datetime.timedelta(seconds=5),
-            # sampling_callback=handle_sampling_message
+            read_timeout_seconds=datetime.timedelta(seconds=10),
+            sampling_callback=self.handle_sampling_message
         )
-        
         
         logging.debug("initializing session")
         await self.session.__aenter__()
@@ -155,6 +155,66 @@ class MCPClient:
             "resources": self.resources,
             "templates": self.templates
         }
+    
+    async def handle_sampling_message(
+        self,
+        ctx,
+        message: types.CreateMessageRequestParams
+    ) -> types.CreateMessageResult:
+        try:
+            logging.critical("IN SAMPLERS")
+            metadata = message.metadata or dict()
+            sample_type = metadata.get("sample_type", "t2t")
+            logging.critical("GOD SAMPLE TYPE {}".format(sample_type))
+            logging.critical("{}".format(metadata))
+            logging.critical("{}".format(message.systemPrompt))
+            if sample_type == "t2t":
+                logging.critical("{}".format(message.messages[0].content.text ))
+                response_stream = OperationManager().use_operation(
+                    OpRoles.MCP,
+                    {
+                        "system_prompt": message.systemPrompt,
+                        "user_prompt": message.messages[0].content.text 
+                    }
+                )
+
+                response = ""
+                async for chunk_out in response_stream:
+                    response += chunk_out["content"]
+
+                return types.CreateMessageResult(
+                    role="assistant",
+                    content=types.TextContent(
+                        type="text",
+                        text=response,
+                    ),
+                    model="mcp",
+                    stopReason="endTurn",
+                )
+            elif sample_type == "embedding":
+                response_stream = OperationManager().use_operation(
+                    OpRoles.EMBEDDING,
+                    {
+                        "content": message.systemPrompt[:10000],
+                    }
+                )
+
+                response = ""
+                async for chunk_out in response_stream:
+                    response += chunk_out["embedding"]
+
+                return types.CreateMessageResult(
+                    role="assistant",
+                    content=types.TextContent(
+                        type="text",
+                        text=response,
+                    ),
+                    model="embedding",
+                    stopReason="endTurn",
+                )
+        except Exception as err:
+            logging.error("MCP sampler encountered an issue", exc_info=True)
+            return ""
         
 class MCPManager:
     tooling_prompt = """
