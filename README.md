@@ -33,10 +33,10 @@ This software uses libraries from the FFmpeg project under the LGPLv2.1
 
 ## Key Features
 
-- Configurable AI persona that integrates with applications for general interaction and streaming
-- Text and talk with AI persona in real-time
-- Support for various services and local models
-- Support for custom contexts
+- Realtime promptable AI personality with text and speech input
+- Support for MCP
+- REST API and websocket server for building applications on top of this server
+- Options to run fully local
 
 ## Official Applications
 
@@ -53,30 +53,46 @@ Feel free to build and share your own! See the [Developer Guide](#developer-guid
 
 ### Setup and install dependencies
 
-Create and enter a virtual environment with specific Python and pip version.
+Create and enter a virtual environment with Python ^3.10 and pip 24.0.
+
+For example, using conda:
 ```bash
-conda create -n jaison-core python=3.12 pip=24.0 -y
+conda create -n jaison-core python=3.10 pip=24.0 -y
 conda activate jaison-core
 ```
 
 <hr />
 
-Install [PyTorch 2.5.1](https://pytorch.org/get-started/previous-versions/) with the right integration. Example below for computers with RTX graphics card.
+Install dependencies.
+
 ```bash
-conda install pytorch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 pytorch-cuda=12.4 -c pytorch -c nvidia
+# Inside project root where this README is located
+pip install -r requirements.txt
+pip install --no-deps -r requirements.no_deps.txt
+python -m spacy download en_core_web_sm
+python install.py
+python -m unidic download
 ```
 
-> For NVidia cards, ensure you have the latest drivers and [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit)
+
+> Dealing with duplicate `libiomp5md.dll`.
+> 
+> It might not be necessary, but in case you encounter this error when running:
+> 
+> 1. Go to environment directory (where conda stores installed packages)
+> 2. Search for `libiomp5md.dll`
+> 3. Delete the version under package `torch`
+
+> If on Windows, please enable [Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development)
 
 <hr />
 
-Install remaining dependencies.
-
-If on Windows, please enable [Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development)
+Install [PyTorch 2.7.1](https://pytorch.org/get-started/previous-versions/) with the right integration. Example below for computers with RTX graphics card.
 ```bash
-pip install .
-python -m spacy download en_core_web_sm
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
 ```
+
+> For NVidia cards, ensure you have the latest drivers and [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit)
 
 <hr />
 
@@ -106,17 +122,10 @@ For immediate setup using the example configuration, just provide the OpenAI API
 
 Overall configuration can be done in `configs/` and an example with all configurable options is located in `configs/example.yaml`. See [Development guide](DEVELOPER.md) for details on configuration.
 
-<hr />
-
-Dealing with duplicate `libiomp5md.dll`.
-
-It might not be necessary, but in case you encounter this error when running:
-
-1. Go to environment directory (where conda stores installed packages)
-2. Search for `libiomp5md.dll`
-3. Delete the version under package `torch`
 
 ## How To Use
+
+While using the virtual environment with the installation.
 
 ```bash
 python ./src/main.py --help

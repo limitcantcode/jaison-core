@@ -1,21 +1,18 @@
 '''
-TTS Operations (at minimum) require the following fields for input chunks:
-- content: (str) Text to generate speech for
+Embedding Operations (at minimum) require the following fields for input chunks:
+- content: (str) text to be embedded
 
 Adds to chunk:
-- audio_bytes: (bytes) pcm audio data
-- sr: (int) sample rate
-- sw: (int) sample width
-- ch: (int) audio channels
+- embedding: (str)  UTF-8 string containing base64 bytes
 '''
 
 from typing import Dict, Any, AsyncGenerator
 
 from ..base import Operation
 
-class TTSOperation(Operation):
+class EmbeddingOperation(Operation):
     def __init__(self, op_id: str):
-        super().__init__("TTS", op_id)
+        super().__init__("EMBEDDING", op_id)
         
     ## TO BE OVERRIDEN ####
     async def start(self) -> None:
@@ -50,8 +47,5 @@ class TTSOperation(Operation):
         raise NotImplementedError
     
         yield {
-            "audio_bytes": b'',
-            "sr": 123,
-            "sw": 123,
-            "ch": 123
+            "embedding": b""
         }

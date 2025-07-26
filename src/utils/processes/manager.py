@@ -6,13 +6,13 @@ For example: Kobold server shared between STT and T2T operation implementation
 '''
 
 import logging
-from enum import StrEnum
+from enum import Enum
 
 from utils.helpers.singleton import Singleton
 
 from .error import UnknownProcessError, UnloadedProcessError
 
-class ProcessType(StrEnum):
+class ProcessType(Enum):
     KOBOLD = "kobold"
 
 class ProcessManager(metaclass=Singleton):

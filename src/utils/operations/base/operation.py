@@ -38,6 +38,14 @@ class Operation:
         self.active = False
     
     ## TO BE IMPLEMENTED ####
+    async def configure(self, config_d: Dict[str, Any]):
+        '''Configure and validate operation-specific configuration'''
+        raise NotImplementedError
+    
+    async def get_configuration(self) -> Dict[str, Any]:
+        '''Returns values of configurable fields'''
+        raise NotImplementedError
+    
     async def _parse_chunk(self, chunk_in: Dict[str, Any]) -> Dict[str, Any]:
         '''Extract information from input for use in _generate'''
         raise NotImplementedError

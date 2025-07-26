@@ -4,7 +4,7 @@ import uuid
 import base64
 import datetime
 from typing import Dict, Coroutine, List, Any, Tuple
-from enum import StrEnum
+from enum import Enum
 
 from utils.helpers.singleton import Singleton
 from utils.helpers.iterable import chunk_buffer
@@ -15,9 +15,10 @@ from utils.prompter import Prompter
 from utils.processes import ProcessManager
 from utils.operations import (
     OperationManager,
-    OpTypes,
+    OpRoles,
     Operation,
     UnknownOpType,
+    UnknownOpRole,
     UnknownOpID,
     DuplicateFilter,
     OperationUnloaded,
@@ -25,6 +26,7 @@ from utils.operations import (
     CloseInactiveError,
     UsedInactiveError
 )
+from utils.mcp import MCPManager
 
 class NonexistantJobException(Exception):
     pass
@@ -32,9 +34,10 @@ class NonexistantJobException(Exception):
 class UnknownJobType(Exception):
     pass
 
-class JobType(StrEnum):
+class JobType(Enum):
     RESPONSE = 'response'
     CONTEXT_CLEAR = 'context_clear'
+    CONTEXT_CONFIGURE = "context_configure"
     CONTEXT_REQUEST_ADD = 'context_request_add'
     CONTEXT_CONVERSATION_ADD_TEXT = 'context_conversation_add_text'
     CONTEXT_CONVERSATION_ADD_AUDIO = 'context_conversation_add_audio'
@@ -44,6 +47,7 @@ class JobType(StrEnum):
     OPERATION_LOAD = 'operation_load'
     OPERATION_CONFIG_RELOAD = "operation_reload_from_config"
     OPERATION_UNLOAD = 'operation_unload'
+    OPERATION_CONFIGURE = 'operation_configure'
     OPERATION_USE = 'operation_use'
     CONFIG_LOAD = 'config_load'
     CONFIG_UPDATE = 'config_update'
@@ -66,6 +70,7 @@ class JAIson(metaclass=Singleton):
         self.prompter: Prompter = None
         self.process_manager: ProcessManager = None
         self.op_manager: OperationManager = None
+        self.mcp_manager: MCPManager = None
     
     async def start(self):
         logging.info("Starting JAIson application layer.")
@@ -77,23 +82,28 @@ class JAIson(metaclass=Singleton):
         self.event_server = ObserverServer()
         
         self.prompter = Prompter()
+        await self.prompter.configure(Config().prompter)
         
         self.process_manager = ProcessManager()
         self.op_manager = OperationManager()
-        await self.load_operations('start',JobType.OPERATION_LOAD,ops=Config().operations)
+        self.mcp_manager = MCPManager()
+        await self.mcp_manager.start()
+        self.prompter.add_mcp_usage_prompt(self.mcp_manager.get_tooling_prompt(), self.mcp_manager.get_response_prompt())
+        await self.op_manager.load_operations_from_config()
         await self.process_manager.reload()
         logging.info("JAIson application layer has started.")
         
     async def stop(self):
         logging.info("Shutting down JAIson application layer")
         await self.op_manager.close_operation_all()
+        await self.mcp_manager.close()
         await self.process_manager.unload()
         logging.info("JAIson application layer has been shut down")
     
     ## Job Queueing #########################
     
     # Add async task to Queue to be ran in the order it was requested
-    async def create_job(self, job_type: StrEnum, **kwargs):
+    async def create_job(self, job_type: Enum, **kwargs):
         new_job_id = str(uuid.uuid4())
         
         job_type_enum = JobType(job_type)
@@ -104,12 +114,14 @@ class JAIson(metaclass=Singleton):
         elif job_type_enum == JobType.CONTEXT_CONVERSATION_ADD_TEXT: coro = self.append_conversation_context_text(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.CONTEXT_CONVERSATION_ADD_AUDIO: coro = self.append_conversation_context_audio(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.CONTEXT_CLEAR: coro = self.clear_context(new_job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONTEXT_CONFIGURE: coro = self.configure_context(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.CONTEXT_CUSTOM_REGISTER: coro = self.register_custom_context(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.CONTEXT_CUSTOM_REMOVE: coro = self.remove_custom_context(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.CONTEXT_CUSTOM_ADD: coro = self.add_custom_context(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.OPERATION_LOAD: coro = self.load_operations(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.OPERATION_CONFIG_RELOAD: coro = self.load_operations_from_config(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.OPERATION_UNLOAD: coro = self.unload_operations(new_job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.OPERATION_CONFIGURE: coro = self.configure_operations(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.OPERATION_USE: coro = self.use_operation(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.CONFIG_LOAD: coro = self.load_config(new_job_id, job_type_enum, **kwargs)
         elif job_type_enum == JobType.CONFIG_UPDATE: coro = self.update_config(new_job_id, job_type_enum, **kwargs)
@@ -196,7 +208,6 @@ class JAIson(metaclass=Singleton):
                 
         return op_d
                 
-
     def get_current_config(self):
         return Config().get_config_dict()
             
@@ -214,17 +225,34 @@ class JAIson(metaclass=Singleton):
     ):
         
         # Adjust flags based on loaded ops
-        if not self.op_manager.get_operation(OpTypes.TTS): include_audio = False
+        if not self.op_manager.get_operation(OpRoles.TTS): include_audio = False
         
         # Broadcast start conditions
         await self._handle_broadcast_start(job_id, job_type, {"include_audio": include_audio})
-        
+    
+        # Handle MCP stuff
+        if self.op_manager.get_operation(OpRoles.MCP):
+            self.prompter.add_mcp_usage_prompt(self.mcp_manager.get_tooling_prompt(), self.mcp_manager.get_response_prompt())
+            mcp_sys_prompt, mcp_user_prompt = self.prompter.generate_mcp_system_context(), self.prompter.generate_mcp_user_context()
+            tooling_response = ""
+            async for chunk in self.op_manager.use_operation(OpRoles.MCP, {"system_prompt": mcp_sys_prompt, "user_prompt": mcp_user_prompt}):
+                tooling_response += chunk['content']
+                
+            logging.critical("Called MCP with: {} {}".format(mcp_sys_prompt, mcp_user_prompt)) # debug
+            logging.critical("Got tooling response: {}".format(tooling_response)) # debug
+            
+            ## Perform MCP tool calls
+            tool_call_results = await self.mcp_manager.use(tooling_response)
+            
+            ## Add results and usage prompt to prompter
+            self.prompter.add_mcp_results(tool_call_results)
+
         # Get prompts
         system_prompt, user_prompt = self.prompter.get_sys_prompt(), self.prompter.get_user_prompt()
         
         # Appy t2t
         t2t_result = ""
-        async for chunk_out in self.op_manager.use_operation(OpTypes.T2T, {"system_prompt": system_prompt, "user_prompt": user_prompt}):
+        async for chunk_out in self.op_manager.use_operation(OpRoles.T2T, {"system_prompt": system_prompt, "user_prompt": user_prompt}):
             t2t_result += chunk_out["content"]
         
         # Broadcast raw results
@@ -233,14 +261,14 @@ class JAIson(metaclass=Singleton):
         await self._handle_broadcast_event(job_id, job_type, {"raw_content": t2t_result})
         
         # Apply text filters
-        async for text_chunk_out in self.op_manager.use_operation(OpTypes.FILTER_TEXT, {"content": t2t_result}):
-            self.prompter.add_chat(Config().character_name, text_chunk_out['content'])
+        async for text_chunk_out in self.op_manager.use_operation(OpRoles.FILTER_TEXT, {"content": t2t_result}):
+            self.prompter.add_chat(self.prompter.character_name, text_chunk_out['content'])
             await self._handle_broadcast_event(job_id, job_type, text_chunk_out)
             if include_audio:
                 # Apply tts
-                async for audio_chunk_out in self.op_manager.use_operation(OpTypes.TTS, text_chunk_out):
+                async for audio_chunk_out in self.op_manager.use_operation(OpRoles.TTS, text_chunk_out):
                     # Apply tts filters
-                    async for final_audio_chunk_out in self.op_manager.use_operation(OpTypes.FILTER_AUDIO, audio_chunk_out):
+                    async for final_audio_chunk_out in self.op_manager.use_operation(OpRoles.FILTER_AUDIO, audio_chunk_out):
                         # Broadcast results (only the audio data for now)
                         for ws_chunk in chunk_buffer(base64.b64encode(final_audio_chunk_out['audio_bytes']).decode('utf-8')):
                             await self._handle_broadcast_event(job_id, job_type, {
@@ -264,6 +292,38 @@ class JAIson(metaclass=Singleton):
         self.prompter.clear_history()
         await self._handle_broadcast_success(job_id, job_type)
         
+    async def configure_context(
+        self,
+        job_id: str,
+        job_type: JobType,
+        name_translations: Dict[str, str] = None,
+        character_name: str = None,
+        history_length: int = None,
+        instruction_prompt_filename: str = None,
+        character_prompt_filename: str = None,
+        scene_prompt_filename: str = None
+    ):
+        await self._handle_broadcast_start(job_id, job_type, {
+            "name_translations": name_translations,
+            "character_name": character_name,
+            "history_length": history_length,
+            "instruction_prompt_filename": instruction_prompt_filename,
+            "character_prompt_filename": character_prompt_filename,
+            "scene_prompt_filename": scene_prompt_filename
+        })
+        payload = dict()
+        if name_translations: payload |= {"name_translations": name_translations}
+        if character_name: payload |= {"character_name": character_name}
+        if history_length: payload |= {"history_length": history_length}
+        if history_length: payload |= {"history_length": history_length}
+        if instruction_prompt_filename: payload |= {"instruction_prompt_filename": instruction_prompt_filename}
+        if character_prompt_filename: payload |= {"character_prompt_filename": character_prompt_filename}
+        if scene_prompt_filename: payload |= {"scene_prompt_filename": scene_prompt_filename}
+        
+        self.prompter.configure(payload)
+        
+        await self._handle_broadcast_success(job_id, job_type)
+
     async def append_request_context(
         self, 
         job_id: str, 
@@ -319,9 +379,9 @@ class JAIson(metaclass=Singleton):
     ):
         await self._handle_broadcast_start(job_id, job_type, {"user": user, "timestamp": timestamp, "sr": sr, "sw": sw, "ch": ch, "audio_bytes": (audio_bytes is not None)}) # Don't send full audio bytes over websocket, just flag as gotten
         audio_bytes: bytes = base64.b64decode(audio_bytes)
-        prompt = self.prompter.get_user_prompt() or "You're name is {}".format(Config().character_name)
+        prompt = self.prompter.get_user_prompt() or "You're name is {}".format(self.prompter.character_name)
         content = ""
-        async for out_d in self.op_manager.use_operation(OpTypes.STT, {"prompt": prompt, "audio_bytes": audio_bytes, "sr": sr, "sw": sw, "ch": ch}):
+        async for out_d in self.op_manager.use_operation(OpRoles.STT, {"prompt": prompt, "audio_bytes": audio_bytes, "sr": sr, "sw": sw, "ch": ch}):
             content += out_d['transcription']
       
         self.prompter.add_chat(
@@ -390,7 +450,12 @@ class JAIson(metaclass=Singleton):
     ):
         await self._handle_broadcast_start(job_id, job_type, {"ops": ops})
         for op_d in ops:
-            await self._handle_op_manager(job_id, job_type, op_d.get('type', ""), op_d.get('id', ""))
+            await self.op_manager.load_operation(OpRoles(op_d.get('role', None)), op_d.get('id', None), op_d.get('config', dict()))
+            await self._handle_broadcast_event(job_id, job_type, {
+                "role": op_d.get('role', None), 
+                "id": op_d.get('id', None),
+                "loose_key": op_d.get("loose_key", None)
+            })
         await self._handle_broadcast_success(job_id, job_type)
         
     async def load_operations_from_config(
@@ -410,38 +475,43 @@ class JAIson(metaclass=Singleton):
     ):
         await self._handle_broadcast_start(job_id, job_type, {"ops": ops})
         for op_d in ops:
-            await self._handle_op_manager(job_id, job_type, op_d.get('type', ""), op_d.get('id', ""))
+            await self.op_manager.close_operation(OpRoles(op_d.get('role', None)), op_d.get('id', None))
+            await self._handle_broadcast_event(job_id, job_type, {
+                "role": op_d.get('role', None), 
+                "id": op_d.get('id', None)
+            })
         await self._handle_broadcast_success(job_id, job_type)
-    
-    async def _handle_op_manager(self, job_id: str, job_type: JobType, op_type: str, op_id: str):
-        op_enum = OpTypes(op_type)
-        if job_type == JobType.OPERATION_LOAD: await self.op_manager.load_operation(op_enum,op_id)
-        elif job_type == JobType.OPERATION_UNLOAD: await self.op_manager.close_operation(op_enum,op_id)
-        else: raise UnknownJobType(f"No known operation management job called {job_type}")
-            
-        await self._handle_broadcast_event(job_id, job_type, {
-            "type": op_type, 
-            "id": op_id, 
-        })
+        
+    async def configure_operations( # TODO document and add endpoint
+        self,
+        job_id: str,
+        job_type: JobType,
+        ops: List[Dict[str, str]] = []
+    ):
+        await self._handle_broadcast_start(job_id, job_type, {"ops": ops})
+        for op_d in ops:
+            await self.op_manager.configure(OpRoles(op_d.get('role', None)), op_d, op_id=op_d.get('id', None))
+            await self._handle_broadcast_event(job_id, job_type, op_d)
+        await self._handle_broadcast_success(job_id, job_type)
         
     async def use_operation(
         self,
         job_id: str,
         job_type: JobType,
-        op_type: str = None,
-        op_id: str = None,
+        role: str = None,
+        id: str = None,
         payload: Dict[str, Any] = None
     ):
-        await self._handle_broadcast_start(job_id, job_type, {"op_type": op_type, "op_id": op_id})
+        await self._handle_broadcast_start(job_id, job_type, {"role": role, "id": id})
         
         if 'audio_bytes' in payload:
             payload['audio_bytes'] = base64.b64decode(payload['audio_bytes'])
             
         try:
-            async for chunk_out in self.op_manager.use_operation(OpTypes(op_type), payload, op_id=op_id):
+            async for chunk_out in self.op_manager.use_operation(OpRoles(role), payload, op_id=id):
                 self._handle_broadcast_event(job_type, job_id, chunk_out)
         except OperationUnloaded:
-            op = self.op_manager.loose_load_operation(OpTypes(op_type), op_id)
+            op = self.op_manager.loose_load_operation(OpRoles(role), id)
             await op.start()
             async for chunk_out in op(payload):
                 if "audio_bytes" in chunk_out: chunk_out["audio_bytes"] = base64.b64encode(chunk_out['audio_bytes']).decode('utf-8')
@@ -497,6 +567,7 @@ class JAIson(metaclass=Singleton):
         # TODO: extend with all errors
         error_type = "unknown"
         if isinstance(err, UnknownOpType): error_type = "operation_unknown_type"
+        if isinstance(err, UnknownOpRole): error_type = "operation_unknown_role"
         elif isinstance(err, UnknownOpID): error_type = "operation_unknown_id"
         elif isinstance(err, DuplicateFilter): error_type = "operation_duplicate"
         elif isinstance(err, OperationUnloaded): error_type = "operation_unloaded"

@@ -14,6 +14,8 @@ class KoboldTTS(T2TOperation):
         super().__init__("kobold")
         self.uri = None
         
+        self.voice = "kobo"
+        
     async def start(self) -> None:
         '''General setup needed to start generated'''
         await super().start()
@@ -25,12 +27,24 @@ class KoboldTTS(T2TOperation):
         await super().close()
         await ProcessManager().unlink(self.KOBOLD_LINK_ID, ProcessType.KOBOLD)
     
+    async def configure(self, config_d):
+        '''Configure and validate operation-specific configuration'''
+        if "voice" in config_d: self.voice = str(config_d["voice"])
+        
+        assert self.voice is not None and len(self.voice) > 0
+        
+    async def get_configuration(self):
+        '''Returns values of configurable fields'''
+        return {
+            "voice": self.voice
+        }
+
     async def _generate(self, content: str = None, **kwargs):
         response = requests.post(
             "{}/api/extra/tts".format(self.uri), 
             json={
                 "input": content,
-                "voice": Config().kobold_tts_voice,
+                "voice": self.voice,
                 "speaker_json": ""
             },
         )

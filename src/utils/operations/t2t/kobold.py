@@ -12,6 +12,18 @@ class KoboldT2T(T2TOperation):
         super().__init__("kobold")
         self.uri = None
         
+        self.max_context_length: int = 2048
+        self.max_length: int = 100
+        self.rep_pen: float = 1.1
+        self.rep_pen_range: int = 256
+        self.rep_pen_slope: int = 1
+        self.temperature: float = 0.5
+        self.tfs: int = 1
+        self.top_a: int = 0
+        self.top_k: int = 100
+        self.top_p: float = 0.9
+        self.typical: int = 1
+        
     async def start(self) -> None:
         '''General setup needed to start generated'''
         await super().start()
@@ -23,23 +35,66 @@ class KoboldT2T(T2TOperation):
         await super().close()
         await ProcessManager().unlink(self.KOBOLD_LINK_ID, ProcessType.KOBOLD)
     
+    async def configure(self, config_d):
+        '''Configure and validate operation-specific configuration'''
+        if "max_context_length" in config_d: self.max_context_length = config_d["max_context_length"]
+        if "max_length" in config_d: self.max_length = config_d["max_length"]
+        if "rep_pen" in config_d: self.rep_pen = config_d["rep_pen"]
+        if "rep_pen_range" in config_d: self.rep_pen_range = config_d["rep_pen_range"]
+        if "rep_pen_slope" in config_d: self.rep_pen_slope = config_d["rep_pen_slope"]
+        if "temperature " in config_d: self.temperature  = config_d["temperature "]
+        if "tfs" in config_d: self.tfs = config_d["tfs"]
+        if "top_a" in config_d: self.top_a = config_d["top_a"]
+        if "top_k" in config_d: self.top_k = config_d["top_k"]
+        if "top_p" in config_d: self.top_p = config_d["top_p"]
+        if "typical" in config_d: self.typical = config_d["typical"]
+        
+        assert self.max_context_length > 0
+        assert self.max_length > 0
+        assert self.rep_pen > 0 # TODO check the limits
+        assert self.rep_pen_range > 0
+        assert self.rep_pen_slope > 0
+        assert self.temperature > 0
+        assert self.tfs > 0
+        assert self.top_a > 0
+        assert self.top_k > 0
+        assert self.top_p > 0
+        assert self.typical > 0
+        
+    async def get_configuration(self):
+        '''Returns values of configurable fields'''
+        return {
+            "max_context_length": self.max_context_length,
+            "max_length": self.max_length,
+            "rep_pen": self.rep_pen,
+            "rep_pen_range": self.rep_pen_range,
+            "rep_pen_range": self.rep_pen_range,
+            "rep_pen_slope": self.rep_pen_slope,
+            "temperature": self.temperature,
+            "tfs": self.tfs,
+            "top_a": self.top_a,
+            "top_k": self.top_k,
+            "top_p": self.top_p,
+            "typical": self.typical,
+        }
+
     async def _generate(self, system_prompt: str = None, user_prompt: str = None, **kwargs):
         response = requests.post(
             "{}/api/v1/generate".format(self.uri), 
             json={
-                "max_context_length": Config().kobold_t2t_max_context_length,
-                "max_length": Config().kobold_t2t_max_length,
+                "max_context_length": self.max_context_length,
+                "max_length": self.max_length,
                 "prompt": "<SYSTEM START>{}<SYSTEM END><USER START>{}<USER END".format(system_prompt, user_prompt),
-                "quiet": Config().kobold_t2t_quiet,
-                "rep_pen": Config().kobold_t2t_rep_pen,
-                "rep_pen_range": Config().kobold_t2t_rep_pen_range,
-                "rep_pen_slope": Config().kobold_t2t_rep_pen_slope,
-                "temperature": Config().kobold_t2t_temperature,
-                "tfs": Config().kobold_t2t_tfs,
-                "top_a": Config().kobold_t2t_top_a,
-                "top_k": Config().kobold_t2t_top_k,
-                "top_p": Config().kobold_t2t_top_p,
-                "typical": Config().kobold_t2t_typical
+                "quiet": True,
+                "rep_pen": self.rep_pen,
+                "rep_pen_range": self.rep_pen_range,
+                "rep_pen_slope": self.rep_pen_slope,
+                "temperature": self.temperature,
+                "tfs": self.tfs,
+                "top_a": self.top_a,
+                "top_k": self.top_k,
+                "top_p": self.top_p,
+                "typical": self.typical
             },
         )
 

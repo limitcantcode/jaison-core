@@ -6,7 +6,7 @@ class KoalaModerationFilter(FilterTextOperation):
     GOOD_LABEL = "OK"
     
     def __init__(self):
-        super().__init__("koala_mod")
+        super().__init__("mod_koala")
         self.model, self.tokenizer = None, None
         
     async def start(self):
@@ -19,7 +19,15 @@ class KoalaModerationFilter(FilterTextOperation):
         await super().close()
         del self.model, self.tokenizer
         if torch.cuda.is_available(): torch.cuda.empty_cache() # clean cache on cuda
-        
+    
+    async def configure(self, config_d):
+        '''Configure and validate operation-specific configuration'''
+        return
+      
+    async def get_configuration(self):
+        '''Returns values of configurable fields'''
+        return {}
+
     async def _generate(self, content: str = None, **kwargs):
         '''Generate a output stream'''
         # Classify content

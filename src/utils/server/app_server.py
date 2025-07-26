@@ -95,6 +95,11 @@ async def response():
 async def context_clear():
     return await _request_job(JobType.CONTEXT_CLEAR)
 
+# Context - Configure
+@app.route('/api/context/config', methods=['PUT'])    
+async def context_configure():
+    return await _request_job(JobType.CONTEXT_CONFIGURE)
+
 # Context - Requests
 @app.route('/api/context/request', methods=['POST'])    
 async def context_request_add():
@@ -135,6 +140,10 @@ async def operation_reload():
 async def operation_unload():
     return await _request_job(JobType.OPERATION_UNLOAD)
 
+@app.route('/api/operations/config', methods=['POST'])    
+async def operation_configure():
+    return await _request_job(JobType.OPERATION_CONFIGURE)
+
 @app.route('/api/operations/use', methods=['POST'])    
 async def operation_use():
     return await _request_job(JobType.OPERATION_USE)
@@ -166,6 +175,10 @@ async def preflight_response():
 async def preflight_context_conversation_clear():
     return create_preflight('DELETE')
 
+@app.route('/api/context/config', methods=['OPTIONS'])    
+async def preflight_context_configure():
+    return create_preflight('PUT')
+
 @app.route('/api/context/request', methods=['OPTIONS']) 
 async def preflight_context_request():
     return create_preflight('POST')
@@ -186,19 +199,23 @@ async def preflight_context_custom():
 async def preflight_operations_info():
     return create_preflight('GET')
 
-@app.route('/api/operations/load', methods=['POST']) 
+@app.route('/api/operations/load', methods=['OPTIONS']) 
 async def preflight_operation_start():
     return create_preflight('POST')
 
-@app.route('/api/operations/reload', methods=['POST']) 
+@app.route('/api/operations/reload', methods=['OPTIONS']) 
 async def preflight_operation_reload():
     return create_preflight('POST')
 
-@app.route('/api/operations/unload', methods=['POST']) 
+@app.route('/api/operations/unload', methods=['OPTIONS']) 
 async def preflight_operation_unload():
     return create_preflight('POST')
 
-@app.route('/api/operations/use', methods=['POST'])
+@app.route('/api/operations/config', methods=['OPTIONS'])    
+async def preflight_operation_configure():
+    return create_preflight('POST')
+
+@app.route('/api/operations/use', methods=['OPTIONS'])
 async def preflight_operation_use():
     return create_preflight('POST')
 

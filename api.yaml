@@ -130,6 +130,46 @@ paths:
           $ref: '#/components/responses/JobResponse'
         '500':
           $ref: '#/components/responses/InternalErrorResponse'
+  /context/config:
+    put:
+      tags:
+        - context
+      summary: Configure prompter
+      description: Configure specific values within the prompter such as prompts, names, and history length
+      operationId: contextConfigure
+      requestBody:
+        description: Options to be configured
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name_translations:
+                  type: object
+                  description: Request to be given to the LLM
+                  additionalProperties: 
+                    type: string
+                    description: "Untranslated key translates into given value"
+                character_name:
+                  type: string
+                  description: Name of the character
+                history_length:
+                  type: integer
+                  description: Line count in script to retain
+                instruction_prompt_filename:
+                  type: string
+                  description: File name of instruction prompt file
+                character_prompt_filename:
+                  type: string
+                  description: File name of character prompt file
+                scene_prompt_filename:
+                  type: string
+                  description: File name of scene prompt file
+      responses:
+        '200':
+          $ref: '#/components/responses/JobResponse'
+        '500':
+          $ref: '#/components/responses/InternalErrorResponse'
   /context/request:
     post:
       tags:
@@ -331,7 +371,7 @@ paths:
       tags:
         - operation
       summary: Get all loaded operations
-      description: Get names of which operations are loaded for which operation type if available.
+      description: Get names of which operations are loaded for which operation role if available.
       operationId: operationGet
       responses:
         '200':
@@ -358,6 +398,8 @@ paths:
                     properties:
                       stt:
                         type: string
+                      mcp:
+                        type: string
                       t2t:
                         type: string
                       tts:
@@ -370,6 +412,47 @@ paths:
                         type: array
                         items:
                           type: string
+  /operation/config:
+    post:
+      tags:
+        - operation
+      summary: Configure operation
+      description: Configure a list of operations by role. Configuration differs per operation and role.
+      operationId: operationConfigure
+      requestBody:
+        description: Operations to load
+        required: True
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ops
+              properties:
+                ops:
+                  type: array
+                  description: List of operation identifiers and configuration
+                  items:
+                    type: object
+                    required:
+                      - role
+                      - id
+                    properties:
+                      role:
+                        type: string
+                        enum: ['stt', 'mcp', 't2t', 'tts', 'filter_audio', 'filter_text', 'embedding']
+                        description: Operation role to load
+                      id:
+                        type: string
+                        description: Operation under specified role's type to load
+                    additionalProperties: 
+                      type: [string, number]
+                      
+      responses:
+        '200':
+          $ref: '#/components/responses/JobResponse'
+        '500':
+          $ref: '#/components/responses/InternalErrorResponse'
   /operations/use:
     post:
       tags:
@@ -385,16 +468,16 @@ paths:
             schema:
               type: object
               required:
-                - op_type
+                - type
                 - payload
               properties:
-                op_type:
+                role:
                   type: string
-                  enum: ['stt', 't2t', 'tts', 'filter_audio', 'filter_text']
-                  description: Operation type to use
-                op_id:
+                  enum: ['stt', 'mcp', 't2t', 'tts', 'filter_audio', 'filter_text', 'embedding']
+                  description: Operation role to use
+                id:
                   type: string
-                  description: Specific operation under type to use. Defaults to already loaded operation.
+                  description: Specific operation under role's type to use. Defaults to already loaded operation.
                 payload:
                   type: object
                   description: Input chunk/payload for operation to process (see DEVELOPER.md for payload details per operation)
@@ -426,16 +509,16 @@ paths:
                   items:
                     type: object
                     required:
-                      - type
+                      - role
                       - id
                     properties:
-                      type:
+                      role:
                         type: string
-                        enum: ['stt', 't2t', 'tts', 'filter_audio', 'filter_text']
-                        description: Operation type to load
+                        enum: ['stt', 'mcp', 't2t', 'tts', 'filter_audio', 'filter_text', 'embedding']
+                        description: Operation role to load
                       id:
                         type: string
-                        description: Operation under specified type to load
+                        description: Operation under specified role's type to load
       responses:
         '200':
           $ref: '#/components/responses/JobResponse'
@@ -476,12 +559,12 @@ paths:
                   items:
                     type: object
                     required:
-                      - type
+                      - role
                     properties:
-                      type:
+                      role:
                         type: string
-                        enum: ['stt', 't2t', 'tts', 'filter_audio', 'filter_text']
-                        description: Operation type to unload
+                        enum: ['stt', 'mcp', 't2t', 'tts', 'filter_audio', 'filter_text', 'embedding']
+                        description: Operation role to unload
                       id:
                         type: string
                         description: Specific operation to unload
