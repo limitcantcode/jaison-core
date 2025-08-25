@@ -5,9 +5,9 @@ import wave
 from utils.config import Config
 from utils.processes import ProcessManager, ProcessType
 
-from .base import T2TOperation
+from .base import TTSOperation
 
-class KoboldTTS(T2TOperation):
+class KoboldTTS(TTSOperation):
     KOBOLD_LINK_ID = "kobold_tts"
     
     def __init__(self):
@@ -50,7 +50,7 @@ class KoboldTTS(T2TOperation):
         )
 
         if response.status_code == 200:
-            result = response.text
+            result = response.content
             audio = BytesIO(result)
             with wave.open(audio, 'r') as f:
                 yield {"audio_bytes": f.readframes(f.getnframes()), "sr": f.getframerate(), "sw": f.getsampwidth(), "ch": f.getnchannels()}
