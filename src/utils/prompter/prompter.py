@@ -132,8 +132,8 @@ class Prompter(metaclass=Singleton):
     def get_context_descriptions(self):
         result = ""
         for context_id in self.context_metadata:
-            result += "{id}:{description}\n".format(
-                id=context_id,
+            result += "{name}: {description}\n".format(
+                name=self.context_metadata[context_id].name,
                 description=self.context_metadata[context_id].description
             )
             
