@@ -27,4 +27,4 @@ class RobertaEmotionFilter(FilterTextOperation):
         return {}
 
     async def _generate(self, content: str = None, **kwargs):
-        yield {"emotion": self.classifier(content)[0][0]['label']}
+        yield {"content": content, "emotion": self.classifier(content)[0][0]['label']}

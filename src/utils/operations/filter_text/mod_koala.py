@@ -51,5 +51,6 @@ class KoalaModerationFilter(FilterTextOperation):
         filtered = top_label != self.GOOD_LABEL
         
         yield {
+            "content": content, 
             "filtered": filtered
         }
