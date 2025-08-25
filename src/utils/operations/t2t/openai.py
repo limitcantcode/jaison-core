@@ -1,8 +1,8 @@
 from openai import AsyncOpenAI
 
-from utils.config import Config
-
 from .base import T2TOperation
+from utils.prompter.message import ChatMessage
+from utils.prompter import Prompter
 
 class OpenAIT2T(T2TOperation):
     def __init__(self):
@@ -53,14 +53,18 @@ class OpenAIT2T(T2TOperation):
             "frequency_penalty": self.frequency_penalty,
         }
 
-    async def _generate(self, system_prompt: str = None, user_prompt: str = None, **kwargs):
-        messages=[
-            { "role": "system", "content": system_prompt },
-            { "role": "user", "content": user_prompt }
-        ]
+    async def _generate(self, instruction_prompt: str = None, messages: str = None, **kwargs):
+        history = [{ "role": "system", "content": instruction_prompt }]
+        for msg in messages:
+            next_hist = None
+            if isinstance(msg, ChatMessage) and msg.user == Prompter().character_name:
+                next_hist = { "role": "assistant", "content": msg.message }
+            else:
+                next_hist = { "role": "user", "content": msg.to_line() }
+            history.append(next_hist )
 
         stream = await self.client.chat.completions.create(
-            messages=messages,
+            messages=history,
             model=self.model,
             stream=True,
             temperature=self.temperature,

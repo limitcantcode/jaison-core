@@ -1,9 +1,10 @@
 import requests
 
-from utils.config import Config
 from utils.processes import ProcessManager, ProcessType
 
 from .base import T2TOperation
+from utils.prompter.message import ChatMessage
+from utils.prompter import Prompter
 
 class KoboldT2T(T2TOperation):
     KOBOLD_LINK_ID = "kobold_t2t"
@@ -78,13 +79,23 @@ class KoboldT2T(T2TOperation):
             "typical": self.typical,
         }
 
-    async def _generate(self, system_prompt: str = None, user_prompt: str = None, **kwargs):
+    async def _generate(self, instruction_prompt: str = None, messages: str = None, **kwargs):
+        history = [{ "role": "system", "content": instruction_prompt }]
+        for msg in messages:
+            next_hist = None
+            if isinstance(msg, ChatMessage) and msg.user == Prompter().character_name:
+                next_hist = { "role": "assistant", "content": msg.message }
+            else:
+                next_hist = { "role": "user", "content": msg.to_line() }
+            history.append(next_hist)
+
         response = requests.post(
-            "{}/api/v1/generate".format(self.uri), 
+            "{}/v1/chat/completions".format(self.uri), 
             json={
+                "model": "kcpp",
+                "messages": history,
                 "max_context_length": self.max_context_length,
                 "max_length": self.max_length,
-                "prompt": "<SYSTEM START>{}<SYSTEM END><USER START>{}<USER END".format(system_prompt, user_prompt),
                 "quiet": True,
                 "rep_pen": self.rep_pen,
                 "rep_pen_range": self.rep_pen_range,
@@ -99,7 +110,7 @@ class KoboldT2T(T2TOperation):
         )
 
         if response.status_code == 200:
-            result = response.json()['results'][0]['text']
+            result = response.json()['choices'][0]['message']['content']
             yield {"content": result}
         else:
             raise Exception(f"Failed to get T2T result: {response.status_code} {response.reason}")

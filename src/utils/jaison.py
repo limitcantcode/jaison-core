@@ -12,6 +12,7 @@ from utils.helpers.observer import ObserverServer
 
 from utils.config import Config, UnknownField, UnknownFile
 from utils.prompter import Prompter
+from utils.prompter.message import RawMessage
 from utils.processes import ProcessManager
 from utils.operations import (
     OperationManager,
@@ -235,12 +236,9 @@ class JAIson(metaclass=Singleton):
             self.prompter.add_mcp_usage_prompt(self.mcp_manager.get_tooling_prompt(), self.mcp_manager.get_response_prompt())
             mcp_sys_prompt, mcp_user_prompt = self.prompter.generate_mcp_system_context(), self.prompter.generate_mcp_user_context()
             tooling_response = ""
-            async for chunk in self.op_manager.use_operation(OpRoles.MCP, {"system_prompt": mcp_sys_prompt, "user_prompt": mcp_user_prompt}):
+            async for chunk in self.op_manager.use_operation(OpRoles.MCP, {"instruction_prompt": mcp_sys_prompt, "messages": [RawMessage(mcp_user_prompt)]}):
                 tooling_response += chunk['content']
-                
-            logging.critical("Called MCP with: {} {}".format(mcp_sys_prompt, mcp_user_prompt)) # debug
-            logging.critical("Got tooling response: {}".format(tooling_response)) # debug
-            
+
             ## Perform MCP tool calls
             tool_call_results = await self.mcp_manager.use(tooling_response)
             
@@ -248,16 +246,16 @@ class JAIson(metaclass=Singleton):
             self.prompter.add_mcp_results(tool_call_results)
 
         # Get prompts
-        system_prompt, user_prompt = self.prompter.get_sys_prompt(), self.prompter.get_user_prompt()
+        instruction_prompt, history = self.prompter.get_sys_prompt(), self.prompter.get_history()
         
         # Appy t2t
         t2t_result = ""
-        async for chunk_out in self.op_manager.use_operation(OpRoles.T2T, {"system_prompt": system_prompt, "user_prompt": user_prompt}):
+        async for chunk_out in self.op_manager.use_operation(OpRoles.T2T, {"instruction_prompt": instruction_prompt, "messages": history}):
             t2t_result += chunk_out["content"]
         
         # Broadcast raw results
-        await self._handle_broadcast_event(job_id, job_type, {"system_prompt": system_prompt})
-        await self._handle_broadcast_event(job_id, job_type, {"user_prompt": user_prompt})
+        await self._handle_broadcast_event(job_id, job_type, {"instruction_prompt": instruction_prompt})
+        await self._handle_broadcast_event(job_id, job_type, {"history": [msg.to_dict() for msg in history]})
         await self._handle_broadcast_event(job_id, job_type, {"raw_content": t2t_result})
         
         # Apply text filters
@@ -379,7 +377,7 @@ class JAIson(metaclass=Singleton):
     ):
         await self._handle_broadcast_start(job_id, job_type, {"user": user, "timestamp": timestamp, "sr": sr, "sw": sw, "ch": ch, "audio_bytes": (audio_bytes is not None)}) # Don't send full audio bytes over websocket, just flag as gotten
         audio_bytes: bytes = base64.b64decode(audio_bytes)
-        prompt = self.prompter.get_user_prompt() or "You're name is {}".format(self.prompter.character_name)
+        prompt = self.prompter.get_history_text() or "You're name is {}".format(self.prompter.character_name)
         content = ""
         async for out_d in self.op_manager.use_operation(OpRoles.STT, {"prompt": prompt, "audio_bytes": audio_bytes, "sr": sr, "sw": sw, "ch": ch}):
             content += out_d['transcription']

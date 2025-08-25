@@ -7,9 +7,10 @@ Adds to chunk:
 - content: (str) Generated text
 '''
 
-from typing import Dict, Any, AsyncGenerator
+from typing import Dict, List, Any, AsyncGenerator
 
 from ..base import Operation
+from utils.prompter.message import Message
 
 class T2TOperation(Operation):
     def __init__(self, op_id: str):
@@ -26,17 +27,28 @@ class T2TOperation(Operation):
     
     async def _parse_chunk(self, chunk_in: Dict[str, Any]) -> Dict[str, Any]:
         '''Extract information from input for use in _generate'''
-        assert "system_prompt" in chunk_in
-        assert isinstance(chunk_in["system_prompt"], str)
-        assert len(chunk_in["system_prompt"]) > 0
-        assert "user_prompt" in chunk_in
-        assert isinstance(chunk_in["user_prompt"], str)
-        assert len(chunk_in["user_prompt"]) > 0
+        # assert "system_prompt" in chunk_in
+        # assert isinstance(chunk_in["system_prompt"], str)
+        # assert len(chunk_in["system_prompt"]) > 0
+        # assert "user_prompt" in chunk_in
+        # assert isinstance(chunk_in["user_prompt"], str)
+        # assert len(chunk_in["user_prompt"]) > 0
         
+        # return {
+        #     "system_prompt": chunk_in["system_prompt"],
+        #     "user_prompt": chunk_in["user_prompt"],
+        # }
+
+        assert "instruction_prompt" in chunk_in
+        assert isinstance(chunk_in["instruction_prompt"], str)
+        assert "messages" in chunk_in
+        assert isinstance(chunk_in["messages"], list)
+
         return {
-            "system_prompt": chunk_in["system_prompt"],
-            "user_prompt": chunk_in["user_prompt"],
+            "instruction_prompt": chunk_in["instruction_prompt"],
+            "messages": chunk_in["messages"],
         }
+
     
     ## TO BE IMPLEMENTED ####
     async def configure(self, config_d: Dict[str, Any]):
@@ -47,7 +59,7 @@ class T2TOperation(Operation):
         '''Returns values of configurable fields'''
         raise NotImplementedError
     
-    async def _generate(self, system_prompt: str = None, user_prompt: str = None, **kwargs) -> AsyncGenerator[Dict[str, Any], None]:
+    async def _generate(self, instruction_prompt: str = None, messages: str = None, **kwargs) -> AsyncGenerator[Dict[str, Any], None]:
         '''Generate a output stream'''
         raise NotImplementedError
     
