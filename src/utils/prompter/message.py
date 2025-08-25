@@ -74,7 +74,7 @@ class MCPMessage(Message):
     
     def to_dict(self):
         return {
-            "type": "mcp",
+            "type": "tool",
             "tool": self.tool_name,
             "time": self.time.timestamp(),
             "message": self.message
