@@ -79,7 +79,7 @@ class KoboldT2T(T2TOperation):
             "typical": self.typical,
         }
 
-    async def _generate(self, instruction_prompt: str = None, messages: str = None, **kwargs):
+    async def _generate(self, instruction_prompt: str = None, messages: list = None, **kwargs):
         history = [{ "role": "system", "content": instruction_prompt }]
         for msg in messages:
             next_hist = None

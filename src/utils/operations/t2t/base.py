@@ -59,7 +59,7 @@ class T2TOperation(Operation):
         '''Returns values of configurable fields'''
         raise NotImplementedError
     
-    async def _generate(self, instruction_prompt: str = None, messages: str = None, **kwargs) -> AsyncGenerator[Dict[str, Any], None]:
+    async def _generate(self, instruction_prompt: str = None, messages: list = None, **kwargs) -> AsyncGenerator[Dict[str, Any], None]:
         '''Generate a output stream'''
         raise NotImplementedError
     

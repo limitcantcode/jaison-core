@@ -53,7 +53,7 @@ class OpenAIT2T(T2TOperation):
             "frequency_penalty": self.frequency_penalty,
         }
 
-    async def _generate(self, instruction_prompt: str = None, messages: str = None, **kwargs):
+    async def _generate(self, instruction_prompt: str = None, messages: list = None, **kwargs):
         history = [{ "role": "system", "content": instruction_prompt }]
         for msg in messages:
             next_hist = None
@@ -61,7 +61,7 @@ class OpenAIT2T(T2TOperation):
                 next_hist = { "role": "assistant", "content": msg.message }
             else:
                 next_hist = { "role": "user", "content": msg.to_line() }
-            history.append(next_hist )
+            history.append(next_hist)
 
         stream = await self.client.chat.completions.create(
             messages=history,
