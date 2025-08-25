@@ -12,7 +12,13 @@ from utils.helpers.observer import ObserverServer
 
 from utils.config import Config, UnknownField, UnknownFile
 from utils.prompter import Prompter
-from utils.prompter.message import RawMessage
+from utils.prompter.message import (
+    RawMessage,
+    RequestMessage,
+    ChatMessage,
+    MCPMessage,
+    CustomMessage
+)
 from utils.processes import ProcessManager
 from utils.operations import (
     OperationManager,
@@ -257,7 +263,7 @@ class JAIson(metaclass=Singleton):
         await self._handle_broadcast_event(job_id, job_type, {"instruction_prompt": instruction_prompt})
         await self._handle_broadcast_event(job_id, job_type, {"history": [msg.to_dict() for msg in history]})
         await self._handle_broadcast_event(job_id, job_type, {"raw_content": t2t_result})
-        
+
         # Apply text filters
         async for text_chunk_out in self.op_manager.use_operation(OpRoles.FILTER_TEXT, {"content": t2t_result}):
             self.prompter.add_chat(self.prompter.character_name, text_chunk_out['content'])
@@ -504,16 +510,34 @@ class JAIson(metaclass=Singleton):
         
         if 'audio_bytes' in payload:
             payload['audio_bytes'] = base64.b64decode(payload['audio_bytes'])
-            
+
+        if 'messages' in payload:
+            msg_list = list()
+            for msg in payload['messages']:
+                assert 'type' in msg
+                if msg['type'] == "raw":
+                    msg_list.append(RawMessage(msg['message']))
+                elif msg['type'] == "request":
+                    msg_list.append(RequestMessage(msg['message'], datetime.datetime.fromtimestamp(msg['time'])))
+                elif msg['type'] == "chat":
+                    msg_list.append(ChatMessage(msg['user'], msg['message'], datetime.datetime.fromtimestamp(msg['time'])))
+                elif msg['type'] == "tool":
+                    msg_list.append(MCPMessage(msg['tool'], msg['message'], datetime.datetime.fromtimestamp(msg['time'])))
+                elif msg['type'] == "custom":
+                    msg_list.append(CustomMessage(msg['id'], msg['message'], datetime.datetime.fromtimestamp(msg['time'])))
+                else:
+                    raise Exception("Invalid message type")
+            payload['messages'] = msg_list
+
         try:
             async for chunk_out in self.op_manager.use_operation(OpRoles(role), payload, op_id=id):
-                self._handle_broadcast_event(job_type, job_id, chunk_out)
+                await self._handle_broadcast_event(job_id, job_type, chunk_out)
         except OperationUnloaded:
             op = self.op_manager.loose_load_operation(OpRoles(role), id)
             await op.start()
             async for chunk_out in op(payload):
                 if "audio_bytes" in chunk_out: chunk_out["audio_bytes"] = base64.b64encode(chunk_out['audio_bytes']).decode('utf-8')
-                self._handle_broadcast_event(job_type, job_id, chunk_out)
+                await self._handle_broadcast_event(job_id, job_type, chunk_out)
             await op.close()
             
         await self._handle_broadcast_success(job_id, job_type)
