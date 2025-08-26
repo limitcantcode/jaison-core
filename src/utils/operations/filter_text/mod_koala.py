@@ -49,8 +49,11 @@ class KoalaModerationFilter(FilterTextOperation):
         # Handle top classification
         top_label, _ = label_prob_pairs[0]
         filtered = top_label != self.GOOD_LABEL
-        
-        yield {
-            "content": content, 
-            "filtered": filtered
-        }
+
+        result = {"filtered": filtered}
+        if filtered:
+            result |= {"content": "Filtered.", "original_content": content}
+        else:
+            result |= {"content": content}
+
+        yield result
