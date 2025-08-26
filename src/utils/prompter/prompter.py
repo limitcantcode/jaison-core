@@ -132,8 +132,8 @@ class Prompter(metaclass=Singleton):
     def get_context_descriptions(self):
         result = ""
         for context_id in self.context_metadata:
-            result += "{id}:{description}\n".format(
-                id=context_id,
+            result += "{name}: {description}\n".format(
+                name=self.context_metadata[context_id].name,
                 description=self.context_metadata[context_id].description
             )
             
@@ -164,7 +164,7 @@ class Prompter(metaclass=Singleton):
             scene = self.get_scene_prompt(),
         )
 
-    def get_user_prompt(self):
+    def get_history_text(self):
         prompt = ""
         
         for message in self.history:
@@ -172,6 +172,9 @@ class Prompter(metaclass=Singleton):
             prompt += "\n{}".format(message_line)
             
         return prompt
+    
+    def get_history(self):
+        return self.history
 
     def add_mcp_usage_prompt(self, tooling_prompt: str, response_template: str):
         self.tooling_prompt = tooling_prompt
@@ -181,7 +184,7 @@ class Prompter(metaclass=Singleton):
         return self.tooling_prompt
     
     def generate_mcp_user_context(self):
-        user_prompt = self.get_user_prompt()
+        user_prompt = self.get_history_text()
         character = self.get_character_prompt()
         scene = self.get_scene_prompt()
         

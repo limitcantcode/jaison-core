@@ -227,7 +227,7 @@ To use RVC, you will need the download all necessary assets and create (or find)
 Use [Azure Speech Services](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/index-speech-to-text) for speech-input.
 
 Configuration:
-- `azure_stt_language` (str) Input speech [language](azure_stt_language)
+- `language` (str) Input speech [language](azure_stt_language)
 
 ##### fish
 
@@ -246,8 +246,8 @@ No additional configuration
 Use [KoboldCPP](https://github.com/LostRuins/koboldcpp) for speech-input.
 
 Additional configuration
-- `kobold_stt_suppress_non_speech` (bool) for skipping non-speech sounds
-- `kobold_stt_langcode` (str) for code of input language
+- `suppress_non_speech` (bool) for skipping non-speech sounds
+- `langcode` (str) for code of input language
 
 ##### openai
 
@@ -257,9 +257,9 @@ Additional configuration
 Default to use [OpenAI's service](https://platform.openai.com/docs/overview), which is compatible with all but paid. Can also be used with applications/services that have OpenAI-like API such as Ollama.
 
 Configuration:
-- `openai_stt_base_url` (str) for specifying endpoint (OpenAI or some other application/service)
-- `openai_stt_model` (str) model to use
-- `openai_stt_language` (str) [language](https://github.com/openai/whisper/blob/main/whisper/tokenizer.py)
+- `base_url` (str) for specifying endpoint (OpenAI or some other application/service)
+- `model` (str) model to use
+- `language` (str) [language](https://github.com/openai/whisper/blob/main/whisper/tokenizer.py)
 
 #### t2t/mcp
 
@@ -273,18 +273,18 @@ Configuration:
 Direct support for models on [KoboldCPP](https://github.com/LostRuins/koboldcpp). More flexible samplers than OpenAI-like APIs.
 
 Configuration:
-- `kobold_t2t_max_context_length` (int) max context length of model
-- `kobold_t2t_max_length` (int) max length allowable for model
-- `kobold_t2t_quiet` (bool) quiet output
-- `kobold_t2t_rep_pen` (float) sampler
-- `kobold_t2t_rep_pen_range` (int) sampler
-- `kobold_t2t_rep_pen_slope` (int) sampler
-- `kobold_t2t_temperature` (float) sampler
-- `kobold_t2t_tfs` (int) sampler
-- `kobold_t2t_top_a` (int) sampler
-- `kobold_t2t_top_k` (int) sampler
-- `kobold_t2t_top_p` (float) sampler
-- `kobold_t2t_typical` (int) sampler
+- `max_context_length` (int) max context length of model
+- `max_length` (int) max length allowable for model
+- `quiet` (bool) quiet output
+- `rep_pen` (float) sampler
+- `rep_pen_range` (int) sampler
+- `rep_pen_slope` (int) sampler
+- `temperature` (float) sampler
+- `tfs` (int) sampler
+- `top_a` (int) sampler
+- `top_k` (int) sampler
+- `top_p` (float) sampler
+- `typical` (int) sampler
 
 ##### openai
 
@@ -294,12 +294,12 @@ Configuration:
 Default to use [OpenAI's service](https://platform.openai.com/docs/overview), which is compatible with all but paid. Can also be used with applications/services that have OpenAI-like API such as Ollama.
 
 Configuration:
-- `openai_t2t_base_url` (str) for specifying endpoint (OpenAI or some other application/service)
-- `openai_t2t_model` (str) for model ID
-- `openai_t2t_temperature` (float) for adjusting temperature
-- `openai_t2t_top_p` (float) for adjusting top P
-- `openai_t2t_presence_penalty` (float) for adjusting presence penalty
-- `openai_t2t_frequency_penalty` (float) for adjusting frequency penalty
+- `base_url` (str) for specifying endpoint (OpenAI or some other application/service)
+- `model` (str) for model ID
+- `temperature` (float) for adjusting temperature
+- `top_p` (float) for adjusting top P
+- `presence_penalty` (float) for adjusting presence penalty
+- `frequency_penalty` (float) for adjusting frequency penalty
 
 #### tts
 
@@ -313,7 +313,7 @@ Configuration:
 Use [Azure Speech Services](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/index-text-to-speech) for natural sounding synthesized speech.
 
 Configuration:
-- `azure_ttsg_voice` (str) ID of void from [voice gallery](https://speech.microsoft.com/portal/voicegallery) (ID used in their sample code for `speech_synthesis_voice_name`)
+- `voice` (str) ID of void from [voice gallery](https://speech.microsoft.com/portal/voicegallery) (ID used in their sample code for `speech_synthesis_voice_name`)
 
 ##### fish
 
@@ -323,10 +323,10 @@ Configuration:
 Use [Fish Audio](https://fish.audio/) for voice-cloned text-to-speech.
 
 Configuration:
-- `fish_model_id` (str) for voice model ID
-- `fish_model_backend` (str) for model to use
-- `fish_normalize` (bool) for normalizing input message for clearer pronunciation
-- `fish_latency` (str) one of "normal" (stable) or "balanced" (faster but choppy)
+- `model_id` (str) for voice model ID
+- `backend` (str) for model to use
+- `normalize` (bool) for normalizing input message for clearer pronunciation
+- `latency` (str) one of "normal" (stable) or "balanced" (faster but choppy)
 
 ##### kobold
 
@@ -336,7 +336,7 @@ Configuration:
 Use [KoboldCPP](https://github.com/LostRuins/koboldcpp) for TTS. Mostly for completion sake, and not recommended for use.
 
 Configuration:
-- `kobold_tts_voice` (str) voice to use
+- `voice` (str) voice to use
 
 ##### melo
 
@@ -364,9 +364,9 @@ Configuration:
 Default to use [OpenAI's service](https://platform.openai.com/docs/overview), which is compatible with all but paid. Can also be used with applications/services that have OpenAI-like API.
 
 Configuration:
-- `openai_ttsg_base_url` (str) for specifying endpoint (OpenAI or some other application/service)
-- `openai_ttsg_voice` (str) for voice name
-- `openai_ttsg_model` (str) for voice model
+- `base_url` (str) for specifying endpoint (OpenAI or some other application/service)
+- `voice` (str) for voice name
+- `model` (str) for voice model
 
 ##### pytts
 
@@ -376,8 +376,8 @@ Configuration:
 Use system's speech synthesizer (SAPI for Windows, ESpeak for Linux) to generate speech.
 
 Configuration:
-- `synth_ttsg_voice_name` (str) for voice ID (a list of these is printed on start when configured to be used)
-- `synth_ttsg_gender` (str) for voice gender if applicable
+- `voice` (str) for voice ID (a list of these is printed on start when configured to be used)
+- `gender` (str) for voice gender if applicable
 
 #### filter_audio
 
@@ -401,16 +401,16 @@ Configuration:
 Use voice changers trained using [RVC](https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI).
 
 Configuration:
-- `rvc_voice` (str) for model name
-- `rvc_f0_up_key` (int) for changing voice pitch
-- `rvc_f0_method` (str) for generation method
-- `rvc_f0_file` (str) for frequency filepath
-- `rvc_index_file` (str) for index filepath
-- `rvc_index_rate` (float) for index rate
-- `rvc_filter_radius` (int) 
-- `rvc_resample_sr` (int) for resampling audio to another sample rate
-- `rvc_rms_mix_rate` (int)
-- `rvc_protect` (float)
+- `voice` (str) for model name
+- `f0_up_key` (int) for changing voice pitch
+- `f0_method` (str) for generation method
+- `f0_file` (str) for frequency filepath
+- `index_file` (str) for index filepath
+- `index_rate` (float) for index rate
+- `filter_radius` (int) 
+- `resample_sr` (int) for resampling audio to another sample rate
+- `rms_mix_rate` (int)
+- `protect` (float)
 
 #### filter_text
 
@@ -610,7 +610,7 @@ Immediately after LLM generation but before text filters
         "job_id": "job uuid generated when first created",
         "finished": false,
         "result": {
-            "system_prompt": "System prompt given to LLM",
+            "instruction_prompt": "Instructions for the LLM",
         }
     }
 }
@@ -623,7 +623,13 @@ Immediately after LLM generation but before text filters
         "job_id": "job uuid generated when first created",
         "finished": false,
         "result": {
-            "user_prompt": "User prompt given to LLM",
+            "history": [
+                {"type": "raw", "message": "Example of raw user input"},
+                {"type": "request", "time": 1234, "message": "Example of request message"},
+                {"type": "chat", "time": 1234, "user": "some user or AI name", "message": "Example of chat message"},
+                {"type": "tool", "time": 1234, "tool": "some tool name", "message": "Example of tool result"},
+                {"type": "custom", "time": 1234, "id": "some custom context id", "message": "Example of context"}
+            ],
         }
     }
 }

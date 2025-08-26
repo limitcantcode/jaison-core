@@ -19,7 +19,8 @@ class Operation:
         kwargs = await self._parse_chunk(chunk_in)
         
         async for chunk_out in self._generate(**kwargs):
-            yield chunk_in | chunk_out
+            # yield chunk_in | chunk_out
+            yield chunk_out
         end_time = time.perf_counter()
         logging.info("{} operation {} completed in {} ms".format(self.op_type, self.op_id, (end_time-start_time)*1000))
     

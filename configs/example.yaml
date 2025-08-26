@@ -4,42 +4,42 @@ operations:
 # STT
 # - role: stt
 #   id: azure
-#   azure_stt_language: en-US # https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support?tabs=stt
+#   language: en-US # https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support?tabs=stt
 # - role: stt
 #   id: fish
 # - role: stt
 #   id: kobold
-#   kobold_stt_suppress_non_speech: true
-#   kobold_stt_langcode: en
+#   suppress_non_speech: true
+#   langcode: en
 - role: stt
   id: openai # Openai STT https://platform.openai.com/docs/guides/speech-to-text
-  openai_stt_base_url: https://api.openai.com/v1/
-  openai_stt_model: gpt-4o-transcribe
-  openai_stt_language: en # https://github.com/openai/whisper/blob/main/whisper/tokenizer.py
+  base_url: https://api.openai.com/v1/
+  model: gpt-4o-transcribe
+  language: en # https://github.com/openai/whisper/blob/main/whisper/tokenizer.py
   
   # T2T
 # - role: t2t
 #   id: kobold
-#   kobold_t2t_max_context_length: 2048
-#   kobold_t2t_max_length: 100
-#   kobold_t2t_quiet: true
-#   kobold_t2t_rep_pen: 1.1
-#   kobold_t2t_rep_pen_range: 256
-#   kobold_t2t_rep_pen_slope: 1
-#   kobold_t2t_temperature: 0.5
-#   kobold_t2t_tfs: 1
-#   kobold_t2t_top_a: 0
-#   kobold_t2t_top_k: 100
-#   kobold_t2t_top_p: 0.9
-#   kobold_t2t_typical: 1
+#   max_context_length: 2048
+#   max_length: 100
+#   quiet: true
+#   rep_pen: 1.1
+#   rep_pen_range: 256
+#   rep_pen_slope: 1
+#   temperature: 0.5
+#   tfs: 1
+#   top_a: 0
+#   top_k: 100
+#   top_p: 0.9
+#   typical: 1
 - role: t2t
   id: openai
-  openai_t2t_base_url: https://api.openai.com/v1/
-  openai_t2t_model: gpt-4o
-  openai_t2t_temperature: 1
-  openai_t2t_top_p: 0.9
-  openai_t2t_presence_penalty: 1
-  openai_t2t_frequency_penalty: 1
+  base_url: https://api.openai.com/v1/
+  model: gpt-4o
+  temperature: 1
+  top_p: 0.9
+  presence_penalty: 1
+  frequency_penalty: 1
 
   # Text filters
 - role: filter_text
@@ -54,25 +54,25 @@ operations:
   # TTS
 # - role: tts
 #   id: azure
-#   azure_ttsg_voice: "en-US-AshleyNeural" # https://speech.microsoft.com/portal/voicegallery
+#   voice: "en-US-AshleyNeural" # https://speech.microsoft.com/portal/voicegallery
 # - role: tts
 #   id: fish
-#   fish_model_id: c9198512a4164a18b11a3bf96e5c668f
-#   fish_model_backend: speech-1.6
-#   fish_normalize: true
-#   fish_latency: normal
+#   model_id: c9198512a4164a18b11a3bf96e5c668f
+#   backend: speech-1.6
+#   normalize: true
+#   latency: normal
 # - role: tts
 #   id: kobold
-#   kobold_tts_voice: kobo
+#   voice: kobo
 - role: tts
   id: openai # OpenAI TTSG https://platform.openai.com/docs/guides/text-to-speech
-  openai_ttsg_base_url: https://api.openai.com/v1/
-  openai_ttsg_voice: nova
-  openai_ttsg_model: tts-1
+  base_url: https://api.openai.com/v1/
+  voice: nova
+  model: tts-1
 # - role: tts
 #   id: pytts
-#   synth_ttsg_voice_name: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_MS_EN-US_ZIRA_11.0'
-#   synth_ttsg_gender: female
+#   voice: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_MS_EN-US_ZIRA_11.0'
+#   gender: female
 # - role: tts
 #   id: melo
 #   config_filepath: null
@@ -91,26 +91,26 @@ operations:
 #   pitch_amount: 0
 # - role: filter_audio
 #   id: rvc
-#   rvc_voice: my-voice-model
-#   rvc_f0_up_key: 0
-#   rvc_f0_method: rmvpe
-#   rvc_f0_file: null
-#   rvc_index_file: null
-#   rvc_index_rate: 0.0
-#   rvc_filter_radius: 3
-#   rvc_resample_sr: 0
-#   rvc_rms_mix_rate: 0
-#   rvc_protect: 0.5
+#   voice: my-voice-model
+#   f0_up_key: 0
+#   f0_method: rmvpe
+#   f0_file: null
+#   index_file: null
+#   index_rate: 0.0
+#   filter_radius: 3
+#   resample_sr: 0
+#   rms_mix_rate: 0
+#   protect: 0.5
 
-  # MCP LLM
-- role: mcp
-  id: openai
-  base_url: https://api.openai.com/v1/
-  model: gpt-4o
-  temperature: 0.25
-  top_p: 0.9
-  presence_penalty: 0.2
-  frequency_penalty: 0.2
+  # MCP LLM (can use any from T2T)
+# - role: mcp
+#   id: openai
+#   base_url: https://api.openai.com/v1/
+#   model: gpt-4o
+#   temperature: 0.25
+#   top_p: 0.9
+#   presence_penalty: 0.2
+#   frequency_penalty: 0.2
 
   # Embedding model
 - role: embedding
@@ -119,7 +119,7 @@ operations:
   model: text-embedding-3-small
 
 # Connect MCP servers, example commented
-mcp:
+mcp: [] # Remove "[]" if adding servers
 # - id: example_server
 #   command: python
 #   args: ["example_mcp_server.py"]

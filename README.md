@@ -63,6 +63,24 @@ conda activate jaison-core
 
 <hr />
 
+Install [PyTorch 2.7.1](https://pytorch.org/get-started/previous-versions/) with the right integration. Example below for computers with RTX graphics card.
+```bash
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+```
+
+> For NVidia cards, ensure you have the latest drivers and [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit)
+
+
+> Dealing with duplicate `libiomp5md.dll`.
+> 
+> It might not be necessary, but in case you encounter this error when running:
+> 
+> 1. Go to environment directory (where conda stores installed packages)
+> 2. Search for `libiomp5md.dll`
+> 3. Delete the version under package `torch`
+
+<hr />
+
 Install dependencies.
 
 ```bash
@@ -74,25 +92,7 @@ python install.py
 python -m unidic download
 ```
 
-
-> Dealing with duplicate `libiomp5md.dll`.
-> 
-> It might not be necessary, but in case you encounter this error when running:
-> 
-> 1. Go to environment directory (where conda stores installed packages)
-> 2. Search for `libiomp5md.dll`
-> 3. Delete the version under package `torch`
-
 > If on Windows, please enable [Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development)
-
-<hr />
-
-Install [PyTorch 2.7.1](https://pytorch.org/get-started/previous-versions/) with the right integration. Example below for computers with RTX graphics card.
-```bash
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
-```
-
-> For NVidia cards, ensure you have the latest drivers and [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit)
 
 <hr />
 

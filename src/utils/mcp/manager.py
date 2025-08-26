@@ -162,14 +162,9 @@ class MCPClient:
         message: types.CreateMessageRequestParams
     ) -> types.CreateMessageResult:
         try:
-            logging.critical("IN SAMPLERS")
             metadata = message.metadata or dict()
             sample_type = metadata.get("sample_type", "t2t")
-            logging.critical("GOD SAMPLE TYPE {}".format(sample_type))
-            logging.critical("{}".format(metadata))
-            logging.critical("{}".format(message.systemPrompt))
             if sample_type == "t2t":
-                logging.critical("{}".format(message.messages[0].content.text ))
                 response_stream = OperationManager().use_operation(
                     OpRoles.MCP,
                     {
@@ -228,14 +223,14 @@ If you don't want to call any tools, simply reply with "<no-tool>"
 Below is a list of descriptions for all available tool:\n
 """
 
-    response_prompt = """
-You are an assistant answer a user's question.
-You will be given the user's question under the header <QUESTION>. Answer this using the additional information. Do not hallucinate.
-You are given additional information to the actions and context retrieved prior to answering under the header <CONTEXT>.
-This additional information will each be on a new line, formated as follows: context_name: context_result
-For example, context by the name of "memories" that gave context "you are an ai" will look like "memories: you are an ai"
-Below is a list of all available contexts and their descriptions:
-"""
+#     response_prompt = """
+# You are an assistant answer a user's question.
+# You will be given the user's question under the header <QUESTION>. Answer this using the additional information. Do not hallucinate.
+# You are given additional information to the actions and context retrieved prior to answering under the header <CONTEXT>.
+# This additional information will each be on a new line, formated as follows: context_name: context_result
+# For example, context by the name of "memories" that gave context "you are an ai" will look like "memories: you are an ai"
+# Below is a list of all available contexts and their descriptions:
+# """
 
     pattern = re.compile(r"^<[\S]*>")
             
@@ -276,7 +271,8 @@ Below is a list of all available contexts and their descriptions:
         return prompt
     
     def get_response_prompt(self):
-        prompt = self.response_prompt
+        # prompt = self.response_prompt
+        prompt = ""
         for client_key in self.clients:
             prompt += self.clients[client_key].response_prompt
             
@@ -341,8 +337,6 @@ Below is a list of all available contexts and their descriptions:
             if result:
                 result_list.append((tool_name, result))
         
-        # use self.response_prompt in prompter
-        # add tool call results to prompter
         return result_list
 
     async def close(self):
