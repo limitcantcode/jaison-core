@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/limitcantcode-jaison-core-badge.png)](https://mseep.ai/app/limitcantcode-jaison-core)
+
 <h1 align="center">Project J.A.I.son</h1>
 
 <img src="docs/assets/banner.png" alt="Project J.A.I.son" width="1920">
