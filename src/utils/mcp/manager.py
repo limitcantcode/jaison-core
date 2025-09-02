@@ -14,6 +14,7 @@ from mcp.types import (
     TextResourceContents,
     BlobResourceContents
 )
+from utils.prompter.message import RawMessage
 
 from utils.config import Config
 from utils.operations import OperationManager, OpRoles
@@ -168,8 +169,8 @@ class MCPClient:
                 response_stream = OperationManager().use_operation(
                     OpRoles.MCP,
                     {
-                        "system_prompt": message.systemPrompt,
-                        "user_prompt": message.messages[0].content.text 
+                        "instruction_prompt": message.systemPrompt,
+                        "messages": [RawMessage(message.messages[0].content.text)] 
                     }
                 )
 
