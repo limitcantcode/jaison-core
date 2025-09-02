@@ -77,7 +77,7 @@ class MCPMessage(Message):
             "type": "tool",
             "tool": self.tool_name,
             "time": self.time.timestamp(),
-            "message": self.message
+            "message": self.result
         }
     
 class CustomMessage(Message):
