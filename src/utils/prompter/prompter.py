@@ -126,7 +126,7 @@ class Prompter(metaclass=Singleton):
             Config().PROMPT_DIR,
             Config().PROMPT_INSTRUCTION_SUBDIR,
             self.instruction_prompt_filename
-        )), 'r') as f:
+        )), 'r', encoding="utf-8") as f:
             return f.read()
         
     def get_context_descriptions(self):
@@ -144,7 +144,7 @@ class Prompter(metaclass=Singleton):
             Config().PROMPT_DIR,
             Config().PROMPT_CHARACTER_SUBDIR,
             self.character_prompt_filename
-        )), 'r') as f:
+        )), 'r', encoding="utf-8") as f:
             return f.read()
         
     def get_scene_prompt(self):
@@ -152,7 +152,7 @@ class Prompter(metaclass=Singleton):
             Config().PROMPT_DIR,
             Config().PROMPT_SCENE_SUBDIR,
             self.scene_prompt_filename
-        )), 'r') as f:
+        )), 'r', encoding="utf-8") as f:
             return f.read()
     
     def get_sys_prompt(self):
