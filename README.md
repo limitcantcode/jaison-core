@@ -67,9 +67,10 @@ Build your own applications using our [Developer Guide](#developer-guide)!
 
 **1. Create a virtual environment:**
 
+
+Install [PyTorch](https://pytorch.org/get-started/locally/) with the right integration. Example below for computers with RTX graphics card.
 ```bash
-conda create -n jaison-core python=3.10 pip=24.0 -y
-conda activate jaison-core
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130
 ```
 
 **2. Install dependencies:**
