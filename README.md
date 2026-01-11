@@ -63,9 +63,9 @@ conda activate jaison-core
 
 <hr />
 
-Install [PyTorch 2.7.1](https://pytorch.org/get-started/previous-versions/) with the right integration. Example below for computers with RTX graphics card.
+Install [PyTorch](https://pytorch.org/get-started/locally/) with the right integration. Example below for computers with RTX graphics card.
 ```bash
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130
 ```
 
 > For NVidia cards, ensure you have the latest drivers and [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit)
