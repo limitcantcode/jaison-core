@@ -13,78 +13,69 @@
 </p>
 
 <p align="center" >
-  <a href="#about-this-project">About This Project</a> •
-  <a href="#key-features">Key Features</a> •
-  <a href="#applications">Applications</a> •
-  <a href="#install-from-scratch">Install From Scratch</a> •
-  <a href="#operations">Operations</a> •
-  <a href="#how-to-use">How To Use</a> •
+  <a href="#about-this-project">About</a> •
+  <a href="#key-features">Features</a> •
+  <a href="#official-applications">Applications</a> •
+  <a href="#quick-start">Quick Start</a> •
   <a href="#developer-guide">Developer Guide</a> •
-  <a href="#Community">Community</a> •
-  <a href="#thank-you-to-all-the-contributors">Credits</a> •
+  <a href="#community">Community</a> •
+  <a href="#contributors">Contributors</a> •
   <a href="#license">License</a>
 </p>
 
+---
+
 ## About This Project
 
-This project is for a fully customizable AI persona usable for streaming or private companionship. Feel free to download and use how you wish. 
+Project J.A.I.son is a fully customizable AI companion server designed for streaming, private companionship, or building interactive AI applications. Run it entirely locally or leverage cloud services—the choice is yours.
 
-This software uses libraries from the FFmpeg project under the LGPLv2.1
+This software uses libraries from the FFmpeg project under the LGPLv2.1.
+
+---
 
 ## Key Features
 
-- Realtime promptable AI personality with text and speech input
-- Support for MCP
-- REST API and websocket server for building applications on top of this server
-- Options to run fully local
+- **Real-time AI Personality** - Text and speech input with customizable character prompts
+- **MCP Support** - Integrate Model Context Protocol servers for extended capabilities
+- **REST API & WebSocket Server** - Build custom applications on top of the core server
+- **Flexible Deployment** - Run fully local or use cloud services (Azure, OpenAI, Fish Audio, etc.)
+- **Modular Pipeline** - Mix and match STT, TTS, LLM, and filter operations
+
+---
 
 ## Official Applications
 
-- [Discord bot integration](https://github.com/limitcantcode/app-jaison-discord-lcc)
-- [VTube Studio with emotions](https://github.com/limitcantcode/app-jaison-vts-hotkeys-lcc)
-- [Twitch Chat and Events content provider](https://github.com/limitcantcode/app-jaison-twitch-lcc)
+Extend J.A.I.son with these official integrations:
 
-Feel free to build and share your own! See the [Developer Guide](#developer-guide) for more info.
+- **[Discord Bot](https://github.com/limitcantcode/app-jaison-discord-lcc)** - Chat with your AI in Discord servers
+- **[VTube Studio Emotions](https://github.com/limitcantcode/app-jaison-vts-hotkeys-lcc)** - Trigger VTube Studio expressions based on AI emotions
+- **[Twitch Integration](https://github.com/limitcantcode/app-jaison-twitch-lcc)** - React to chat and channel events on Twitch
 
-## Install From Scratch
+Build your own applications using our [Developer Guide](#developer-guide)!
 
-> **Note**
-> To simplify setup across platforms, setup now uses [conda](https://docs.conda.io/projects/conda/en/stable/user-guide/install/index.html). Conda is not necessary to run this project.
+---
 
-### Setup and install dependencies
+## Quick Start
 
-Create and enter a virtual environment with Python ^3.10 and pip 24.0.
+### Prerequisites
 
-For example, using conda:
-```bash
-conda create -n jaison-core python=3.10 pip=24.0 -y
-conda activate jaison-core
-```
+- **Conda:** Recommended for environment management
+- **CUDA Toolkit:** Required for NVIDIA GPU acceleration ([download here](https://developer.nvidia.com/cuda-toolkit))
+- **Windows Users:** Enable [Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development)
 
-<hr />
+### Installation
+
+**1. Create a virtual environment:**
+
 
 Install [PyTorch](https://pytorch.org/get-started/locally/) with the right integration. Example below for computers with RTX graphics card.
 ```bash
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130
 ```
 
-> For NVidia cards, ensure you have the latest drivers and [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit)
-
-
-> Dealing with duplicate `libiomp5md.dll`.
-> 
-> It might not be necessary, but in case you encounter this error when running:
-> 
-> 1. Go to environment directory (where conda stores installed packages)
-> 2. Search for `libiomp5md.dll`
-> 3. Delete the version under package `torch`
-
-<hr />
-
-Install dependencies.
+**2. Install dependencies:**
 
 ```bash
-# Inside project root where this README is located
 pip install -r requirements.txt
 pip install --no-deps -r requirements.no_deps.txt
 python -m spacy download en_core_web_sm
@@ -92,70 +83,117 @@ python install.py
 python -m unidic download
 ```
 
-> If on Windows, please enable [Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development)
+**3. Install PyTorch:**
 
-<hr />
-
-Install FFmpeg
-#### For Ubuntu/Debian users
+For NVIDIA GPUs:
 ```bash
-sudo apt install ffmpeg
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
 ```
-#### For MacOS users
+
+> **Note:** If you encounter `libiomp5md.dll` duplicate errors on Windows:
+> 1. Navigate to your conda environment's package directory
+> 2. Search for `libiomp5md.dll`
+> 3. Delete the version under the `torch` package folder
+
+**4. Install FFmpeg:**
+
+- **Ubuntu/Debian:**
+  ```bash
+  sudo apt install ffmpeg
+  ```
+- **macOS:**
+  ```bash
+  brew install ffmpeg
+  ```
+- **Windows:**
+  1. Download [`ffmpeg-git-essentials.7z`](https://www.gyan.dev/ffmpeg/builds/)
+  2. Extract and copy all files from `bin/` to the project root directory
+
+**5. Configure your setup:**
+
+1. Copy `.env-template` to `.env` and add your API keys for the services you plan to use.
+
+    ```bash
+    cp .env-template .env
+    ```
+
+    If running everything locally, you may leave the keys blank:
+    ```yaml
+    OPENAI_API_KEY=
+    FISH_API_KEY=
+    AZURE_REGION=
+    AZURE_API_KEY=
+    ```
+
+2. Create new text files under `prompts\characters`, `prompts\instructions`, and `prompts\scenes`, as required. Describe the character/instruction/scene as you'd like. Remember that you can create as many as you'd like and easily switch between them. An example for each is provided.
+
+3. Copy `configs\example.yaml` to `configs\config.yaml` (you can name it whatever you'd like). This is the name you'll use when running the main server!
+Select the desired operations (refer to **[Development Guide](DEVELOPER.md)**) and set the desired prompt filenames to the ones you created in Step 2:
+    ```yaml
+    prompter:
+    instruction_prompt_filename: 'example.txt'
+    character_prompt_filename: 'example.txt'
+    scene_prompt_filename: 'example.txt'
+    ```
+
+See the **[Development Guide](DEVELOPER.md)** for detailed configuration instructions, including:
+- Setting up local services (KoboldCPP, MeloTTS, RVC)
+- Configuring cloud providers (Azure, OpenAI, Fish Audio)
+- Customizing prompts and operations
+- Choosing the right services for your use case
+
+---
+
+## Running the Server
+
 ```bash
-brew install ffmpeg
+python ./src/main.py --config={config_filename}
+
+# Example for configs/example.yaml
+python ./src/main.py --config=example
+
+# Example for configs/config.yaml
+python ./src/main.py --config=config
 ```
-#### For Windows users
-Download executables and place them in the root folder:
-- [Download latest `ffmpeg-git-essentials.7z`](https://www.gyan.dev/ffmpeg/builds/)
-- Extract and copy all contents from `bin/` to root of this project.
 
-<hr />
-
-Configuration
-
-**FOR A FREE, 3RD PARTY T2T INTEGRATION**: Use `openai` type but configure for use with [Groq](https://console.groq.com/home).
-
-Add keys and other sensitive information for services you intend to use in `.env` (make a new file and copy the contents of [`.env-template`](.env-template)).
-
-For immediate setup using the example configuration, just provide the OpenAI API key.
-
-Overall configuration can be done in `configs/` and an example with all configurable options is located in `configs/example.yaml`. See [Development guide](DEVELOPER.md) for details on configuration.
-
-
-## How To Use
-
-While using the virtual environment with the installation.
-
+For all available options:
 ```bash
 python ./src/main.py --help
 ```
 
-Example usage: `python ./src/main.py --config=example`
+---
 
 ## Developer Guide
 
-See the specification for building applciations for Project J.A.I.son, creating custom integrations, and configuration tips below:
+Build applications, create custom integrations, or extend J.A.I.son:
 
-- [REST API spec](api.yaml)
-- [Development guide](DEVELOPER.md)
-- [Contributing guidelines](CONTRIBUTING.md)
+- **[Development Guide](DEVELOPER.md)** - Complete configuration reference, service setup, and operations documentation
+- **[REST API Specification](api.yaml)** - OpenAPI 3.1.0 spec for the REST API and WebSocket events
+- **[Contributing Guidelines](CONTRIBUTING.md)** - How to contribute to the project
+
+---
 
 ## Community
 
-Join the community!
+Join the community and get help:
 
-- [Discord](https://discord.gg/Z8yyEzHsYM)
-- [Youtube](https://www.youtube.com/@LimitCantCode)
-- [Twitch](https://www.twitch.tv/atmylimit_)
+- **[Discord](https://discord.gg/Z8yyEzHsYM)** - Project discussions and support
+- **[YouTube](https://www.youtube.com/@LimitCantCode)** - Tutorials and showcases
+- **[Twitch](https://www.twitch.tv/atmylimit_)** - Live development streams
 
-## Thank you to all the contributors!
+---
 
-[Become a contributor as well](CONTRIBUTING.md)
+## Contributors
+
+Thank you to everyone who has contributed to Project J.A.I.son!
+
+[Become a contributor](CONTRIBUTING.md)
 
 <a href="https://github.com/limitcantcode/jaison-core/graphs/contributors" target="_blank">
   <img src="https://contrib.rocks/image?repo=limitcantcode/jaison-core" />
 </a>
+
+---
 
 ## License
 

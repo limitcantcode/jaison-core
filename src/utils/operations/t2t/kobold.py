@@ -56,12 +56,12 @@ class KoboldT2T(T2TOperation):
         assert self.rep_pen_range > 0
         assert self.rep_pen_slope > 0
         assert self.temperature > 0
-        assert self.tfs > 0
-        assert self.top_a > 0
-        assert self.top_k > 0
-        assert self.top_p > 0
-        assert self.typical > 0
-        
+        assert self.tfs >= 0
+        assert self.top_a >= 0
+        assert self.top_k >= 0
+        assert 0 < self.top_p <= 1
+        assert self.typical >= 0
+
     async def get_configuration(self):
         '''Returns values of configurable fields'''
         return {
