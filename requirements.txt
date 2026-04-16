@@ -5,7 +5,7 @@ antlr4-python3-runtime==4.8
 anyascii==0.3.2
 anyio==4.9.0
 audioread==3.0.1
-av==14.4.0
+av
 azure-cognitiveservices-speech==1.44.0
 azure-core==1.34.0
 babel==2.17.0
