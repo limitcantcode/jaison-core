@@ -1,3 +1,0 @@
-rvc==0.3.5
-mcp==1.9.0
-melotts @ git+https://github.com/myshell-ai/MeloTTS@209145371cff8fc3bd60d7be902ea69cbdb7965a
