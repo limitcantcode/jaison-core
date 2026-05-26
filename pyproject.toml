@@ -40,9 +40,11 @@ dependencies = [
     "rvc",
     "soundfile<0.13.0",
     "spacy>=3.8.14",
-    "torch<2.6.0",
     "transformers==4.52.4",
     "unidic>=1.1.0",
+    "torch==2.5.1",
+    "torchvision==0.20.1",
+    "torchaudio==2.5.1",
 ]
 
 [dependency-groups]

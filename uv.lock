@@ -1299,6 +1299,8 @@ dependencies = [
     { name = "soundfile" },
     { name = "spacy" },
     { name = "torch" },
+    { name = "torchaudio" },
+    { name = "torchvision" },
     { name = "transformers" },
     { name = "unidic" },
 ]
@@ -1336,7 +1338,9 @@ requires-dist = [
     { name = "rvc", git = "https://github.com/limitcantcode/Retrieval-based-Voice-Conversion.git" },
     { name = "soundfile", specifier = "<0.13.0" },
     { name = "spacy", specifier = ">=3.8.14" },
-    { name = "torch", specifier = "<2.6.0" },
+    { name = "torch", specifier = "==2.5.1" },
+    { name = "torchaudio", specifier = "==2.5.1" },
+    { name = "torchvision", specifier = "==0.20.1" },
     { name = "transformers", specifier = "==4.52.4" },
     { name = "unidic", specifier = ">=1.1.0" },
 ]
@@ -5551,13 +5555,16 @@ wheels = [
 
 [[package]]
 name = "torchaudio"
-version = "2.11.0"
+version = "2.5.1"
 source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "torch" },
+]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8c/d9/357eb5fe4e19a861e6fa1af4d9f535e8fa8692336e6cf436e8a21262e054/torchaudio-2.11.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:6ebb59c694909eccb5d61b7cc199d297692012c43286e36d92983aa7bad7586d", size = 684145, upload-time = "2026-03-23T18:13:46.671Z" },
-    { url = "https://files.pythonhosted.org/packages/2a/79/90de77e73f395bba2fe477f8e82e4ae1d14d6452a706838765e850a5e80c/torchaudio-2.11.0-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:be7ad472acb16d16e98c005f0219b0db06a47dfe8f7b4d177062e1638f871e3b", size = 1626521, upload-time = "2026-03-23T18:13:40.98Z" },
-    { url = "https://files.pythonhosted.org/packages/66/dc/5757ed7d8d11a6c14336bcb54e63980979f00005555fec80fb4aa4de5eff/torchaudio-2.11.0-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:5847fe2022b17c6580aeb39c8797a443411cc09edfd9183cd50ac1a3b8ccf97c", size = 1771929, upload-time = "2026-03-23T18:13:43.432Z" },
-    { url = "https://files.pythonhosted.org/packages/cf/f4/8ce2417eac66296e45b7aaa69858403fb6a52b1323f8635ec37b4b0f1fa3/torchaudio-2.11.0-cp310-cp310-win_amd64.whl", hash = "sha256:7e2da1df4f6fe885c46db350a0dc90a0dff4b54541dff8846faa904d255e2bfe", size = 328661, upload-time = "2026-03-23T18:13:45.77Z" },
+    { url = "https://files.pythonhosted.org/packages/b3/db/246930ba5933a9f6ce8e2cca7086924487286a0bf7d8d28aeb354e8b0504/torchaudio-2.5.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:901291d770aeeb1f51920bb5aa73ff82e9b7f26354a3c7b90d80ff0b4e9a5044", size = 1794150, upload-time = "2024-10-29T17:41:14.174Z" },
+    { url = "https://files.pythonhosted.org/packages/e3/2c/3db92d48e2e4a0bd7398ecb39fb731ad876c7cd6ce6c365630865654d253/torchaudio-2.5.1-cp310-cp310-manylinux1_x86_64.whl", hash = "sha256:abacbec3b6d695cf99ada8b1db55db933181c8ff7d283e246e2bbefdde674235", size = 3369055, upload-time = "2024-10-29T17:41:34.204Z" },
+    { url = "https://files.pythonhosted.org/packages/c2/06/b122f0475ca97abdc8daf637c0f62778893aa40f91e988a7baef8eedf8c6/torchaudio-2.5.1-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:9b3872c5dd5080be6322908d62365581a1dd9250e3dd6d47bab3f5b0854a5d1f", size = 1666734, upload-time = "2024-10-29T17:41:21.573Z" },
+    { url = "https://files.pythonhosted.org/packages/fb/a8/113d41cfab3220ded1f9a5910e6b3c217bf3a6896925dca8cd13df0c23dc/torchaudio-2.5.1-cp310-cp310-win_amd64.whl", hash = "sha256:4aead2d6b32426d0e657e243f6f5146f8d400bc8db9fe8a8000254baeec1202d", size = 2435898, upload-time = "2024-10-29T17:41:19.772Z" },
 ]
 
 [[package]]
@@ -5574,6 +5581,22 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/68/17/7a4e2ee7f566771c3a623ff1e5765a4179cc01f305a57570188f8c4cd13c/torchcrepe-0.0.22.tar.gz", hash = "sha256:80afa152af0fce02c6d13071996b8c5aa3ded7110ef600b41150f267d54d10a2", size = 72329882, upload-time = "2023-10-09T20:54:19.412Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/51/7a/687bc17e2c3e240520df954932c06f2819244bb8868088d523b3a029bc8f/torchcrepe-0.0.22-py3-none-any.whl", hash = "sha256:5279c76c202cd7968e7d9a7ee2a5af9451b1a4338ed8e4ad385e357ad355fcff", size = 72326248, upload-time = "2023-10-09T20:54:14.046Z" },
+]
+
+[[package]]
+name = "torchvision"
+version = "0.20.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "pillow" },
+    { name = "torch" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8d/59/aea68d755da1451e1a0d894528a7edc9b58eb30d33e274bf21bef28dad1a/torchvision-0.20.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:4878fefb96ef293d06c27210918adc83c399d9faaf34cda5a63e129f772328f1", size = 1787552, upload-time = "2024-10-29T17:40:34.071Z" },
+    { url = "https://files.pythonhosted.org/packages/a2/f6/7ff89a9f8703f623f5664afd66c8600e3f09fe188e1e0b7e6f9a8617f865/torchvision-0.20.1-cp310-cp310-manylinux1_x86_64.whl", hash = "sha256:8ffbdf8bf5b30eade22d459f5a313329eeadb20dc75efa142987b53c007098c3", size = 7238975, upload-time = "2024-10-29T17:41:03.374Z" },
+    { url = "https://files.pythonhosted.org/packages/f7/ce/4c31e9b96cc4f9fec746b258d2aa35f8d1247f4f58d63f9c505ea5eb254d/torchvision-0.20.1-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:75f8a4d51a593c4bab6c9bf7d75bdd88691b00a53b07656678bc55a3a753dd73", size = 14265343, upload-time = "2024-10-29T17:40:57.799Z" },
+    { url = "https://files.pythonhosted.org/packages/17/11/b5ce67715bbbec8798fb48c4a20ac28828aec1710ac01091a3eddcb8e075/torchvision-0.20.1-cp310-cp310-win_amd64.whl", hash = "sha256:22c2fa44e20eb404b85e42b22b453863a14b0927d25e550fd4f84eea97fa5b39", size = 1562413, upload-time = "2024-10-29T17:40:39.991Z" },
 ]
 
 [[package]]
