@@ -65,30 +65,15 @@ This project uses [uv](https://docs.astral.sh/uv/) and Make ([Windows](https://g
 
 ```bash
 # Regular setup
-make sync
+make setup
 
 # Development setup
-make sync-dev 
+make dev
 ```
-
-### FFmpeg (needed for most operations)
-
-- **Ubuntu/Debian:**
-  ```bash
-  sudo apt install ffmpeg
-  ```
-- **macOS:**
-  ```bash
-  brew install ffmpeg
-  ```
-- **Windows:**
-  1. Download [`ffmpeg-git-essentials.7z`](https://www.gyan.dev/ffmpeg/builds/)
-  2. Extract and copy all files from `bin/` to the project root directory
 
 ### Hardware Acceleration
 
-Enable GPU usage by installing [PyTorch](https://pytorch.org/get-started/locally/) for your hardware and OS.
-
+Enable GPU usage by installing [PyTorch 2.5.1](https://pytorch.org/get-started/locally/) for your hardware and OS.
 
 ## Configuration
 
