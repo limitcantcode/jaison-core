@@ -1,6 +1,5 @@
 import logging
 import asyncio
-import uuid
 import base64
 import datetime
 from typing import Dict, Coroutine, List, Any, Tuple
@@ -110,35 +109,33 @@ class JAIson(metaclass=Singleton):
     ## Job Queueing #########################
     
     # Add async task to Queue to be ran in the order it was requested
-    async def create_job(self, job_type: Enum, **kwargs):
-        new_job_id = str(uuid.uuid4())
-        
+    async def create_job(self, job_type: Enum, job_id: str, **kwargs):
         job_type_enum = JobType(job_type)
         
         coro = None
-        if job_type_enum == JobType.RESPONSE: coro = self.response_pipeline(new_job_id, job_type_enum, **kwargs)
-        elif job_type_enum == JobType.CONTEXT_REQUEST_ADD: coro = self.append_request_context(new_job_id, job_type_enum, **kwargs)
-        elif job_type_enum == JobType.CONTEXT_CONVERSATION_ADD_TEXT: coro = self.append_conversation_context_text(new_job_id, job_type_enum, **kwargs)
-        elif job_type_enum == JobType.CONTEXT_CONVERSATION_ADD_AUDIO: coro = self.append_conversation_context_audio(new_job_id, job_type_enum, **kwargs)
-        elif job_type_enum == JobType.CONTEXT_CLEAR: coro = self.clear_context(new_job_id, job_type_enum, **kwargs)
-        elif job_type_enum == JobType.CONTEXT_CONFIGURE: coro = self.configure_context(new_job_id, job_type_enum, **kwargs)
-        elif job_type_enum == JobType.CONTEXT_CUSTOM_REGISTER: coro = self.register_custom_context(new_job_id, job_type_enum, **kwargs)
-        elif job_type_enum == JobType.CONTEXT_CUSTOM_REMOVE: coro = self.remove_custom_context(new_job_id, job_type_enum, **kwargs)
-        elif job_type_enum == JobType.CONTEXT_CUSTOM_ADD: coro = self.add_custom_context(new_job_id, job_type_enum, **kwargs)
-        elif job_type_enum == JobType.OPERATION_LOAD: coro = self.load_operations(new_job_id, job_type_enum, **kwargs)
-        elif job_type_enum == JobType.OPERATION_CONFIG_RELOAD: coro = self.load_operations_from_config(new_job_id, job_type_enum, **kwargs)
-        elif job_type_enum == JobType.OPERATION_UNLOAD: coro = self.unload_operations(new_job_id, job_type_enum, **kwargs)
-        elif job_type_enum == JobType.OPERATION_CONFIGURE: coro = self.configure_operations(new_job_id, job_type_enum, **kwargs)
-        elif job_type_enum == JobType.OPERATION_USE: coro = self.use_operation(new_job_id, job_type_enum, **kwargs)
-        elif job_type_enum == JobType.CONFIG_LOAD: coro = self.load_config(new_job_id, job_type_enum, **kwargs)
-        elif job_type_enum == JobType.CONFIG_UPDATE: coro = self.update_config(new_job_id, job_type_enum, **kwargs)
-        elif job_type_enum == JobType.CONFIG_SAVE: coro = self.save_config(new_job_id, job_type_enum, **kwargs)
-        self.job_map[new_job_id] = (job_type_enum, coro)
+        if job_type_enum == JobType.RESPONSE: coro = self.response_pipeline(job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONTEXT_REQUEST_ADD: coro = self.append_request_context(job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONTEXT_CONVERSATION_ADD_TEXT: coro = self.append_conversation_context_text(job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONTEXT_CONVERSATION_ADD_AUDIO: coro = self.append_conversation_context_audio(job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONTEXT_CLEAR: coro = self.clear_context(job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONTEXT_CONFIGURE: coro = self.configure_context(job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONTEXT_CUSTOM_REGISTER: coro = self.register_custom_context(job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONTEXT_CUSTOM_REMOVE: coro = self.remove_custom_context(job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONTEXT_CUSTOM_ADD: coro = self.add_custom_context(job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.OPERATION_LOAD: coro = self.load_operations(job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.OPERATION_CONFIG_RELOAD: coro = self.load_operations_from_config(job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.OPERATION_UNLOAD: coro = self.unload_operations(job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.OPERATION_CONFIGURE: coro = self.configure_operations(job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.OPERATION_USE: coro = self.use_operation(job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONFIG_LOAD: coro = self.load_config(job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONFIG_UPDATE: coro = self.update_config(job_id, job_type_enum, **kwargs)
+        elif job_type_enum == JobType.CONFIG_SAVE: coro = self.save_config(job_id, job_type_enum, **kwargs)
+        self.job_map[job_id] = (job_type_enum, coro)
         
-        await self.job_queue.put(new_job_id)
+        await self.job_queue.put(job_id)
         
-        logging.info("Queued new {} job {}".format(job_type_enum.value, new_job_id))
-        return new_job_id
+        logging.info("Queued new {} job {}".format(job_type_enum.value, job_id))
+        return job_id
     
     async def cancel_job(self, job_id: str, reason: str = None):
         if job_id not in self.job_map: raise NonexistantJobException(f"Job {job_id} does not exist or already finished")

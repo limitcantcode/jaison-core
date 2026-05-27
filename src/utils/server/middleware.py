@@ -52,8 +52,8 @@ def _target(path: str, query: str) -> str:
     return f"{path}?{query}" if query else path
 
 
-class APILoggingMiddleware(BaseHTTPMiddleware):
-    """Log HTTP API requests and responses (WebSocket traffic is not handled here)."""
+class RequestMetricsTrackingMiddleware(BaseHTTPMiddleware):
+    """Assign a request ID for metrics, logging, and job correlation (WebSocket traffic is not handled here)."""
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         if _should_skip_logging(request.url.path):

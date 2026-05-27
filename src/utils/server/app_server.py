@@ -4,7 +4,7 @@ import logging
 from typing import Any
 
 import uvicorn
-from fastapi import Body, FastAPI, Response, WebSocket, WebSocketDisconnect
+from fastapi import Body, FastAPI, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -14,7 +14,7 @@ from utils.helpers.singleton import Singleton
 from utils.jaison import JAIson, JobType, NonexistantJobException
 
 from .common import api_response
-from .middleware import APILoggingMiddleware
+from .middleware import RequestMetricsTrackingMiddleware
 from .data import (
     AnyApiResponse,
     ApiResponse,
@@ -57,7 +57,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(APILoggingMiddleware)
+app.add_middleware(RequestMetricsTrackingMiddleware)
 
 API_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
     400: {"model": AnyApiResponse, "description": "Client error"},
@@ -179,10 +179,12 @@ async def _request_job(
     job_type: JobType,
     body: BaseModel | None,
     http_response: Response,
+    request: Request,
 ) -> JobCreatedApiResponse | AnyApiResponse:
     job_name = job_type.value
+    job_id = request.state.request_id
     try:
-        job_id = await JAIson().create_job(job_type, **_job_kwargs(job_type, body))
+        job_id = await JAIson().create_job(job_type, job_id, **_job_kwargs(job_type, body))
         return api_response(
             200,
             f"{job_name} job created",
@@ -202,10 +204,11 @@ async def _request_job(
     description=JOB_DESCRIPTION,
 )
 async def response(
+    request: Request,
     http_response: Response,
     body: ResponseJobRequest | None = Body(default=None),
 ) -> JobCreatedApiResponse | AnyApiResponse:
-    return await _request_job(JobType.RESPONSE, body, http_response)
+    return await _request_job(JobType.RESPONSE, body, http_response, request)
 
 
 @app.delete(
@@ -215,8 +218,10 @@ async def response(
     summary="Queue a context clear job",
     description=JOB_DESCRIPTION,
 )
-async def context_clear(http_response: Response) -> JobCreatedApiResponse | AnyApiResponse:
-    return await _request_job(JobType.CONTEXT_CLEAR, None, http_response)
+async def context_clear(
+    request: Request, http_response: Response
+) -> JobCreatedApiResponse | AnyApiResponse:
+    return await _request_job(JobType.CONTEXT_CLEAR, None, http_response, request)
 
 
 @app.put(
@@ -227,10 +232,11 @@ async def context_clear(http_response: Response) -> JobCreatedApiResponse | AnyA
     description=JOB_DESCRIPTION,
 )
 async def context_configure(
+    request: Request,
     http_response: Response,
     body: ContextConfigureRequest = Body(...),
 ) -> JobCreatedApiResponse | AnyApiResponse:
-    return await _request_job(JobType.CONTEXT_CONFIGURE, body, http_response)
+    return await _request_job(JobType.CONTEXT_CONFIGURE, body, http_response, request)
 
 
 @app.post(
@@ -241,10 +247,11 @@ async def context_configure(
     description=JOB_DESCRIPTION,
 )
 async def context_request_add(
+    request: Request,
     http_response: Response,
     body: ContextRequestAddRequest = Body(...),
 ) -> JobCreatedApiResponse | AnyApiResponse:
-    return await _request_job(JobType.CONTEXT_REQUEST_ADD, body, http_response)
+    return await _request_job(JobType.CONTEXT_REQUEST_ADD, body, http_response, request)
 
 
 @app.post(
@@ -255,10 +262,11 @@ async def context_request_add(
     description=JOB_DESCRIPTION,
 )
 async def context_conversation_add_text(
+    request: Request,
     http_response: Response,
     body: ContextConversationTextRequest = Body(...),
 ) -> JobCreatedApiResponse | AnyApiResponse:
-    return await _request_job(JobType.CONTEXT_CONVERSATION_ADD_TEXT, body, http_response)
+    return await _request_job(JobType.CONTEXT_CONVERSATION_ADD_TEXT, body, http_response, request)
 
 
 @app.post(
@@ -269,10 +277,11 @@ async def context_conversation_add_text(
     description=JOB_DESCRIPTION,
 )
 async def context_conversation_add_audio(
+    request: Request,
     http_response: Response,
     body: ContextConversationAudioRequest = Body(...),
 ) -> JobCreatedApiResponse | AnyApiResponse:
-    return await _request_job(JobType.CONTEXT_CONVERSATION_ADD_AUDIO, body, http_response)
+    return await _request_job(JobType.CONTEXT_CONVERSATION_ADD_AUDIO, body, http_response, request)
 
 
 @app.put(
@@ -283,10 +292,11 @@ async def context_conversation_add_audio(
     description=JOB_DESCRIPTION,
 )
 async def context_custom_register(
+    request: Request,
     http_response: Response,
     body: ContextCustomRegisterRequest = Body(...),
 ) -> JobCreatedApiResponse | AnyApiResponse:
-    return await _request_job(JobType.CONTEXT_CUSTOM_REGISTER, body, http_response)
+    return await _request_job(JobType.CONTEXT_CUSTOM_REGISTER, body, http_response, request)
 
 
 @app.delete(
@@ -297,10 +307,11 @@ async def context_custom_register(
     description=JOB_DESCRIPTION,
 )
 async def context_custom_remove(
+    request: Request,
     http_response: Response,
     body: ContextCustomRemoveRequest = Body(...),
 ) -> JobCreatedApiResponse | AnyApiResponse:
-    return await _request_job(JobType.CONTEXT_CUSTOM_REMOVE, body, http_response)
+    return await _request_job(JobType.CONTEXT_CUSTOM_REMOVE, body, http_response, request)
 
 
 @app.post(
@@ -311,10 +322,11 @@ async def context_custom_remove(
     description=JOB_DESCRIPTION,
 )
 async def context_custom_add(
+    request: Request,
     http_response: Response,
     body: ContextCustomAddRequest = Body(...),
 ) -> JobCreatedApiResponse | AnyApiResponse:
-    return await _request_job(JobType.CONTEXT_CUSTOM_ADD, body, http_response)
+    return await _request_job(JobType.CONTEXT_CUSTOM_ADD, body, http_response, request)
 
 
 @app.post(
@@ -325,10 +337,11 @@ async def context_custom_add(
     description=JOB_DESCRIPTION,
 )
 async def operation_start(
+    request: Request,
     http_response: Response,
     body: OperationsListRequest = Body(...),
 ) -> JobCreatedApiResponse | AnyApiResponse:
-    return await _request_job(JobType.OPERATION_LOAD, body, http_response)
+    return await _request_job(JobType.OPERATION_LOAD, body, http_response, request)
 
 
 @app.post(
@@ -338,8 +351,10 @@ async def operation_start(
     summary="Queue a reload-from-config job",
     description=JOB_DESCRIPTION,
 )
-async def operation_reload(http_response: Response) -> JobCreatedApiResponse | AnyApiResponse:
-    return await _request_job(JobType.OPERATION_CONFIG_RELOAD, None, http_response)
+async def operation_reload(
+    request: Request, http_response: Response
+) -> JobCreatedApiResponse | AnyApiResponse:
+    return await _request_job(JobType.OPERATION_CONFIG_RELOAD, None, http_response, request)
 
 
 @app.post(
@@ -350,10 +365,11 @@ async def operation_reload(http_response: Response) -> JobCreatedApiResponse | A
     description=JOB_DESCRIPTION,
 )
 async def operation_unload(
+    request: Request,
     http_response: Response,
     body: OperationsListRequest = Body(...),
 ) -> JobCreatedApiResponse | AnyApiResponse:
-    return await _request_job(JobType.OPERATION_UNLOAD, body, http_response)
+    return await _request_job(JobType.OPERATION_UNLOAD, body, http_response, request)
 
 
 @app.post(
@@ -364,10 +380,11 @@ async def operation_unload(
     description=JOB_DESCRIPTION,
 )
 async def operation_configure(
+    request: Request,
     http_response: Response,
     body: OperationsListRequest = Body(...),
 ) -> JobCreatedApiResponse | AnyApiResponse:
-    return await _request_job(JobType.OPERATION_CONFIGURE, body, http_response)
+    return await _request_job(JobType.OPERATION_CONFIGURE, body, http_response, request)
 
 
 @app.post(
@@ -378,10 +395,11 @@ async def operation_configure(
     description=JOB_DESCRIPTION,
 )
 async def operation_use(
+    request: Request,
     http_response: Response,
     body: OperationUseRequest = Body(...),
 ) -> JobCreatedApiResponse | AnyApiResponse:
-    return await _request_job(JobType.OPERATION_USE, body, http_response)
+    return await _request_job(JobType.OPERATION_USE, body, http_response, request)
 
 
 @app.put(
@@ -392,10 +410,11 @@ async def operation_use(
     description=JOB_DESCRIPTION,
 )
 async def config_load(
+    request: Request,
     http_response: Response,
     body: ConfigLoadRequest = Body(...),
 ) -> JobCreatedApiResponse | AnyApiResponse:
-    return await _request_job(JobType.CONFIG_LOAD, body, http_response)
+    return await _request_job(JobType.CONFIG_LOAD, body, http_response, request)
 
 
 @app.put(
@@ -406,10 +425,11 @@ async def config_load(
     description=JOB_DESCRIPTION,
 )
 async def config_update(
+    request: Request,
     http_response: Response,
     body: ConfigUpdateRequest = Body(...),
 ) -> JobCreatedApiResponse | AnyApiResponse:
-    return await _request_job(JobType.CONFIG_UPDATE, body, http_response)
+    return await _request_job(JobType.CONFIG_UPDATE, body, http_response, request)
 
 
 @app.post(
@@ -420,10 +440,11 @@ async def config_update(
     description=JOB_DESCRIPTION,
 )
 async def config_save(
+    request: Request,
     http_response: Response,
     body: ConfigSaveRequest = Body(...),
 ) -> JobCreatedApiResponse | AnyApiResponse:
-    return await _request_job(JobType.CONFIG_SAVE, body, http_response)
+    return await _request_job(JobType.CONFIG_SAVE, body, http_response, request)
 
 
 ## START ###################################

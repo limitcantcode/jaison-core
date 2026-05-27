@@ -30,7 +30,12 @@ class ApiResponse(BaseModel, Generic[T]):
 class JobCreatedResponse(BaseModel):
     """Returned when a job is queued successfully."""
 
-    job_id: str = Field(description="UUID of the queued job; use to correlate WebSocket events.")
+    job_id: str = Field(
+        description=(
+            "UUID of the queued job (same as the request's X-Request-ID); "
+            "use to correlate WebSocket events and HTTP logs."
+        )
+    )
 
 
 class EmptyResponse(BaseModel):
