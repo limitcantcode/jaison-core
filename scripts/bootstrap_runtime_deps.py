@@ -37,7 +37,6 @@ from pathlib import Path
 
 import requests
 
-
 KOBOLDCPP_TAG = "v1.113.2"
 RELEASE_BASE = f"https://github.com/LostRuins/koboldcpp/releases/download/{KOBOLDCPP_TAG}"
 
@@ -219,7 +218,9 @@ def _ffmpeg_static_asset_names(system: str, machine: str) -> tuple[str, str] | N
             return ("ffmpeg-linux-arm", "ffprobe-linux-arm")
         if m in {"i386", "i686"}:
             return ("ffmpeg-linux-ia32", "ffprobe-linux-ia32")
-        print(f"ERROR: Unsupported Linux machine type for ffmpeg-static: {machine!r}", file=sys.stderr)
+        print(
+            f"ERROR: Unsupported Linux machine type for ffmpeg-static: {machine!r}", file=sys.stderr
+        )
         return None
 
     if sys_norm == "Darwin":
@@ -227,7 +228,9 @@ def _ffmpeg_static_asset_names(system: str, machine: str) -> tuple[str, str] | N
             return ("ffmpeg-darwin-arm64", "ffprobe-darwin-arm64")
         if m in {"x86_64"}:
             return ("ffmpeg-darwin-x64", "ffprobe-darwin-x64")
-        print(f"ERROR: Unsupported macOS machine type for ffmpeg-static: {machine!r}", file=sys.stderr)
+        print(
+            f"ERROR: Unsupported macOS machine type for ffmpeg-static: {machine!r}", file=sys.stderr
+        )
         return None
 
     print(f"ERROR: Unsupported OS for ffmpeg-static bootstrap: {system!r}", file=sys.stderr)
@@ -305,9 +308,7 @@ def download_ffmpeg_and_ffprobe(*, project_root: Path, force: bool) -> None:
             mode = final.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
             final.chmod(mode)
 
-    (bin_dir / ".ffmpeg-static-version").write_text(
-        FFMPEG_STATIC_TAG + "\n", encoding="utf-8"
-    )
+    (bin_dir / ".ffmpeg-static-version").write_text(FFMPEG_STATIC_TAG + "\n", encoding="utf-8")
 
     print(f"  ffmpeg -> {ffmpeg_final}")
     print(f"  ffprobe -> {ffprobe_final}")

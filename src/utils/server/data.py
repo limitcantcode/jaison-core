@@ -5,15 +5,13 @@ broadcast on the WebSocket (``/``) as ``WebSocketEventMessage`` instances while 
 job runs in ``JAIson``.
 """
 
-from typing import Any, Generic, Literal, TypeVar, Union
+from typing import Any, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
 T = TypeVar("T")
 
-_OP_ROLE_DESC = (
-    "Operation role: stt, mcp, t2t, tts, filter_audio, filter_text, or embedding."
-)
+_OP_ROLE_DESC = "Operation role: stt, mcp, t2t, tts, filter_audio, filter_text, or embedding."
 
 # --- Envelope -----------------------------------------------------------------
 
@@ -75,26 +73,45 @@ class ConfigResponse(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
-    CONFIG_DIR: str | None = Field(default=None, description="Directory containing YAML config files.")
-    WORKING_DIR: str | None = Field(default=None, description="Temporary working directory for runtime files.")
+    CONFIG_DIR: str | None = Field(
+        default=None, description="Directory containing YAML config files."
+    )
+    WORKING_DIR: str | None = Field(
+        default=None, description="Temporary working directory for runtime files."
+    )
     current_config: str | None = Field(
-        default=None, description="Name of the loaded config file, or ``Unsaved`` if edited in memory."
+        default=None,
+        description="Name of the loaded config file, or ``Unsaved`` if edited in memory.",
     )
     operations: list[Any] | None = Field(
         default=None, description="Operation entries from the active configuration."
     )
-    prompter: dict[str, Any] | None = Field(default=None, description="Prompter configuration object.")
+    prompter: dict[str, Any] | None = Field(
+        default=None, description="Prompter configuration object."
+    )
     mcp: list[Any] | None = Field(default=None, description="Configured MCP server entries.")
     PROMPT_DIR: str | None = Field(default=None, description="Root directory for prompt templates.")
-    MCP_DIR: str | None = Field(default=None, description="Directory containing MCP server implementations.")
+    MCP_DIR: str | None = Field(
+        default=None, description="Directory containing MCP server implementations."
+    )
     MELO_DIR: str | None = Field(default=None, description="Directory for MeloTTS model assets.")
-    history_filepath: str | None = Field(default=None, description="Debug path where conversation history is written.")
-    kobold_filepath: str | None = Field(default=None, description="Path to the Kobold-compatible binary, if configured.")
-    kcpps_filepath: str | None = Field(default=None, description="Path to the KoboldCPP server binary, if configured.")
-    stt_working_src: str | None = Field(default=None, description="Working WAV path used by STT operations.")
+    history_filepath: str | None = Field(
+        default=None, description="Debug path where conversation history is written."
+    )
+    kobold_filepath: str | None = Field(
+        default=None, description="Path to the Kobold-compatible binary, if configured."
+    )
+    kcpps_filepath: str | None = Field(
+        default=None, description="Path to the KoboldCPP server binary, if configured."
+    )
+    stt_working_src: str | None = Field(
+        default=None, description="Working WAV path used by STT operations."
+    )
     ffmpeg_working_src: str | None = Field(default=None, description="FFmpeg source WAV path.")
     ffmpeg_working_dest: str | None = Field(default=None, description="FFmpeg output WAV path.")
-    spacy_model: str | None = Field(default=None, description="spaCy model name used by text filters.")
+    spacy_model: str | None = Field(
+        default=None, description="spaCy model name used by text filters."
+    )
 
 
 # --- Job request bodies (forwarded as ``create_job`` kwargs) ------------------
@@ -112,7 +129,9 @@ class ContextConfigureRequest(BaseModel):
         default=None,
         description="Map of script names to display names shown to the model.",
     )
-    character_name: str | None = Field(default=None, description="Name of the character in the script.")
+    character_name: str | None = Field(
+        default=None, description="Name of the character in the script."
+    )
     history_length: int | None = Field(
         default=None, description="Maximum number of script lines to retain in history."
     )
@@ -138,7 +157,9 @@ class ContextConversationTextRequest(BaseModel):
     timestamp: float | int | None = Field(
         default=None, description="UNIX timestamp for the message; defaults to now if omitted."
     )
-    content: str | None = Field(default=None, description="Message text added to the conversation history.")
+    content: str | None = Field(
+        default=None, description="Message text added to the conversation history."
+    )
 
 
 class ContextConversationAudioRequest(BaseModel):
@@ -278,23 +299,29 @@ class JobProgressEvent(BaseModel):
 class JobSuccessEvent(BaseModel):
     job_id: str = Field(description="UUID of the job that completed successfully.")
     finished: Literal[True] = Field(default=True, description="Always true when the job completed.")
-    success: Literal[True] = Field(default=True, description="Always true for a successful completion.")
+    success: Literal[True] = Field(
+        default=True, description="Always true for a successful completion."
+    )
 
 
 class JobErrorEvent(BaseModel):
     job_id: str = Field(description="UUID of the job that failed or was cancelled.")
     finished: Literal[True] = Field(default=True, description="Always true when the job has ended.")
-    success: Literal[False] = Field(default=False, description="Always false for error or cancellation events.")
+    success: Literal[False] = Field(
+        default=False, description="Always false for error or cancellation events."
+    )
     result: JobErrorResult = Field(description="Structured error details.")
 
 
-JobEventPayload = Union[JobStartEvent, JobProgressEvent, JobSuccessEvent, JobErrorEvent]
+JobEventPayload = JobStartEvent | JobProgressEvent | JobSuccessEvent | JobErrorEvent
 
 
 class WebSocketEventMessage(BaseModel):
     """JSON message pushed to WebSocket clients (``message`` is the ``JobType`` value)."""
 
-    status: int = Field(default=200, description="Envelope status; always 200 for broadcast events.")
+    status: int = Field(
+        default=200, description="Envelope status; always 200 for broadcast events."
+    )
     message: str = Field(
         description="Job type string (``JobType.value``), e.g. response or context_clear."
     )

@@ -14,7 +14,6 @@ from utils.helpers.singleton import Singleton
 from utils.jaison import JAIson, JobType, NonexistantJobException
 
 from .common import api_response
-from .middleware import RequestMetricsTrackingMiddleware
 from .data import (
     AnyApiResponse,
     ApiResponse,
@@ -43,6 +42,7 @@ from .data import (
     ResponseJobRequest,
     WebSocketEventApiResponse,
 )
+from .middleware import RequestMetricsTrackingMiddleware
 
 app = FastAPI(
     title="jaison-core",
@@ -64,7 +64,9 @@ API_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
     500: {"model": AnyApiResponse, "description": "Server error"},
 }
 
-JOB_DESCRIPTION = "Queues a job and returns its ID. Progress and results are sent on the WebSocket at `/`."
+JOB_DESCRIPTION = (
+    "Queues a job and returns its ID. Progress and results are sent on the WebSocket at `/`."
+)
 
 ## Websocket Event Broadcasting Server ##
 
@@ -151,7 +153,9 @@ async def get_current_config() -> ConfigApiResponse:
 async def cancel_job(body: CancelJobRequest, http_response: Response) -> EmptyApiResponse:
     try:
         await JAIson().cancel_job(body.job_id, body.reason)
-        return api_response(200, "Job flagged for cancellation", EmptyResponse(), http_response=http_response)
+        return api_response(
+            200, "Job flagged for cancellation", EmptyResponse(), http_response=http_response
+        )
     except NonexistantJobException:
         return api_response(
             400,

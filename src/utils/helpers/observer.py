@@ -1,13 +1,15 @@
 import asyncio
-from typing import List, AsyncGenerator
+from collections.abc import AsyncGenerator
 
-'''ObserverClient asynchronously handles events in queue populated by an ObserverServer'''
-class BaseObserverClient():
-    def __init__(self, server = None):
+"""ObserverClient asynchronously handles events in queue populated by an ObserverServer"""
+
+
+class BaseObserverClient:
+    def __init__(self, server=None):
         self.server = None
         if server:
             self.listen(server)
-            
+
         self.queue = asyncio.Queue()
         self.event_listener = None
 
@@ -17,26 +19,29 @@ class BaseObserverClient():
 
         self.server = server
         self.server.join(self)
-        
+
         self.event_listener = asyncio.create_task(self._event_listener())
 
     def close(self):
         self.server.detach(self)
         self.server = None
-        
+
     async def _event_listener(self):
         while True:
             next_event = await self.queue.get()
-            await self.handle_event(next_event['event'], next_event['payload'])
-            
+            await self.handle_event(next_event["event"], next_event["payload"])
+
     # To Be Implement
     async def handle_event(self, event_id: str, payload) -> None:
         raise NotImplementedError
 
-'''ObserverServer adds events and payloads to all listening client queues.'''
-class ObserverServer():
+
+"""ObserverServer adds events and payloads to all listening client queues."""
+
+
+class ObserverServer:
     def __init__(self):
-        self.clients: List[ObserverClient] = []
+        self.clients: list[BaseObserverClient] = []
 
     def join(self, client):
         if client not in self.clients:
@@ -46,17 +51,13 @@ class ObserverServer():
         if client in self.clients:
             self.clients.remove(client)
 
-    async def broadcast_event(self, event_id: str, payload: dict = {}):
+    async def broadcast_event(self, event_id: str, payload: dict = None):
+        if payload is None:
+            payload = {}
         for client in self.clients:
-            await client.queue.put({
-                "event": event_id,
-                "payload": payload
-            })
-            
+            await client.queue.put({"event": event_id, "payload": payload})
+
     async def broadcast_stream(self, event_id: str, payload_stream: AsyncGenerator):
         async for payload in payload_stream:
             for client in self.clients:
-                await client.queue.put({
-                    "event": event_id,
-                    "payload": payload
-                })
+                await client.queue.put({"event": event_id, "payload": payload})

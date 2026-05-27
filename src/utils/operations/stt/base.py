@@ -1,4 +1,4 @@
-'''
+"""
 STT Operations (at minimum) require the following fields for input chunks:
 - prompt: (str) initial words to help with transcription (Optional)
 - audio_bytes: (bytes) pcm audio data
@@ -8,27 +8,29 @@ STT Operations (at minimum) require the following fields for input chunks:
 
 Adds to chunk:
 - transcription: (str) transcribed audio
-'''
+"""
 
-from typing import Dict, Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from ..base import Operation
+
 
 class STTOperation(Operation):
     def __init__(self, op_id: str):
         super().__init__("STT", op_id)
-        
+
     ## TO BE OVERRIDEN ####
     async def start(self) -> None:
-        '''General setup needed to start generated'''
+        """General setup needed to start generated"""
         await super().start()
-    
+
     async def close(self) -> None:
-        '''Clean up resources before unloading'''
+        """Clean up resources before unloading"""
         await super().close()
-    
-    async def _parse_chunk(self, chunk_in: Dict[str, Any]) -> Dict[str, Any]:
-        '''Extract information from input for use in _generate'''
+
+    async def _parse_chunk(self, chunk_in: dict[str, Any]) -> dict[str, Any]:
+        """Extract information from input for use in _generate"""
         assert "audio_bytes" in chunk_in
         assert isinstance(chunk_in["audio_bytes"], bytes)
         assert len(chunk_in["audio_bytes"]) > 0
@@ -41,28 +43,34 @@ class STTOperation(Operation):
         assert "ch" in chunk_in
         assert isinstance(chunk_in["ch"], int)
         assert chunk_in["ch"] > 0
-        
+
         return {
             "prompt": chunk_in.get("prompt", ""),
             "audio_bytes": chunk_in["audio_bytes"],
             "sr": chunk_in["sr"],
             "sw": chunk_in["sw"],
-            "ch": chunk_in["ch"]
+            "ch": chunk_in["ch"],
         }
-    
+
     ## TO BE IMPLEMENTED ####
-    async def configure(self, config_d: Dict[str, Any]):
-        '''Configure and validate operation-specific configuration'''
+    async def configure(self, config_d: dict[str, Any]):
+        """Configure and validate operation-specific configuration"""
         raise NotImplementedError
-    
-    async def get_configuration(self) -> Dict[str, Any]:
-        '''Returns values of configurable fields'''
+
+    async def get_configuration(self) -> dict[str, Any]:
+        """Returns values of configurable fields"""
         raise NotImplementedError
-    
-    async def _generate(self, prompt: str = None, audio_bytes: bytes = None, sr: int = None, sw: int = None, ch: int = None, **kwargs) -> AsyncGenerator[Dict[str, Any], None]:
-        '''Generate a output stream'''
+
+    async def _generate(
+        self,
+        prompt: str = None,
+        audio_bytes: bytes = None,
+        sr: int = None,
+        sw: int = None,
+        ch: int = None,
+        **kwargs,
+    ) -> AsyncGenerator[dict[str, Any], None]:
+        """Generate a output stream"""
         raise NotImplementedError
-    
-        yield {
-            "transcription": "example transcribed text"
-        }
+
+        yield {"transcription": "example transcribed text"}
