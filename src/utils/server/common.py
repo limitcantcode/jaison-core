@@ -1,19 +1,20 @@
-def create_response(status: int, message: str, response: dict, headers = None):
-    if headers is None:
-        return ({
-            "status": status,
-            "message": message,
-            "response": response
-        }, status)
-    else:
-        return ({
-            "status": status,
-            "message": message,
-            "response": response
-        }, status, headers)
+from typing import TypeVar
 
-def create_preflight(methods: str):
-    return ("Success", 200, {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': methods,
-        'Access-Control-Allow-Headers': 'Content-Type'})
+from fastapi import Response
+
+from .data import ApiResponse
+
+T = TypeVar("T")
+
+
+def api_response(
+    status: int,
+    message: str,
+    response: T,
+    *,
+    http_response: Response | None = None,
+) -> ApiResponse[T]:
+    body = ApiResponse(status=status, message=message, response=response)
+    if http_response is not None:
+        http_response.status_code = status
+    return body

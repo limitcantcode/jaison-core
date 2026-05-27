@@ -1,248 +1,442 @@
-from quart import Quart, request, websocket
 import asyncio
-import json
 import base64
 import logging
+from typing import Any
+
+import uvicorn
+from fastapi import Body, FastAPI, Response, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
 from utils.args import args
+from utils.helpers.observer import BaseObserverClient
 from utils.helpers.singleton import Singleton
 from utils.jaison import JAIson, JobType, NonexistantJobException
-from utils.config import Config
-from utils.helpers.observer import BaseObserverClient
-from .common import create_response, create_preflight
 
-app = Quart(__name__)
-cors_header = {'Access-Control-Allow-Origin': '*'}
+from .common import api_response
+from .middleware import APILoggingMiddleware
+from .data import (
+    AnyApiResponse,
+    ApiResponse,
+    CancelJobRequest,
+    ConfigApiResponse,
+    ConfigLoadRequest,
+    ConfigResponse,
+    ConfigSaveRequest,
+    ConfigUpdateRequest,
+    ContextConfigureRequest,
+    ContextConversationAudioRequest,
+    ContextConversationTextRequest,
+    ContextCustomAddRequest,
+    ContextCustomRegisterRequest,
+    ContextCustomRemoveRequest,
+    ContextRequestAddRequest,
+    EmptyApiResponse,
+    EmptyResponse,
+    JobCreatedApiResponse,
+    JobCreatedResponse,
+    JobStartEvent,
+    LoadedOperationsApiResponse,
+    LoadedOperationsResponse,
+    OperationsListRequest,
+    OperationUseRequest,
+    ResponseJobRequest,
+    WebSocketEventApiResponse,
+)
+
+app = FastAPI(
+    title="jaison-core",
+    description=(
+        "Job-based REST API. Job endpoints return a `job_id` immediately; "
+        "subscribe to the WebSocket at `/` for start, progress, success, and error events."
+    ),
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.add_middleware(APILoggingMiddleware)
+
+API_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
+    400: {"model": AnyApiResponse, "description": "Client error"},
+    500: {"model": AnyApiResponse, "description": "Server error"},
+}
+
+JOB_DESCRIPTION = "Queues a job and returns its ID. Progress and results are sent on the WebSocket at `/`."
 
 ## Websocket Event Broadcasting Server ##
+
 
 class SocketServerObserver(BaseObserverClient, metaclass=Singleton):
     def __init__(self):
         super().__init__(server=JAIson().event_server)
-        self.connections = set()
+        self.connections: set[WebSocket] = set()
         self.shutdown_signal = asyncio.Future()
 
-    async def handle_event(self, event_id: str, payload) -> None:
-        '''Broadcast events from broadcast server'''
+    async def handle_event(self, event_id: str, payload: dict[str, Any]) -> None:
+        """Broadcast events from broadcast server."""
         for key in payload:
             if isinstance(payload[key], bytes):
-                  payload[key] = base64.b64encode(payload[key]).decode('utf-8')
-        message = json.dumps(create_response(200, event_id, payload))
+                payload[key] = base64.b64encode(payload[key]).decode("utf-8")
+        message = ApiResponse(status=200, message=event_id, response=payload).model_dump_json()
         logging.debug(f"Broadcasting event to {len(self.connections)} clients")
         for ws in set(self.connections):
-            await ws.send(message)
-            
-    def shutdown(self, *args): # TODO set for use somewhere
+            await ws.send_text(message)
+
+    def shutdown(self, *args):  # TODO set for use somewhere
         self.shutdown_signal.set_result(None)
-        
+
+
 @app.websocket("/")
-async def ws():
+async def ws(websocket: WebSocket):
+    """Receive job events as JSON matching ``WebSocketEventMessage`` (see ``GET /api/events/schema``)."""
     sso = SocketServerObserver()
     logging.info("Opened new websocket connection")
-    ws = websocket._get_current_object()
-    await ws.accept()
-    sso.connections.add(ws)
+    await websocket.accept()
+    sso.connections.add(websocket)
     try:
         while not sso.shutdown_signal.done():
             await asyncio.sleep(10)
-    except asyncio.CancelledError:
-        sso.connections.discard(ws)
+    except (WebSocketDisconnect, asyncio.CancelledError):
+        sso.connections.discard(websocket)
         logging.info("Closed websocket connection")
         raise
 
+
+## Schema documentation ######################################################
+
+
+@app.get(
+    "/api/events/schema",
+    response_model=WebSocketEventApiResponse,
+    tags=["websocket"],
+    summary="Example WebSocket event envelope",
+    description=(
+        "Illustrates the JSON shape pushed on `/`. The `message` field is the "
+        "`JobType` value (e.g. `response`). Real `response` objects vary by event kind."
+    ),
+)
+async def websocket_event_schema() -> WebSocketEventApiResponse:
+    return ApiResponse(
+        status=200,
+        message=JobType.RESPONSE.value,
+        response=JobStartEvent(
+            job_id="00000000-0000-0000-0000-000000000000",
+            start={"include_audio": True},
+        ),
+    )
+
+
 ## Generic endpoints ###################
 
-@app.route('/api/operations', methods=['GET'])
-async def get_loaded_operations():
-    return create_response(200, f"Loaded operations gotten", JAIson().get_loaded_operations(), cors_header)
-  
-@app.route('/api/config', methods=['GET'])
-async def get_current_config():
-    return create_response(200, f"Current config gotten", JAIson().get_current_config(), cors_header)
+
+@app.get("/api/operations", response_model=LoadedOperationsApiResponse)
+async def get_loaded_operations() -> LoadedOperationsApiResponse:
+    ops = LoadedOperationsResponse.model_validate(JAIson().get_loaded_operations())
+    return api_response(200, "Loaded operations gotten", ops)
+
+
+@app.get("/api/config", response_model=ConfigApiResponse)
+async def get_current_config() -> ConfigApiResponse:
+    config = ConfigResponse.model_validate(JAIson().get_current_config())
+    return api_response(200, "Current config gotten", config)
+
 
 ## Job management endpoints ###########
-@app.route('/api/job', methods=['DELETE'])
-async def cancel_job():
+
+
+@app.delete("/api/job", response_model=EmptyApiResponse, responses=API_ERROR_RESPONSES)
+async def cancel_job(body: CancelJobRequest, http_response: Response) -> EmptyApiResponse:
     try:
-        request_data = await request.get_json()
-        assert 'job_id' in request_data
-        return create_response(200, f"Job flagged for cancellation", await JAIson().cancel_job(request_data['job_id'], request_data.get('reason')), cors_header)
-    except NonexistantJobException as err:
-        return create_response(400, f"Job ID does not exist or already finished", {}, cors_header)
-    except AssertionError as err:
-        return create_response(400, f"Request missing job_id", {}, cors_header)
+        await JAIson().cancel_job(body.job_id, body.reason)
+        return api_response(200, "Job flagged for cancellation", EmptyResponse(), http_response=http_response)
+    except NonexistantJobException:
+        return api_response(
+            400,
+            "Job ID does not exist or already finished",
+            EmptyResponse(),
+            http_response=http_response,
+        )
     except Exception as err:
-        return create_response(500, str(err), {}, cors_header)
+        return api_response(500, str(err), EmptyResponse(), http_response=http_response)
+
 
 ## Specific job creation endpoints ####
 
-async def _request_job(job_type: JobType):
+
+def _job_kwargs(job_type: JobType, body: BaseModel | None) -> dict[str, Any]:
+    if body is None:
+        return {}
+    data = body.model_dump(exclude_none=True)
+    if job_type == JobType.CONFIG_UPDATE and data and "config_d" not in data:
+        return {"config_d": data}
+    return data
+
+
+async def _request_job(
+    job_type: JobType,
+    body: BaseModel | None,
+    http_response: Response,
+) -> JobCreatedApiResponse | AnyApiResponse:
+    job_name = job_type.value
     try:
-        request_data = (await request.get_json()) or dict()
-
-        job_id = await JAIson().create_job(job_type, **request_data)
-        return create_response(200, f"{job_type} job created", {"job_id": job_id}, cors_header)
+        job_id = await JAIson().create_job(job_type, **_job_kwargs(job_type, body))
+        return api_response(
+            200,
+            f"{job_name} job created",
+            JobCreatedResponse(job_id=job_id),
+            http_response=http_response,
+        )
     except Exception as err:
-        logging.error(f"Error occured for {job_type} API request", stack_info=True, exc_info=True)
-        return create_response(500, str(err), {}, cors_header)
+        logging.error(f"Error occured for {job_name} API request", stack_info=True, exc_info=True)
+        return api_response(500, str(err), EmptyResponse(), http_response=http_response)
 
-# Main response pipeline
-@app.route('/api/response', methods=['POST'])
-async def response():
-    return await _request_job(JobType.RESPONSE)
 
-# Context - General
-@app.route('/api/context', methods=['DELETE'])    
-async def context_clear():
-    return await _request_job(JobType.CONTEXT_CLEAR)
+@app.post(
+    "/api/response",
+    response_model=JobCreatedApiResponse,
+    responses=API_ERROR_RESPONSES,
+    summary="Queue a response pipeline job",
+    description=JOB_DESCRIPTION,
+)
+async def response(
+    http_response: Response,
+    body: ResponseJobRequest | None = Body(default=None),
+) -> JobCreatedApiResponse | AnyApiResponse:
+    return await _request_job(JobType.RESPONSE, body, http_response)
 
-# Context - Configure
-@app.route('/api/context/config', methods=['PUT'])    
-async def context_configure():
-    return await _request_job(JobType.CONTEXT_CONFIGURE)
 
-# Context - Requests
-@app.route('/api/context/request', methods=['POST'])    
-async def context_request_add():
-    return await _request_job(JobType.CONTEXT_REQUEST_ADD)
+@app.delete(
+    "/api/context",
+    response_model=JobCreatedApiResponse,
+    responses=API_ERROR_RESPONSES,
+    summary="Queue a context clear job",
+    description=JOB_DESCRIPTION,
+)
+async def context_clear(http_response: Response) -> JobCreatedApiResponse | AnyApiResponse:
+    return await _request_job(JobType.CONTEXT_CLEAR, None, http_response)
 
-# Context - Conversation
-@app.route('/api/context/conversation/text', methods=['POST'])    
-async def context_conversation_add_text():
-    return await _request_job(JobType.CONTEXT_CONVERSATION_ADD_TEXT)
 
-@app.route('/api/context/conversation/audio', methods=['POST'])    
-async def context_conversation_add_audio():
-    return await _request_job(JobType.CONTEXT_CONVERSATION_ADD_AUDIO)
+@app.put(
+    "/api/context/config",
+    response_model=JobCreatedApiResponse,
+    responses=API_ERROR_RESPONSES,
+    summary="Queue a prompter configuration job",
+    description=JOB_DESCRIPTION,
+)
+async def context_configure(
+    http_response: Response,
+    body: ContextConfigureRequest = Body(...),
+) -> JobCreatedApiResponse | AnyApiResponse:
+    return await _request_job(JobType.CONTEXT_CONFIGURE, body, http_response)
 
-# Context - Custom
-@app.route('/api/context/custom', methods=['PUT'])    
-async def context_custom_register():
-    return await _request_job(JobType.CONTEXT_CUSTOM_REGISTER)
 
-@app.route('/api/context/custom', methods=['DELETE'])    
-async def context_custom_remove():
-    return await _request_job(JobType.CONTEXT_CUSTOM_REMOVE)
+@app.post(
+    "/api/context/request",
+    response_model=JobCreatedApiResponse,
+    responses=API_ERROR_RESPONSES,
+    summary="Queue a request-context append job",
+    description=JOB_DESCRIPTION,
+)
+async def context_request_add(
+    http_response: Response,
+    body: ContextRequestAddRequest = Body(...),
+) -> JobCreatedApiResponse | AnyApiResponse:
+    return await _request_job(JobType.CONTEXT_REQUEST_ADD, body, http_response)
 
-@app.route('/api/context/custom', methods=['POST'])    
-async def context_custom_add():
-    return await _request_job(JobType.CONTEXT_CUSTOM_ADD)
 
-# Operation management
-@app.route('/api/operations/load', methods=['POST'])    
-async def operation_start():
-    return await _request_job(JobType.OPERATION_LOAD)
+@app.post(
+    "/api/context/conversation/text",
+    response_model=JobCreatedApiResponse,
+    responses=API_ERROR_RESPONSES,
+    summary="Queue a text conversation append job",
+    description=JOB_DESCRIPTION,
+)
+async def context_conversation_add_text(
+    http_response: Response,
+    body: ContextConversationTextRequest = Body(...),
+) -> JobCreatedApiResponse | AnyApiResponse:
+    return await _request_job(JobType.CONTEXT_CONVERSATION_ADD_TEXT, body, http_response)
 
-@app.route('/api/operations/reload', methods=['POST'])    
-async def operation_reload():
-    return await _request_job(JobType.OPERATION_CONFIG_RELOAD)
 
-@app.route('/api/operations/unload', methods=['POST'])    
-async def operation_unload():
-    return await _request_job(JobType.OPERATION_UNLOAD)
+@app.post(
+    "/api/context/conversation/audio",
+    response_model=JobCreatedApiResponse,
+    responses=API_ERROR_RESPONSES,
+    summary="Queue an audio conversation append job",
+    description=JOB_DESCRIPTION,
+)
+async def context_conversation_add_audio(
+    http_response: Response,
+    body: ContextConversationAudioRequest = Body(...),
+) -> JobCreatedApiResponse | AnyApiResponse:
+    return await _request_job(JobType.CONTEXT_CONVERSATION_ADD_AUDIO, body, http_response)
 
-@app.route('/api/operations/config', methods=['POST'])    
-async def operation_configure():
-    return await _request_job(JobType.OPERATION_CONFIGURE)
 
-@app.route('/api/operations/use', methods=['POST'])    
-async def operation_use():
-    return await _request_job(JobType.OPERATION_USE)
+@app.put(
+    "/api/context/custom",
+    response_model=JobCreatedApiResponse,
+    responses=API_ERROR_RESPONSES,
+    summary="Queue a custom context registration job",
+    description=JOB_DESCRIPTION,
+)
+async def context_custom_register(
+    http_response: Response,
+    body: ContextCustomRegisterRequest = Body(...),
+) -> JobCreatedApiResponse | AnyApiResponse:
+    return await _request_job(JobType.CONTEXT_CUSTOM_REGISTER, body, http_response)
 
-# Configuration
-@app.route('/api/config/load', methods=['PUT'])    
-async def config_load():
-    return await _request_job(JobType.CONFIG_LOAD)
 
-# Configuration
-@app.route('/api/config/update', methods=['PUT'])    
-async def config_update():
-    return await _request_job(JobType.CONFIG_UPDATE)
+@app.delete(
+    "/api/context/custom",
+    response_model=JobCreatedApiResponse,
+    responses=API_ERROR_RESPONSES,
+    summary="Queue a custom context removal job",
+    description=JOB_DESCRIPTION,
+)
+async def context_custom_remove(
+    http_response: Response,
+    body: ContextCustomRemoveRequest = Body(...),
+) -> JobCreatedApiResponse | AnyApiResponse:
+    return await _request_job(JobType.CONTEXT_CUSTOM_REMOVE, body, http_response)
 
-@app.route('/api/config/save', methods=['POST'])    
-async def config_save():
-    return await _request_job(JobType.CONFIG_SAVE)
 
-# Allow CORS
-@app.route('/api/job', methods=['OPTIONS']) 
-async def preflight_job():
-    return create_preflight('DELETE')
+@app.post(
+    "/api/context/custom",
+    response_model=JobCreatedApiResponse,
+    responses=API_ERROR_RESPONSES,
+    summary="Queue a custom context append job",
+    description=JOB_DESCRIPTION,
+)
+async def context_custom_add(
+    http_response: Response,
+    body: ContextCustomAddRequest = Body(...),
+) -> JobCreatedApiResponse | AnyApiResponse:
+    return await _request_job(JobType.CONTEXT_CUSTOM_ADD, body, http_response)
 
-@app.route('/api/response', methods=['OPTIONS']) 
-async def preflight_response():
-    return create_preflight('POST')
 
-@app.route('/api/context', methods=['OPTIONS']) 
-async def preflight_context_conversation_clear():
-    return create_preflight('DELETE')
+@app.post(
+    "/api/operations/load",
+    response_model=JobCreatedApiResponse,
+    responses=API_ERROR_RESPONSES,
+    summary="Queue an operation load job",
+    description=JOB_DESCRIPTION,
+)
+async def operation_start(
+    http_response: Response,
+    body: OperationsListRequest = Body(...),
+) -> JobCreatedApiResponse | AnyApiResponse:
+    return await _request_job(JobType.OPERATION_LOAD, body, http_response)
 
-@app.route('/api/context/config', methods=['OPTIONS'])    
-async def preflight_context_configure():
-    return create_preflight('PUT')
 
-@app.route('/api/context/request', methods=['OPTIONS']) 
-async def preflight_context_request():
-    return create_preflight('POST')
+@app.post(
+    "/api/operations/reload",
+    response_model=JobCreatedApiResponse,
+    responses=API_ERROR_RESPONSES,
+    summary="Queue a reload-from-config job",
+    description=JOB_DESCRIPTION,
+)
+async def operation_reload(http_response: Response) -> JobCreatedApiResponse | AnyApiResponse:
+    return await _request_job(JobType.OPERATION_CONFIG_RELOAD, None, http_response)
 
-@app.route('/api/context/conversation/text', methods=['OPTIONS']) 
-async def preflight_context_conversation_text():
-    return create_preflight('POST')
 
-@app.route('/api/context/conversation/audio', methods=['OPTIONS']) 
-async def preflight_context_conversation_audio():
-    return create_preflight('POST')
+@app.post(
+    "/api/operations/unload",
+    response_model=JobCreatedApiResponse,
+    responses=API_ERROR_RESPONSES,
+    summary="Queue an operation unload job",
+    description=JOB_DESCRIPTION,
+)
+async def operation_unload(
+    http_response: Response,
+    body: OperationsListRequest = Body(...),
+) -> JobCreatedApiResponse | AnyApiResponse:
+    return await _request_job(JobType.OPERATION_UNLOAD, body, http_response)
 
-@app.route('/api/context/custom', methods=['OPTIONS']) 
-async def preflight_context_custom():
-    return create_preflight('POST, PUT, DELETE')
 
-@app.route('/api/operations', methods=['OPTIONS']) 
-async def preflight_operations_info():
-    return create_preflight('GET')
+@app.post(
+    "/api/operations/config",
+    response_model=JobCreatedApiResponse,
+    responses=API_ERROR_RESPONSES,
+    summary="Queue an operation configure job",
+    description=JOB_DESCRIPTION,
+)
+async def operation_configure(
+    http_response: Response,
+    body: OperationsListRequest = Body(...),
+) -> JobCreatedApiResponse | AnyApiResponse:
+    return await _request_job(JobType.OPERATION_CONFIGURE, body, http_response)
 
-@app.route('/api/operations/load', methods=['OPTIONS']) 
-async def preflight_operation_start():
-    return create_preflight('POST')
 
-@app.route('/api/operations/reload', methods=['OPTIONS']) 
-async def preflight_operation_reload():
-    return create_preflight('POST')
+@app.post(
+    "/api/operations/use",
+    response_model=JobCreatedApiResponse,
+    responses=API_ERROR_RESPONSES,
+    summary="Queue a direct operation use job",
+    description=JOB_DESCRIPTION,
+)
+async def operation_use(
+    http_response: Response,
+    body: OperationUseRequest = Body(...),
+) -> JobCreatedApiResponse | AnyApiResponse:
+    return await _request_job(JobType.OPERATION_USE, body, http_response)
 
-@app.route('/api/operations/unload', methods=['OPTIONS']) 
-async def preflight_operation_unload():
-    return create_preflight('POST')
 
-@app.route('/api/operations/config', methods=['OPTIONS'])    
-async def preflight_operation_configure():
-    return create_preflight('POST')
+@app.put(
+    "/api/config/load",
+    response_model=JobCreatedApiResponse,
+    responses=API_ERROR_RESPONSES,
+    summary="Queue a config load job",
+    description=JOB_DESCRIPTION,
+)
+async def config_load(
+    http_response: Response,
+    body: ConfigLoadRequest = Body(...),
+) -> JobCreatedApiResponse | AnyApiResponse:
+    return await _request_job(JobType.CONFIG_LOAD, body, http_response)
 
-@app.route('/api/operations/use', methods=['OPTIONS'])
-async def preflight_operation_use():
-    return create_preflight('POST')
 
-@app.route('/api/config', methods=['OPTIONS']) 
-async def preflight_config():
-    return create_preflight('GET')
+@app.put(
+    "/api/config/update",
+    response_model=JobCreatedApiResponse,
+    responses=API_ERROR_RESPONSES,
+    summary="Queue a config update job",
+    description=JOB_DESCRIPTION,
+)
+async def config_update(
+    http_response: Response,
+    body: ConfigUpdateRequest = Body(...),
+) -> JobCreatedApiResponse | AnyApiResponse:
+    return await _request_job(JobType.CONFIG_UPDATE, body, http_response)
 
-@app.route('/api/config/load', methods=['OPTIONS']) 
-async def preflight_config_load():
-    return create_preflight('PUT')
 
-@app.route('/api/config/update', methods=['OPTIONS']) 
-async def preflight_config_update():
-    return create_preflight('PUT')
+@app.post(
+    "/api/config/save",
+    response_model=JobCreatedApiResponse,
+    responses=API_ERROR_RESPONSES,
+    summary="Queue a config save job",
+    description=JOB_DESCRIPTION,
+)
+async def config_save(
+    http_response: Response,
+    body: ConfigSaveRequest = Body(...),
+) -> JobCreatedApiResponse | AnyApiResponse:
+    return await _request_job(JobType.CONFIG_SAVE, body, http_response)
 
-@app.route('/api/config/save', methods=['OPTIONS']) 
-async def preflight_config_save():
-    return create_preflight('POST')
 
 ## START ###################################
-async def start_web_server(): # TODO launch application plugins here as well
+
+
+async def start_web_server():  # TODO launch application plugins here as well
     try:
-        global app
         await JAIson().start()
         SocketServerObserver()
-        await app.run_task(host=args.host, port=args.port)
-    except Exception as err:
+        config = uvicorn.Config(app, host=args.host, port=args.port, log_level="info")
+        server = uvicorn.Server(config)
+        await server.serve()
+    except Exception:
         logging.error("Stopping server due to exception", exc_info=True)
-    finally:    
+    finally:
         await JAIson().stop()

@@ -35,7 +35,6 @@ dependencies = [
     "python-dotenv>=1.2.2",
     "pyttsx3>=2.99",
     "pyyaml>=6.0.3",
-    "quart>=0.20.0",
     "requests>=2.34.2",
     "rvc",
     "soundfile<0.13.0",
@@ -45,6 +44,8 @@ dependencies = [
     "torch==2.5.1",
     "torchvision==0.20.1",
     "torchaudio==2.5.1",
+    "fastapi>=0.136.3",
+    "uvicorn>=0.48.0",
 ]
 
 [dependency-groups]
