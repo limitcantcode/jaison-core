@@ -1,0 +1,121 @@
+[project]
+name = "jaison-core"
+version = "2.2.1"
+description = "JAIson Core is a server for building AI Companion applications."
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "limitcantcode"}
+]
+keywords = ["ai", "jaison-core", "vtuber"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    "av>=17.0.1",
+    "nltk>=3.9",
+    "azure-cognitiveservices-speech>=1.50.0",
+    "en-core-web-sm",
+    "ffmpeg-python>=0.2.0",
+    "fish-audio-sdk>=1.3.0",
+    "huggingface-hub>=0.24.0",
+    "mcp>=1.27.1",
+    "melotts",
+    "numpy<1.27",
+    "openai>=2.38.0",
+    "psutil>=7.2.2",
+    "python-dateutil>=2.9.0.post0",
+    "python-dotenv>=1.2.2",
+    "pyttsx3>=2.99",
+    "pyyaml>=6.0.3",
+    "quart>=0.20.0",
+    "requests>=2.34.2",
+    "rvc",
+    "soundfile<0.13.0",
+    "spacy>=3.8.14",
+    "transformers==4.52.4",
+    "unidic>=1.1.0",
+    "torch==2.5.1",
+    "torchvision==0.20.1",
+    "torchaudio==2.5.1",
+]
+
+[dependency-groups]
+dev = [
+    "black>=26.5.1",
+    "mypy>=2.1.0",
+    "pytest-asyncio>=1.3.0",
+    "pytest-cov>=7.0.0",
+    "pytest>=9.0.3",
+    "ruff>=0.15.14",
+]
+
+[tool.uv.sources]
+en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }
+rvc = { git = "https://github.com/limitcantcode/Retrieval-based-Voice-Conversion.git" }
+melotts = { git = "https://github.com/myshell-ai/MeloTTS", rev = "209145371cff8fc3bd60d7be902ea69cbdb7965a" }
+
+[tool.uv]
+override-dependencies = [
+    "python-multipart>=0.0.9",
+    "av>=17.0.1",
+    "transformers==4.52.4",
+    "librosa>=0.10.1,<0.11.0",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+include = '\.pyi?$'
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long, handled by black
+    "B008",  # do not perform function calls in argument defaults
+]
+
+[tool.ruff.isort]
+known-first-party = ["jaison-core"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+addopts = [
+    "--cov=jaison-core",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+

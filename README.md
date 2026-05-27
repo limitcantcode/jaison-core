@@ -25,7 +25,7 @@
 
 ---
 
-## About This Project
+# About This Project
 
 Project J.A.I.son is a fully customizable AI companion server designed for streaming, private companionship, or building interactive AI applications. Run it entirely locally or leverage cloud services—the choice is yours.
 
@@ -55,61 +55,27 @@ Build your own applications using our [Developer Guide](#developer-guide)!
 
 ---
 
-## Quick Start
+# Quick Start
 
-### Prerequisites
+## Basic Installation
 
-- **Conda:** Recommended for environment management
-- **CUDA Toolkit:** Required for NVIDIA GPU acceleration ([download here](https://developer.nvidia.com/cuda-toolkit))
-- **Windows Users:** Enable [Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development)
+> Windows need to enable [Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development)
 
-### Installation
-
-**1. Create a virtual environment:**
-
-
-Install [PyTorch](https://pytorch.org/get-started/locally/) with the right integration. Example below for computers with RTX graphics card.
-```bash
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130
-```
-
-**2. Install dependencies:**
+This project uses [uv](https://docs.astral.sh/uv/) and Make ([Windows](https://gnuwin32.sourceforge.net/packages/make.htm) | [Linux](https://www.gnu.org/software/make/) (usually provided by the distro)) for setup and development.
 
 ```bash
-pip install -r requirements.txt
-pip install --no-deps -r requirements.no_deps.txt
-python -m spacy download en_core_web_sm
-python install.py
-python -m unidic download
+# Regular setup
+make setup
+
+# Development setup
+make dev
 ```
 
-**3. Install PyTorch:**
+### Hardware Acceleration
 
-For NVIDIA GPUs:
-```bash
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
-```
+Enable GPU usage by installing [PyTorch 2.5.1](https://pytorch.org/get-started/locally/) for your hardware and OS.
 
-> **Note:** If you encounter `libiomp5md.dll` duplicate errors on Windows:
-> 1. Navigate to your conda environment's package directory
-> 2. Search for `libiomp5md.dll`
-> 3. Delete the version under the `torch` package folder
-
-**4. Install FFmpeg:**
-
-- **Ubuntu/Debian:**
-  ```bash
-  sudo apt install ffmpeg
-  ```
-- **macOS:**
-  ```bash
-  brew install ffmpeg
-  ```
-- **Windows:**
-  1. Download [`ffmpeg-git-essentials.7z`](https://www.gyan.dev/ffmpeg/builds/)
-  2. Extract and copy all files from `bin/` to the project root directory
-
-**5. Configure your setup:**
+## Configuration
 
 1. Copy `.env-template` to `.env` and add your API keys for the services you plan to use.
 
@@ -146,19 +112,15 @@ See the **[Development Guide](DEVELOPER.md)** for detailed configuration instruc
 
 ## Running the Server
 
+Inside a terminal inside the project directory
 ```bash
-python ./src/main.py --config={config_filename}
-
 # Example for configs/example.yaml
-python ./src/main.py --config=example
-
-# Example for configs/config.yaml
-python ./src/main.py --config=config
+uv run ./src/main.py -c example
 ```
 
 For all available options:
 ```bash
-python ./src/main.py --help
+uv run ./src/main.py --help
 ```
 
 ---

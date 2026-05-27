@@ -172,6 +172,8 @@ Run everything on your own hardware without external API calls.
 
 **Installation:**
 
+Installation should already be handled by Make. However if you want to use a specific varient, follow the instructions below.
+
 1. **Download KoboldCPP** from [releases](https://github.com/LostRuins/koboldcpp/releases):
    - **NVIDIA GPU (e.g. RTX series):** `koboldcpp.exe` for Windows or `koboldcpp-linux-x64` for Linux
    - **Older NVIDIA GPU (CUDA 11):** `koboldcpp-oldpc.exe` for Windows or `koboldcpp-linux-x64-oldpc` for Linux
@@ -219,21 +221,23 @@ Run everything on your own hardware without external API calls.
 **Recommended for:** Users who want consistent latency and are comfortable with model configuration.
 
 **Installation**
-1. MeloTTS was automatically installed during setup when you ran `pip install --no-deps -r requirements.no_deps.txt`
-2. Browse the [MeloTTS](https://github.com/myshell-ai/MeloTTS) repo to see available languages and accents. Then, update the `speaker_id` in the JAIson config file. The available speakers are: `EN-Default`, `EN-US`, `EN-BR`, `EN_INDIA`, `EN-AU`. Here is an example config for English (Australian accent):
-    ```
-    - role: tts
-    id: melo
-    config_filepath: null
-    model_filepath: null
-    speaker_id: EN-AU
-    device: cuda
-    language: EN
-    sdp_ratio: 0.7
-    noise_scale: 0.6
-    noise_scale_w: 0.8
-    speed: 1.05
-    ```
+
+Installation should already be handled by Make.
+
+Browse the [MeloTTS](https://github.com/myshell-ai/MeloTTS) repo to see available languages and accents. Then, update the `speaker_id` in the JAIson config file. The available speakers are: `EN-Default`, `EN-US`, `EN-BR`, `EN_INDIA`, `EN-AU`. Here is an example config for English (Australian accent):
+```
+- role: tts
+id: melo
+config_filepath: null
+model_filepath: null
+speaker_id: EN-AU
+device: cuda
+language: EN
+sdp_ratio: 0.7
+noise_scale: 0.6
+noise_scale_w: 0.8
+speed: 1.05
+```
 
 #### RVC (Voice Conversion)
 
@@ -243,38 +247,11 @@ Run everything on your own hardware without external API calls.
 
 **Installation:**
 
-1. **Ensure prerequisites:**
-   - Git and Git LFS installed on your system
+Installation should already be handled by Make.
 
-2. **Clone RVC Project:**
-   ```bash
-   git clone https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI.git
-   ```
-
-3. **Download model assets:**
-   ```bash
-   cd Retrieval-based-Voice-Conversion-WebUI
-   python tools/download_models.py
-   ```
-
-4. **Verify download:**
-   - Check `assets/hubert/` for `hubert_base.pt` (NOT `hubert_inputs.pth`)
-
-5. **Copy assets to JAIson:**
-   - Copy entire `assets/` folder contents to `assets/rvc/` in this project
-
-6. **Train or acquire voice model:**
-   - **Training:** Requires NVIDIA GPU with 8GB+ VRAM. See [RVC documentation](https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI/blob/main/docs/en/README.en.md)
-   - **Pre-trained:** Find community models online
-
-7. **Install voice model:**
-   - Copy `.pth` file to `assets/rvc/weights/`
-   - Copy `.index` file (or folder containing it) to `models/rvc/`
-     - If you only have the `.index` file, create a folder named after your `.pth` file
-
-8. **Environment setup:**
-   - Copy `.env-template` if not already done
-   - Ensure RVC section exists (DO NOT MODIFY)
+To import an existing voice:
+ - Copy `.pth` file to `models/rvc/weights/`
+ - (Optional) Copy `.index` file/folder to `models/rvc/indicies`
 
 ---
 
