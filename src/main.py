@@ -17,8 +17,8 @@ bin_dir = Path(__file__).resolve().parents[1] / "bin"
 if bin_dir.is_dir():
     os.environ["PATH"] = f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"
 
-import asyncio  # noqa: E402
+import uvicorn  # noqa: E402
 
-from utils.server import start_web_server  # noqa: E402
+from utils.server import app  # noqa: E402
 
-asyncio.run(start_web_server())
+uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level.lower())

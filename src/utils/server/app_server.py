@@ -1,14 +1,14 @@
 import asyncio
 import base64
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
 
-import uvicorn
 from fastapi import Body, FastAPI, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from utils.args import args
 from utils.helpers.observer import BaseObserverClient
 from utils.helpers.singleton import Singleton
 from utils.jaison import JAIson, JobType, NonexistantJobException
@@ -44,12 +44,25 @@ from .data import (
 )
 from .middleware import RequestMetricsTrackingMiddleware
 
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    await JAIson().start()
+    observer = SocketServerObserver()
+    try:
+        yield
+    finally:
+        observer.shutdown()
+        await JAIson().stop()
+
+
 app = FastAPI(
     title="jaison-core",
     description=(
         "Job-based REST API. Job endpoints return a `job_id` immediately; "
         "subscribe to the WebSocket at `/` for start, progress, success, and error events."
     ),
+    lifespan=lifespan,
 )
 app.add_middleware(
     CORSMiddleware,
@@ -449,19 +462,3 @@ async def config_save(
     body: ConfigSaveRequest = Body(...),
 ) -> JobCreatedApiResponse | AnyApiResponse:
     return await _request_job(JobType.CONFIG_SAVE, body, http_response, request)
-
-
-## START ###################################
-
-
-async def start_web_server():  # TODO launch application plugins here as well
-    try:
-        await JAIson().start()
-        SocketServerObserver()
-        config = uvicorn.Config(app, host=args.host, port=args.port, log_level="info")
-        server = uvicorn.Server(config)
-        await server.serve()
-    except Exception:
-        logging.error("Stopping server due to exception", exc_info=True)
-    finally:
-        await JAIson().stop()
