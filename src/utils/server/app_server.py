@@ -1,4 +1,3 @@
-import asyncio
 import base64
 import logging
 from collections.abc import AsyncIterator
@@ -48,11 +47,11 @@ from .middleware import RequestMetricsTrackingMiddleware
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     await JAIson().start()
-    observer = SocketServerObserver()
+    event_broadcaster = WebSocketEventBroadcaster()
     try:
         yield
     finally:
-        observer.shutdown()
+        await event_broadcaster.shutdown()
         await JAIson().stop()
 
 
@@ -84,11 +83,21 @@ JOB_DESCRIPTION = (
 ## Websocket Event Broadcasting Server ##
 
 
-class SocketServerObserver(BaseObserverClient, metaclass=Singleton):
+class WebSocketEventBroadcaster(BaseObserverClient, metaclass=Singleton):
+    """Subscribes to JAIson job events and pushes them to connected WebSocket clients."""
+
     def __init__(self):
         super().__init__(server=JAIson().event_server)
-        self.connections: set[WebSocket] = set()
-        self.shutdown_signal = asyncio.Future()
+        self._connections: set[WebSocket] = set()
+
+    async def connect(self, websocket: WebSocket) -> None:
+        await websocket.accept()
+        self._connections.add(websocket)
+        logging.info("Opened new websocket connection")
+
+    def disconnect(self, websocket: WebSocket) -> None:
+        self._connections.discard(websocket)
+        logging.info("Closed websocket connection")
 
     async def handle_event(self, event_id: str, payload: dict[str, Any]) -> None:
         """Broadcast events from broadcast server."""
@@ -96,28 +105,36 @@ class SocketServerObserver(BaseObserverClient, metaclass=Singleton):
             if isinstance(payload[key], bytes):
                 payload[key] = base64.b64encode(payload[key]).decode("utf-8")
         message = ApiResponse(status=200, message=event_id, response=payload).model_dump_json()
-        logging.debug(f"Broadcasting event to {len(self.connections)} clients")
-        for ws in set(self.connections):
-            await ws.send_text(message)
+        logging.debug(f"Broadcasting event to {len(self._connections)} clients")
+        dead: set[WebSocket] = set()
+        for ws in self._connections:
+            try:
+                await ws.send_text(message)
+            except (WebSocketDisconnect, RuntimeError):
+                dead.add(ws)
+        self._connections -= dead
 
-    def shutdown(self, *args):  # TODO set for use somewhere
-        self.shutdown_signal.set_result(None)
+    async def shutdown(self) -> None:
+        for ws in list(self._connections):
+            try:
+                await ws.close()
+            except Exception:
+                pass
+        self._connections.clear()
 
 
 @app.websocket("/")
-async def ws(websocket: WebSocket):
+async def websocket_events(websocket: WebSocket) -> None:
     """Receive job events as JSON matching ``WebSocketEventMessage`` (see ``GET /api/events/schema``)."""
-    sso = SocketServerObserver()
-    logging.info("Opened new websocket connection")
-    await websocket.accept()
-    sso.connections.add(websocket)
+    broadcaster = WebSocketEventBroadcaster()
+    await broadcaster.connect(websocket)
     try:
-        while not sso.shutdown_signal.done():
-            await asyncio.sleep(10)
-    except (WebSocketDisconnect, asyncio.CancelledError):
-        sso.connections.discard(websocket)
-        logging.info("Closed websocket connection")
-        raise
+        while True:
+            await websocket.receive()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        broadcaster.disconnect(websocket)
 
 
 ## Schema documentation ######################################################
