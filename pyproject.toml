@@ -13,11 +13,9 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-requires-python = ">=3.10,<3.11"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "av>=17.0.1",
     "nltk>=3.9",
@@ -70,16 +68,19 @@ override-dependencies = [
     "av>=17.0.1",
     "transformers==4.52.4",
     "librosa>=0.10.1,<0.11.0",
+    "numba>=0.59.1",
+    "llvmlite>=0.42.0",
+    "fugashi>=1.4.0",
 ]
 
 [tool.black]
 line-length = 100
-target-version = ["py310", "py311", "py312"]
+target-version = ["py312"]
 include = '\.pyi?$'
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = [
@@ -100,7 +101,7 @@ ignore = [
 known-first-party = ["jaison-core"]
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
