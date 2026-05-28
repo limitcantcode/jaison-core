@@ -41,10 +41,6 @@ class Config:
     MCP_DIR: str = portable_path(os.path.join(os.getcwd(), "models", "mcp"))
     mcp: list = []
 
-    # Kobold
-    kobold_filepath: str = None
-    kcpps_filepath: str = None
-
     # Melo
     MELO_DIR: str = portable_path(os.path.join(os.getcwd(), "models", "melotts"))
 

@@ -23,7 +23,6 @@ from utils.operations import (
     UnknownOpType,
     UsedInactiveError,
 )
-from utils.processes import ProcessManager
 from utils.prompter import Prompter
 from utils.prompter.message import (
     ChatMessage,
@@ -77,7 +76,6 @@ class JAIson:
         self.event_server: ObserverServer = None
 
         self.prompter: Prompter = None
-        self.process_manager: ProcessManager = None
         self.op_manager: OperationManager = None
         self.mcp_manager: MCPManager = None
 
@@ -93,8 +91,7 @@ class JAIson:
         self.prompter = Prompter()
         await self.prompter.configure(config.prompter)
 
-        self.process_manager = ProcessManager()
-        self.op_manager = OperationManager(self.process_manager, self.prompter)
+        self.op_manager = OperationManager(self.prompter)
 
         self.mcp_manager = MCPManager(self.op_manager)
         await self.mcp_manager.start()
@@ -102,14 +99,12 @@ class JAIson:
             self.mcp_manager.get_tooling_prompt(), self.mcp_manager.get_response_prompt()
         )
         await self._reload_operations_from_config()
-        await self.process_manager.reload()
         logging.info("JAIson application layer has started.")
 
     async def stop(self):
         logging.info("Shutting down JAIson application layer")
         await self.op_manager.close_operation_all()
         await self.mcp_manager.close()
-        await self.process_manager.unload()
         logging.info("JAIson application layer has been shut down")
 
     ## Job Queueing #########################
@@ -194,9 +189,6 @@ class JAIson:
     async def _process_job_loop(self):
         while True:
             try:
-                await self.process_manager.reload()
-                await self.process_manager.unload()
-
                 self.job_current_id = await self.job_queue.get()
                 job_type, coro = self.job_map[self.job_current_id]
 

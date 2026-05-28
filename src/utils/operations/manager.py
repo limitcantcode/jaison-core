@@ -7,6 +7,7 @@ from typing import Any, TypeVar
 
 from .base import Operation
 from .embedding.base import EmbeddingOperation
+from .embedding.llamacpp import LlamaCPPEmbedding
 from .embedding.openai import OpenAIEmbedding
 from .error import DuplicateFilter, OperationUnloaded, UnknownOpID, UnknownOpRole, UnknownOpType
 from .filter_audio.base import FilterAudioOperation
@@ -20,15 +21,14 @@ from .filter_text.mod_koala import KoalaModerationFilter
 from .stt.azure import AzureSTT
 from .stt.base import STTOperation
 from .stt.fish import FishSTT
-from .stt.kobold import KoboldSTT
 from .stt.openai import OpenAISTT
+from .stt.whispercpp import WhisperCPPSTT
 from .t2t.base import T2TOperation
-from .t2t.kobold import KoboldT2T
+from .t2t.llamacpp import LlamaCPPT2T
 from .t2t.openai import OpenAIT2T
 from .tts.azure import AzureTTS
 from .tts.base import TTSOperation
 from .tts.fish import FishTTS
-from .tts.kobold import KoboldTTS
 from .tts.melo import MeloTTS
 from .tts.openai import OpenAITTS
 from .tts.pytts import PyttsTTS
@@ -68,17 +68,16 @@ OP_CLASSES: dict[OpTypes, dict[str, type[Operation]]] = {
         "fish": FishSTT,
         "azure": AzureSTT,
         "openai": OpenAISTT,
-        "kobold": KoboldSTT,
+        "whispercpp": WhisperCPPSTT,
     },
     OpTypes.T2T: {
         "openai": OpenAIT2T,
-        "kobold": KoboldT2T,
+        "llamacpp": LlamaCPPT2T,
     },
     OpTypes.TTS: {
         "azure": AzureTTS,
         "fish": FishTTS,
         "openai": OpenAITTS,
-        "kobold": KoboldTTS,
         "melo": MeloTTS,
         "pytts": PyttsTTS,
     },
@@ -94,6 +93,7 @@ OP_CLASSES: dict[OpTypes, dict[str, type[Operation]]] = {
     },
     OpTypes.EMBEDDING: {
         "openai": OpenAIEmbedding,
+        "llamacpp": LlamaCPPEmbedding,
     },
 }
 
@@ -141,8 +141,7 @@ ROLE_SLOTS: dict[OpRoles, OpRoleSlot] = {
 
 
 class OperationManager:
-    def __init__(self, process_manager: "ProcessManager", prompter: "Prompter"):
-        self.process_manager = process_manager
+    def __init__(self, prompter: "Prompter"):
         self.prompter = prompter
         self.stt: STTOperation | None = None
         self.mcp: T2TOperation | None = None
@@ -204,7 +203,7 @@ class OperationManager:
         )
 
     def _bind_runtime(self, op: Operation) -> Operation:
-        return op.bind_runtime(process_manager=self.process_manager, prompter=self.prompter)
+        return op.bind_runtime(prompter=self.prompter)
 
     def loose_load_operation(self, op_role: OpRoles, op_id: str) -> Operation:
         return self._bind_runtime(load_op(role_to_type(op_role), op_id))

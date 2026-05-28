@@ -98,12 +98,6 @@ class ConfigResponse(BaseModel):
     history_filepath: str | None = Field(
         default=None, description="Debug path where conversation history is written."
     )
-    kobold_filepath: str | None = Field(
-        default=None, description="Path to the Kobold-compatible binary, if configured."
-    )
-    kcpps_filepath: str | None = Field(
-        default=None, description="Path to the KoboldCPP server binary, if configured."
-    )
     stt_working_src: str | None = Field(
         default=None, description="Working WAV path used by STT operations."
     )

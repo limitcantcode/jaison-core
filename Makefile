@@ -9,14 +9,14 @@ help:
 	@echo Targets:
 	@echo   make sync - uv sync, runtime deps only
 	@echo   make sync-dev - uv sync --dev
-	@echo   make setup - uv sync then install NLTK UniDic KoboldCPP and RVC base models
+	@echo   make setup - uv sync then install NLTK UniDic whisper/llama and RVC base models
 	@echo   make dev - sync-dev then full bootstrap scripts
-	@echo   make bootstrap - install.py plus KoboldCPP and RVC HF assets
+	@echo   make bootstrap - install.py plus whisper.cpp llama.cpp and RVC HF assets
 	@echo   make test - pytest, run sync-dev or dev first
 	@echo   make lint - ruff and black checks
 	@echo   make lint-fix - ruff --fix and ruff format
 	@echo   make fmt - black and ruff format in place
-	@echo   make bootstrap-force - force re-download of KoboldCPP and RVC HF assets
+	@echo   make bootstrap-force - force re-download of whisper.cpp llama.cpp and RVC HF assets
 	@echo   make lock - uv lock
 
 sync:

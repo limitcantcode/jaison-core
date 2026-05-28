@@ -16,6 +16,8 @@ from ..base import Operation
 class T2TOperation(Operation):
     def __init__(self, op_id: str):
         super().__init__("T2T", op_id)
+        # Set by the MCP client at runtime (not user YAML); constrains MCP tool-call output.
+        self.mcp_json_schema: dict[str, Any] | None = None
 
     ## TO BE OVERRIDEN ####
     async def start(self) -> None:
@@ -66,3 +68,9 @@ class T2TOperation(Operation):
         raise NotImplementedError
 
         yield {"content": "example generated text"}
+
+    def set_mcp_json_schema(self, schema: dict[str, Any] | None) -> None:
+        """Apply a JSON schema for MCP structured output (provided by the MCP client)."""
+        if schema is not None:
+            assert isinstance(schema, dict)
+        self.mcp_json_schema = schema

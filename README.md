@@ -103,7 +103,7 @@ Select the desired operations (refer to **[Development Guide](DEVELOPER.md)**) a
     ```
 
 See the **[Development Guide](DEVELOPER.md)** for detailed configuration instructions, including:
-- Setting up local services (KoboldCPP, MeloTTS, RVC)
+- Setting up local services (whisper.cpp, llama.cpp, MeloTTS, RVC)
 - Configuring cloud providers (Azure, OpenAI, Fish Audio)
 - Customizing prompts and operations
 - Choosing the right services for your use case

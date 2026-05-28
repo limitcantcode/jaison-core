@@ -23,6 +23,7 @@ dependencies = [
     "en-core-web-sm",
     "ffmpeg-python>=0.2.0",
     "fish-audio-sdk>=1.3.0",
+    "httpx>=0.28.0",
     "huggingface-hub>=0.24.0",
     "mcp>=1.27.1",
     "melotts",

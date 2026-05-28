@@ -60,6 +60,19 @@ class OpenAIT2T(T2TOperation):
             "frequency_penalty": self.frequency_penalty,
         }
 
+    def _openai_mcp_response_format(self) -> dict[str, Any] | None:
+        """OpenAI `response_format` for ``mcp_json_schema``, or None if unset."""
+        if self.mcp_json_schema is None:
+            return None
+        return {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "mcp_output",
+                "strict": True,
+                "schema": self.mcp_json_schema,
+            },
+        }
+
     async def _generate(self, instruction_prompt: str = None, messages: list = None, **kwargs):
         if self.prompter is None:
             raise RuntimeError("OpenAIT2T missing runtime dependency: prompter")
@@ -72,15 +85,20 @@ class OpenAIT2T(T2TOperation):
                 next_hist = {"role": "user", "content": msg.to_line()}
             history.append(next_hist)
 
-        stream = await self.client.chat.completions.create(
-            messages=history,
-            model=self.model,
-            stream=True,
-            temperature=self.temperature,
-            top_p=self.top_p,
-            presence_penalty=self.presence_penalty,
-            frequency_penalty=self.frequency_penalty,
-        )
+        create_kwargs = {
+            "messages": history,
+            "model": self.model,
+            "stream": True,
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+            "presence_penalty": self.presence_penalty,
+            "frequency_penalty": self.frequency_penalty,
+        }
+        response_format = self.openai_mcp_response_format()
+        if response_format is not None:
+            create_kwargs["response_format"] = response_format
+
+        stream = await self.client.chat.completions.create(**create_kwargs)
 
         full_response = ""
         async for chunk in stream:

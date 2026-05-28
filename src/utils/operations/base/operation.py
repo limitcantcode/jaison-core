@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import AsyncGenerator
-from typing import Any
+from typing import Any, Optional
 
 from .error import CloseInactiveError, StartActiveError, UsedInactiveError
 
@@ -14,13 +14,9 @@ class Operation:
         self.op_id = op_id
 
         self.active = False
-        self.process_manager: ProcessManager | None = None
-        self.prompter: Prompter | None = None
+        self.prompter: Optional["Prompter"] = None
 
-    def bind_runtime(
-        self, process_manager: ProcessManager | None = None, prompter: Prompter | None = None
-    ) -> Operation:
-        self.process_manager = process_manager
+    def bind_runtime(self, prompter: Optional["Prompter"] = None) -> Operation:
         self.prompter = prompter
         return self
 
