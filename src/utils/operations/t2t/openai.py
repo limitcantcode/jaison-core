@@ -1,4 +1,5 @@
 from openai import AsyncOpenAI
+from typing import Any
 
 from utils.prompter.message import ChatMessage
 
