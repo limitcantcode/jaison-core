@@ -18,6 +18,7 @@ class LlamaCPPT2T(T2TOperation):
         super().__init__("llamacpp")
         self.uri = None
         self.model_filepath = None
+        self.ctx_size = 0  # 0 = use model default (--ctx-size 0)
         self.n_predict = 256
         self.temperature = 0.8
         self.top_p = 0.95
@@ -39,19 +40,17 @@ class LlamaCPPT2T(T2TOperation):
         self._label: str = "llama.cpp server"
         self._http: httpx.AsyncClient | None = None
 
-    async def start(self) -> None:
-        await super().start()
-        if self._server_process is not None:
-            return
-
+    async def _start_server(self) -> None:
         server = bin_executable("llama-server")
         self._port = allocate_port()
         cmd = f'"{server}" -m "{self.model_filepath}" --host 127.0.0.1 --port {self._port}'
+        if self.ctx_size > 0:
+            cmd += f" --ctx-size {self.ctx_size}"
         self._server_process = start_shell_process(cmd, label=self._label)
         self.uri = f"http://127.0.0.1:{self._port}"
         self._http = httpx.AsyncClient(base_url=self.uri, timeout=httpx.Timeout(600.0))
 
-    async def close(self) -> None:
+    async def _stop_server(self) -> None:
         if self._http is not None:
             await self._http.aclose()
             self._http = None
@@ -59,11 +58,30 @@ class LlamaCPPT2T(T2TOperation):
         self._server_process = None
         self._port = None
         self.uri = None
+
+    async def _restart_server(self) -> None:
+        await self._stop_server()
+        await self._start_server()
+
+    async def start(self) -> None:
+        await super().start()
+        if self._server_process is not None:
+            return
+        await self._start_server()
+
+    async def close(self) -> None:
+        await self._stop_server()
         await super().close()
 
     async def configure(self, config_d):
+        restart_for_ctx = False
         if "model_filepath" in config_d:
             self.model_filepath = str(config_d["model_filepath"])
+        if "ctx_size" in config_d:
+            new_ctx_size = int(config_d["ctx_size"])
+            if new_ctx_size != self.ctx_size:
+                self.ctx_size = new_ctx_size
+                restart_for_ctx = self._server_process is not None
         if "n_predict" in config_d:
             self.n_predict = int(config_d["n_predict"])
         if "max_tokens" in config_d:
@@ -102,6 +120,7 @@ class LlamaCPPT2T(T2TOperation):
             self.samplers = list(config_d["samplers"])
 
         assert self.model_filepath is not None and len(self.model_filepath) > 0
+        assert self.ctx_size >= 0
         assert self.n_predict > 0
         assert self.temperature >= 0
         assert self.top_k >= 0
@@ -113,9 +132,13 @@ class LlamaCPPT2T(T2TOperation):
         assert self.dry_allowed_length >= 0
         assert len(self.samplers) > 0
 
+        if restart_for_ctx:
+            await self._restart_server()
+
     async def get_configuration(self):
         return {
             "model_filepath": self.model_filepath,
+            "ctx_size": self.ctx_size,
             "n_predict": self.n_predict,
             "temperature": self.temperature,
             "top_p": self.top_p,
