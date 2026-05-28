@@ -1,23 +1,23 @@
-import os
-import json
 import datetime
+import json
+import logging
+import os
 import re
 import urllib
-import logging
-from typing import List, Dict
+
 from mcp import ClientSession, StdioServerParameters, types
 from mcp.client.stdio import stdio_client
 from mcp.types import (
-    TextContent,
-    ImageContent,
+    BlobResourceContents,
     EmbeddedResource,
+    ImageContent,
+    TextContent,
     TextResourceContents,
-    BlobResourceContents
 )
+from utils.config import config
+from utils.operations import OperationManager, OpRoles
 from utils.prompter.message import RawMessage
 
-from utils.config import Config
-from utils.operations import OperationManager, OpRoles
 
 def parse_tool_result(result):
     if isinstance(result, TextContent):
@@ -33,145 +33,145 @@ def parse_tool_result(result):
     else:
         raise Exception("Unknown result type")
 
+
 def details_to_response_prompt(details):
-    tools = details['tools']
-    resources = details['resources']
-    templates = details['templates']
-    
+    tools = details["tools"]
+    resources = details["resources"]
+    templates = details["templates"]
+
     prompt = ""
-    
+
     for tool in tools:
         name = tool.name
         description = tool.description
         prompt += f"<{name}> {description}\n\n"
-        
+
     for resource in resources:
         name = resource.name
         description = resource.description
         prompt += f"<{name}> {description}\n"
-        
+
     for template in templates:
         name = template.name
         description = template.description
         prompt += f"<{name}> {description}\n\n"
-        
+
     return prompt
-    
+
+
 def details_to_tool_prompt(details):
-    tools = details['tools']
-    resources = details['resources']
-    templates = details['templates']
-    
+    tools = details["tools"]
+    resources = details["resources"]
+    templates = details["templates"]
+
     prompt = ""
-    
+
     for tool in tools:
         name = tool.name
         description = tool.description
         inputSchema = json.dumps(tool.inputSchema)
         prompt += f"<{name}> {description}\nThis is the input schema for {name}: {inputSchema}\n"
-        
+
     for resource in resources:
         name = resource.name
         description = resource.description
         prompt += f"<{name}> {description}\n"
-        
+
     for template in templates:
         name = template.name
         description = template.description
         uri_template = template.uriTemplate
         prompt += f"<{name}> {description}\nThis is the URI template: {uri_template}\n"
-        
+
     return prompt
 
+
 class MCPClient:
-    '''Managing of a single server instance'''
-    
-    def __init__(self, mcp_id: str, params: StdioServerParameters):
+    """Managing of a single server instance"""
+
+    def __init__(
+        self, mcp_id: str, params: StdioServerParameters, op_manager: OperationManager
+    ):
         self.mcp_id = mcp_id
         self.params = params
+        self.op_manager = op_manager
         self.server_generator = None
         self.server_read = None
         self.server_write = None
         self.session = None
-        
-        self.tools = list()
-        self.resources = list()
-        self.templates = list()
-        
-        self.tool_names = list()
-        self.resource_names = list()
-        self.template_names = list()
-        
+
+        self.tools = []
+        self.resources = []
+        self.templates = []
+
+        self.tool_names = []
+        self.resource_names = []
+        self.template_names = []
+
         self.tool_prompt = ""
         self.response_prompt = ""
-        
+
     async def start(self):
         self.server_generator = stdio_client(self.params)
         logging.debug("starting context")
         self.server_read, self.server_write = await self.server_generator.__aenter__()
-        logging.debug("{} {}".format(type(self.server_read), type(self.server_write)))
+        logging.debug(f"{type(self.server_read)} {type(self.server_write)}")
         logging.debug("starting session")
         self.session = ClientSession(
             self.server_read,
             self.server_write,
             read_timeout_seconds=datetime.timedelta(seconds=10),
-            sampling_callback=self.handle_sampling_message
+            sampling_callback=self.handle_sampling_message,
         )
-        
+
         logging.debug("initializing session")
         await self.session.__aenter__()
         await self.session.initialize()
-        
+
         details = await self.get_details()
         self.tool_prompt = details_to_tool_prompt(details)
         self.response_prompt = details_to_response_prompt(details)
-        
+
     async def close(self):
         await self.session.__aexit__(None, None, None)
         await self.server_generator.__aexit__(None, None, None)
-        
+
     async def get_details(self):
         try:
             self.tools = (await self.session.list_tools()).tools
-        except:
+        except Exception:
             pass
         try:
             self.resources = (await self.session.list_resources()).resources
-        except:
+        except Exception:
             pass
         try:
             self.templates = (await self.session.list_resource_templates()).resourceTemplates
-        except:
+        except Exception:
             pass
-        
+
         for tool in self.tools:
             self.tool_names.append(tool.name)
         for resource in self.resources:
             self.resource_names.append(resource.name)
         for template in self.templates:
             self.template_names.append(template.name)
-        
-        return {
-            "tools": self.tools,
-            "resources": self.resources,
-            "templates": self.templates
-        }
-    
+
+        return {"tools": self.tools, "resources": self.resources, "templates": self.templates}
+
     async def handle_sampling_message(
-        self,
-        ctx,
-        message: types.CreateMessageRequestParams
+        self, ctx, message: types.CreateMessageRequestParams
     ) -> types.CreateMessageResult:
         try:
-            metadata = message.metadata or dict()
+            metadata = message.metadata or {}
             sample_type = metadata.get("sample_type", "t2t")
             if sample_type == "t2t":
-                response_stream = OperationManager().use_operation(
+                response_stream = self.op_manager.use_operation(
                     OpRoles.MCP,
                     {
                         "instruction_prompt": message.systemPrompt,
-                        "messages": [RawMessage(message.messages[0].content.text)] 
-                    }
+                        "messages": [RawMessage(message.messages[0].content.text)],
+                    },
                 )
 
                 response = ""
@@ -188,11 +188,11 @@ class MCPClient:
                     stopReason="endTurn",
                 )
             elif sample_type == "embedding":
-                response_stream = OperationManager().use_operation(
+                response_stream = self.op_manager.use_operation(
                     OpRoles.EMBEDDING,
                     {
                         "content": message.systemPrompt[:10000],
-                    }
+                    },
                 )
 
                 response = ""
@@ -208,10 +208,11 @@ class MCPClient:
                     model="embedding",
                     stopReason="endTurn",
                 )
-        except Exception as err:
+        except Exception:
             logging.error("MCP sampler encountered an issue", exc_info=True)
             return ""
-        
+
+
 class MCPManager:
     tooling_prompt = """
 You are calling tools based on the user input to gather more information to enrich a role-playing response and to perform relevant actions. Only reply with the appropriate tool calls and nothing else.
@@ -224,86 +225,85 @@ If you don't want to call any tools, simply reply with "<no-tool>"
 Below is a list of descriptions for all available tool:\n
 """
 
-#     response_prompt = """
-# You are an assistant answer a user's question.
-# You will be given the user's question under the header <QUESTION>. Answer this using the additional information. Do not hallucinate.
-# You are given additional information to the actions and context retrieved prior to answering under the header <CONTEXT>.
-# This additional information will each be on a new line, formated as follows: context_name: context_result
-# For example, context by the name of "memories" that gave context "you are an ai" will look like "memories: you are an ai"
-# Below is a list of all available contexts and their descriptions:
-# """
+    #     response_prompt = """
+    # You are an assistant answer a user's question.
+    # You will be given the user's question under the header <QUESTION>. Answer this using the additional information. Do not hallucinate.
+    # You are given additional information to the actions and context retrieved prior to answering under the header <CONTEXT>.
+    # This additional information will each be on a new line, formated as follows: context_name: context_result
+    # For example, context by the name of "memories" that gave context "you are an ai" will look like "memories: you are an ai"
+    # Below is a list of all available contexts and their descriptions:
+    # """
 
     pattern = re.compile(r"^<[\S]*>")
-            
-    def __init__(self):
-        # servers are loaded at start and at no other point
-        # self.client_params: List[StdioServerParameters] = list()
-        self.clients: Dict[str, MCPClient] = dict()
-        
+
+    def __init__(self, op_manager: OperationManager):
+        self.op_manager = op_manager
+        self.clients: dict[str, MCPClient] = {}
+
     async def start(self):
-        config = Config()
         for mcp_detail in config.mcp:
             await self.load_mcp(mcp_detail)
-        
-    async def load_mcp(self, mcp_detail: Dict):
-        # TODO validate the mcp_detail 
-        
+
+    async def load_mcp(self, mcp_detail: dict):
+        # TODO validate the mcp_detail
+
         params = StdioServerParameters(
-            command=mcp_detail['command'],  # Executable
-            args=mcp_detail['args'],  # Optional command line arguments
+            command=mcp_detail["command"],  # Executable
+            args=mcp_detail["args"],  # Optional command line arguments
             env=os.environ,  # Optional environment variables
-            cwd=mcp_detail['cwd']
+            cwd=mcp_detail["cwd"],
         )
-        client = MCPClient(mcp_detail["id"], params)
+        client = MCPClient(mcp_detail["id"], params, self.op_manager)
         await client.start()
-        self.clients[mcp_detail['id']] = client
-        
+        self.clients[mcp_detail["id"]] = client
+
     async def close_mcp(self, mcp_id: str):
         target = self.clients.get(mcp_id, None)
         if target:
             await target.close()
             del self.clients[mcp_id]
-            
+
     def get_tooling_prompt(self):
         prompt = self.tooling_prompt
         for client_key in self.clients:
             prompt += self.clients[client_key].tool_prompt
-            
+
         return prompt
-    
+
     def get_response_prompt(self):
         # prompt = self.response_prompt
         prompt = ""
         for client_key in self.clients:
             prompt += self.clients[client_key].response_prompt
-            
+
         return prompt
-            
+
     async def use(self, tooling_response: str):
         tool_calls = tooling_response.split("\n")
-        
-        result_list = list()
-        
+
+        result_list = []
+
         for tool_call in tool_calls:
             result = None
             tool_name = ""
             try:
                 match = self.pattern.search(tool_call)
-                if match is None: continue
-                name_token = tool_call[:match.span()[1]]
+                if match is None:
+                    continue
+                name_token = tool_call[: match.span()[1]]
                 tool_name = name_token.lstrip("<").rstrip(">")
-                if name_token == "no_op": continue
-                tool_call = tool_call[match.span()[1]:].rstrip(" ")
-                input_json = json.loads(tool_call) if len(tool_call) else dict()
-                
-                tool = {
-                    "name": name_token,
-                    "input": input_json
-                }
-                
+                if name_token == "no_op":
+                    continue
+                tool_call = tool_call[match.span()[1] :].rstrip(" ")
+                input_json = json.loads(tool_call) if len(tool_call) else {}
+
+                tool = {"name": name_token, "input": input_json}
+
                 for client in self.clients:
                     if tool_name in self.clients[client].tool_names:
-                        result = await self.clients[client].session.call_tool(tool_name, arguments=tool['input'])
+                        result = await self.clients[client].session.call_tool(
+                            tool_name, arguments=tool["input"]
+                        )
                         result = parse_tool_result(result.content[0])
                         break
                     elif tool_name in self.clients[client].resource_names:
@@ -321,23 +321,27 @@ Below is a list of descriptions for all available tool:\n
                             if templates.name == tool_name:
                                 uri_template = templates.uriTemplate
                                 break
-                        for key in tool['input']:
-                            if isinstance(tool['input'][key], str):
-                                urllib.parse.quote(tool['input'][key])
-                                tool['input'][key] = urllib.parse.quote(tool['input'][key])
-                        logging.debug("Calling resource: {} {} {}".format(tool_name, tool['input'], uri_template))
-                        logging.debug(uri_template.format(**tool['input']))
+                        for key in tool["input"]:
+                            if isinstance(tool["input"][key], str):
+                                urllib.parse.quote(tool["input"][key])
+                                tool["input"][key] = urllib.parse.quote(tool["input"][key])
+                        logging.debug(
+                            "Calling resource: {} {} {}".format(
+                                tool_name, tool["input"], uri_template
+                            )
+                        )
+                        logging.debug(uri_template.format(**tool["input"]))
                         result = await self.clients[client].session.read_resource(
-                            uri_template.format(**tool['input'])
+                            uri_template.format(**tool["input"])
                         )
                         result = parse_tool_result(result.contents[0])
                         break
             except Exception as err:
                 logging.critical("Error occured during MCP", exc_info=True)
-                result = "Attempt to use MCP tool failed due to {}".format(str(err))
+                result = f"Attempt to use MCP tool failed due to {str(err)}"
             if result:
                 result_list.append((tool_name, result))
-        
+
         return result_list
 
     async def close(self):

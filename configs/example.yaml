@@ -8,9 +8,11 @@ operations:
 # - role: stt
 #   id: fish
 # - role: stt
-#   id: kobold
-#   suppress_non_speech: true
-#   langcode: en
+#   id: whispercpp
+#   model_filepath: E:\\jaison-core\\models\\whispercpp\\ggml-base.en.bin
+#   language: en
+#   temperature: 0.0
+#   response_format: json
 - role: stt
   id: openai # Openai STT https://platform.openai.com/docs/guides/speech-to-text
   base_url: https://api.openai.com/v1/
@@ -19,19 +21,15 @@ operations:
   
   # T2T
 # - role: t2t
-#   id: kobold
-#   max_context_length: 2048
-#   max_length: 100
-#   quiet: true
-#   rep_pen: 1.1
-#   rep_pen_range: 256
-#   rep_pen_slope: 1
-#   temperature: 0.5
-#   tfs: 1
-#   top_a: 0
-#   top_k: 100
-#   top_p: 0.9
-#   typical: 1
+#   id: llamacpp
+#   model_filepath: E:\\jaison-core\\models\\llamacpp\\your-model.gguf
+#   ctx_size: 2048
+#   n_predict: 256
+#   temperature: 0.8
+#   top_p: 0.95
+#   top_k: 40
+#   dry_multiplier: 0.5
+#   samplers: [dry, top_k, typ_p, top_p, min_p, temperature]
 - role: t2t
   id: openai
   base_url: https://api.openai.com/v1/
@@ -62,28 +60,25 @@ operations:
 #   normalize: true
 #   latency: normal
 # - role: tts
-#   id: kobold
-#   voice: kobo
-- role: tts
-  id: openai # OpenAI TTSG https://platform.openai.com/docs/guides/text-to-speech
-  base_url: https://api.openai.com/v1/
-  voice: nova
-  model: tts-1
+#   id: openai # OpenAI TTSG https://platform.openai.com/docs/guides/text-to-speech
+#   base_url: https://api.openai.com/v1/
+#   voice: nova
+#   model: tts-1
 # - role: tts
 #   id: pytts
 #   voice: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_MS_EN-US_ZIRA_11.0'
 #   gender: female
-# - role: tts
-#   id: melo
-#   config_filepath: null
-#   model_filepath: null
-#   speaker_id: EN-Default
-#   device: cuda
-#   language: EN
-#   sdp_ratio: 0.8
-#   noise_scale: 0.6
-#   noise_scale_w: 0.8
-#   speed: 1.0
+- role: tts
+  id: melo
+  config_filepath: null
+  model_filepath: null
+  speaker_id: EN-Default
+  device: cpu
+  language: EN
+  sdp_ratio: 0.8
+  noise_scale: 0.6
+  noise_scale_w: 0.8
+  speed: 1.0
 
   # Audio filters
 # - role: filter_audio
@@ -94,8 +89,8 @@ operations:
 #   voice: my-voice-model
 #   f0_up_key: 0
 #   f0_method: rmvpe
-#   f0_file: null
-#   index_file: null
+#   f0_filepath: null
+#   index_filepath: null
 #   index_rate: 0.0
 #   filter_radius: 3
 #   resample_sr: 0
@@ -113,6 +108,11 @@ operations:
 #   frequency_penalty: 0.2
 
   # Embedding model
+# - role: embedding
+#   id: llamacpp
+#   model_filepath: E:\\jaison-core\\models\\llamacpp\\your-embedding-model.gguf
+#   pooling: mean
+#   embd_normalize: 2
 - role: embedding
   id: openai
   base_url: https://api.openai.com/v1/
@@ -135,10 +135,6 @@ prompter:
   name_translations:
     "old name": "new name"
   history_length: 20
-
-# Kobold
-kobold_filepath: E:\\jaison-core\\models\\kobold\\koboldcpp_cu12.exe # must be absolute
-kcpps_filepath: E:\\jaison-core\\models\\kobold\\save.kcpps # must be absolute
 
 # Spacy NLP
 spacy_model: en_core_web_sm

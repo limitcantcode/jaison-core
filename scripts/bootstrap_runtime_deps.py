@@ -3,25 +3,25 @@ Download heavyweight runtime binaries and minimal RVC weights for VC inference
 (Hubert content encoder + RMVPE pitch; see `VC.vc_inference` / `Pipeline.get_f0`).
 
 Layout:
-  models/kobold/koboldcpp[.exe]
+  bin/whisper-server[.exe] (+ bundled DLLs on Windows)
+  bin/llama-server[.exe] (+ bundled libs; shared with ffmpeg-static)
   models/rvc/base/hubert/hubert_base.pt
   models/rvc/base/rmvpe/rmvpe.pt
   models/rvc/weights/   — place your *.pth voice checkpoints here (see weight_root)
 
-Not downloaded (unused by VC inference path): pretrained G/D blobs, UVR5 weights,
-rmvpe.onnx (only needed for DirectML / DeviceType privateuseone).
-
 Environment (optional):
-  KOBOLDCPP_VARIANT   cuda | nocuda | oldpc  (default: cuda — NVIDIA-oriented builds where available)
-  KOBOLDCPP_ASSET_NAME  Full GitHub asset filename override (needed for linux aarch64: no official v1.113.2 build)
-  KOBOLDCPP_SKIP      set to 1 to skip KoboldCPP download
-  RVC_SKIP            set to 1 to skip RVC HF download
-  RVC_ASSETS_REVISION Hugging Face revision for lj1995/VoiceConversionWebUI (default: main)
+  WHISPERCPP_VARIANT   cuda | cpu  (default: cuda on Windows x64 when available, else cpu)
+  WHISPERCPP_ASSET_NAME  Full GitHub release asset filename override
+  WHISPERCPP_SKIP      set to 1 to skip whisper.cpp server download
+  LLAMACPP_VARIANT     cuda | cpu | rocm | vulkan  (default: cuda on Windows x64 when available)
+  LLAMACPP_ASSET_NAME  Full GitHub release asset filename override
+  LLAMACPP_SKIP        set to 1 to skip llama.cpp server download
+  RVC_SKIP             set to 1 to skip RVC HF download
+  RVC_ASSETS_REVISION  Hugging Face revision for lj1995/VoiceConversionWebUI (default: main)
 
-Hubert + rmvpe file source: Hugging Face `lj1995/VoiceConversionWebUI`
-(legacy parity with subsets of Retrieval-based-Voice-Conversion tooling).
-
-See: KoboldCPP https://github.com/LostRuins/koboldcpp/releases/tag/v1.113.2
+See:
+  whisper.cpp https://github.com/ggml-org/whisper.cpp/releases/tag/v1.8.4
+  llama.cpp   https://github.com/ggml-org/llama.cpp/releases/tag/b9381
 """
 
 from __future__ import annotations
@@ -32,14 +32,22 @@ import platform
 import shutil
 import stat
 import sys
+import tarfile
 import tempfile
+import zipfile
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import requests
 
-
-KOBOLDCPP_TAG = "v1.113.2"
-RELEASE_BASE = f"https://github.com/LostRuins/koboldcpp/releases/download/{KOBOLDCPP_TAG}"
+WHISPERCPP_TAG = "v1.8.4"
+WHISPERCPP_RELEASE_BASE = (
+    f"https://github.com/ggml-org/whisper.cpp/releases/download/{WHISPERCPP_TAG}"
+)
+LLAMACPP_TAG = "b9381"
+LLAMACPP_RELEASE_BASE = f"https://github.com/ggml-org/llama.cpp/releases/download/{LLAMACPP_TAG}"
 
 FFMPEG_STATIC_TAG = "b6.1.1"
 FFMPEG_STATIC_RELEASE_BASE = (
@@ -73,125 +81,322 @@ def _download_url(url: str, dest: Path, *, chunk: int = 8 * 1024 * 1024) -> None
     partial.replace(dest)
 
 
-def _resolve_kobold_asset_name(machine: str, system: str, variant: str) -> str | None:
-    """Return GitHub release asset basename, or None if user must supply KOBOLDCPP_ASSET_NAME."""
-    ov = os.environ.get("KOBOLDCPP_ASSET_NAME", "").strip()
-    if ov:
-        return ov
+@dataclass(frozen=True)
+class _ReleaseAsset:
+    filename: str
+    archive: Literal["zip", "tar.gz"]
+    extract_mode: Literal["flat", "release_dir"]
+
+
+def _server_binary_name(system: str, base: str) -> str:
+    return f"{base}.exe" if system == "Windows" else base
+
+
+def _normalize_variant(variant: str, allowed: set[str], default: str) -> str:
+    v = variant.lower().strip()
+    if v not in allowed:
+        print(f"Unknown variant {variant!r}; using {default}.")
+        return default
+    return v
+
+
+def _resolve_whisper_asset(machine: str, system: str, variant: str) -> _ReleaseAsset | None:
+    override = os.environ.get("WHISPERCPP_ASSET_NAME", "").strip()
+    if override:
+        archive: Literal["zip", "tar.gz"] = (
+            "tar.gz" if override.endswith(".tar.gz") else "zip"
+        )
+        mode: Literal["flat", "release_dir"] = (
+            "release_dir" if archive == "zip" and "bin" in override else "flat"
+        )
+        return _ReleaseAsset(override, archive, mode)
 
     m = machine.lower()
-    v = variant.lower().strip()
+    v = _normalize_variant(variant, {"cuda", "cpu"}, "cuda")
 
     if system == "Windows":
-        is_arm_win = os.environ.get("PROCESSOR_ARCHITECTURE", "").upper() == "ARM64" or "arm" in m
-        if is_arm_win:
-            print(
-                "  Windows ARM: using koboldcpp-nocuda.exe (no CUDA KoboldCPP for this CPU class)."
-            )
-            return "koboldcpp-nocuda.exe"
-        if v not in {"cuda", "nocuda", "oldpc"}:
-            print(f"Unknown KOBOLDCPP_VARIANT={v!r}; using cuda.")
-            v = "cuda"
-        names = {
-            "cuda": "koboldcpp.exe",
-            "nocuda": "koboldcpp-nocuda.exe",
-            "oldpc": "koboldcpp-oldpc.exe",
-        }
-        return names[v]
+        is_arm = os.environ.get("PROCESSOR_ARCHITECTURE", "").upper() == "ARM64" or "arm" in m
+        if is_arm:
+            print("  Windows ARM: whisper.cpp CUDA builds are x64-only; using cpu.")
+            v = "cpu"
+        if m not in {"x86_64", "amd64"} and not is_arm:
+            print(f"ERROR: Unsupported Windows machine for whisper.cpp: {machine!r}", file=sys.stderr)
+            return None
+        if v == "cuda":
+            return _ReleaseAsset("whisper-cublas-12.4.0-bin-x64.zip", "zip", "release_dir")
+        return _ReleaseAsset("whisper-bin-x64.zip", "zip", "release_dir")
 
     if system == "Linux":
-        if m in {"aarch64", "arm64"}:
-            print(
-                "ERROR: KoboldCPP v1.113.2 has no official linux aarch64 GitHub asset.\n"
-                "  Set KOBOLDCPP_ASSET_NAME to a release asset name you can run on this machine,\n"
-                "  or set KOBOLDCPP_SKIP=1 and install KoboldCPP manually into models/kobold/.\n"
-                "  Release index: "
-                + f"https://github.com/LostRuins/koboldcpp/releases/tag/{KOBOLDCPP_TAG}",
-                file=sys.stderr,
-            )
-            return None
-
-        if m in {"x86_64", "amd64"}:
-            if v not in {"cuda", "nocuda", "oldpc"}:
-                print(f"Unknown KOBOLDCPP_VARIANT={v!r}; using cuda.")
-                v = "cuda"
-            names = {
-                "cuda": "koboldcpp-linux-x64",
-                "nocuda": "koboldcpp-linux-x64-nocuda",
-                "oldpc": "koboldcpp-linux-x64-oldpc",
-            }
-            return names[v]
-
-        print(f"ERROR: Unsupported Linux machine type: {machine!r}", file=sys.stderr)
-        return None
-
-    if system == "Darwin":
-        if m in {"aarch64", "arm64"}:
-            return "koboldcpp-mac-arm64"
         print(
-            f"ERROR: KoboldCPP v1.113.2 has no macOS Intel build; machine={machine!r}",
+            "ERROR: whisper.cpp v1.8.4 has no official Linux server binary in GitHub releases.\n"
+            "  Set WHISPERCPP_ASSET_NAME to a compatible asset, or WHISPERCPP_SKIP=1 and install manually.\n"
+            f"  Release index: https://github.com/ggml-org/whisper.cpp/releases/tag/{WHISPERCPP_TAG}",
             file=sys.stderr,
         )
         return None
 
-    print(f"ERROR: Unsupported OS for Kobold bootstrap: {system!r}", file=sys.stderr)
+    if system == "Darwin":
+        print(
+            "ERROR: whisper.cpp v1.8.4 macOS release ships an xcframework only (no whisper-server binary).\n"
+            "  Set WHISPERCPP_SKIP=1 and install whisper-server manually, or set WHISPERCPP_ASSET_NAME.",
+            file=sys.stderr,
+        )
+        return None
+
+    print(f"ERROR: Unsupported OS for whisper.cpp bootstrap: {system!r}", file=sys.stderr)
     return None
 
 
-def _kobold_destination_name(system: str) -> Path:
-    return Path("koboldcpp.exe") if system == "Windows" else Path("koboldcpp")
+def _resolve_llama_asset(machine: str, system: str, variant: str) -> _ReleaseAsset | None:
+    override = os.environ.get("LLAMACPP_ASSET_NAME", "").strip()
+    if override:
+        archive: Literal["zip", "tar.gz"] = (
+            "tar.gz" if override.endswith(".tar.gz") else "zip"
+        )
+        return _ReleaseAsset(override, archive, "flat")
+
+    m = machine.lower()
+    v = _normalize_variant(variant, {"cuda", "cpu", "rocm", "vulkan"}, "cuda")
+    tag = LLAMACPP_TAG
+
+    if system == "Windows":
+        is_arm = os.environ.get("PROCESSOR_ARCHITECTURE", "").upper() == "ARM64" or "arm" in m
+        if is_arm:
+            if v == "cuda":
+                print("  Windows ARM: llama.cpp CUDA builds are x64-only; using cpu arm64.")
+                v = "cpu"
+            return _ReleaseAsset(f"llama-{tag}-bin-win-cpu-arm64.zip", "zip", "flat")
+        if m not in {"x86_64", "amd64"}:
+            print(f"ERROR: Unsupported Windows machine for llama.cpp: {machine!r}", file=sys.stderr)
+            return None
+        if v == "cuda":
+            return _ReleaseAsset(f"llama-{tag}-bin-win-cuda-12.4-x64.zip", "zip", "flat")
+        if v == "vulkan":
+            return _ReleaseAsset(f"llama-{tag}-bin-win-vulkan-x64.zip", "zip", "flat")
+        return _ReleaseAsset(f"llama-{tag}-bin-win-cpu-x64.zip", "zip", "flat")
+
+    if system == "Linux":
+        if m in {"x86_64", "amd64"}:
+            if v == "cuda":
+                print(
+                    "  Linux x64: no official CUDA zip in this release; using ubuntu cpu build.",
+                    file=sys.stderr,
+                )
+                v = "cpu"
+            if v == "rocm":
+                return _ReleaseAsset(f"llama-{tag}-bin-ubuntu-rocm-7.2-x64.tar.gz", "tar.gz", "flat")
+            if v == "vulkan":
+                return _ReleaseAsset(
+                    f"llama-{tag}-bin-ubuntu-vulkan-x64.tar.gz", "tar.gz", "flat"
+                )
+            return _ReleaseAsset(f"llama-{tag}-bin-ubuntu-x64.tar.gz", "tar.gz", "flat")
+        if m in {"aarch64", "arm64"}:
+            if v == "vulkan":
+                return _ReleaseAsset(
+                    f"llama-{tag}-bin-ubuntu-vulkan-arm64.tar.gz", "tar.gz", "flat"
+                )
+            return _ReleaseAsset(f"llama-{tag}-bin-ubuntu-arm64.tar.gz", "tar.gz", "flat")
+        print(f"ERROR: Unsupported Linux machine for llama.cpp: {machine!r}", file=sys.stderr)
+        return None
+
+    if system == "Darwin":
+        if m in {"aarch64", "arm64"}:
+            return _ReleaseAsset(f"llama-{tag}-bin-macos-arm64.tar.gz", "tar.gz", "flat")
+        if m == "x86_64":
+            return _ReleaseAsset(f"llama-{tag}-bin-macos-x64.tar.gz", "tar.gz", "flat")
+        print(f"ERROR: Unsupported macOS machine for llama.cpp: {machine!r}", file=sys.stderr)
+        return None
+
+    print(f"ERROR: Unsupported OS for llama.cpp bootstrap: {system!r}", file=sys.stderr)
+    return None
 
 
-def _maybe_skip_kobold(out_dir: Path, force: bool) -> bool:
-    marker = out_dir / ".koboldcpp-version"
-    dest_name = _kobold_destination_name(platform.system())
-    binary = out_dir / dest_name
-
-    version_label = marker.read_text(encoding="utf-8").strip() if marker.is_file() else None
-    if not force and binary.is_file() and version_label == KOBOLDCPP_TAG:
-        print(f"KoboldCPP {KOBOLDCPP_TAG} already present at {binary}, skipping.")
-        return True
-    return False
+def _marker_stamp(tag: str, variant: str, asset: _ReleaseAsset) -> str:
+    return f"{tag}\n{variant}\n{asset.filename}\n"
 
 
-def download_koboldcpp(*, project_root: Path, force: bool) -> None:
-    if os.environ.get("KOBOLDCPP_SKIP") == "1":
-        print("KoboldCPP download skipped (KOBOLDCPP_SKIP=1).")
+def _installed_marker_matches(marker: Path, stamp: str, server_bin: Path, *, force: bool) -> bool:
+    if force or not server_bin.is_file():
+        return False
+    if not marker.is_file():
+        return False
+    return marker.read_text(encoding="utf-8") == stamp
+
+
+def _chmod_executable(path: Path) -> None:
+    mode = path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+    path.chmod(mode)
+
+
+def _extract_zip(archive: Path, dest_dir: Path, *, extract_mode: Literal["flat", "release_dir"]) -> None:
+    prefix = "Release/" if extract_mode == "release_dir" else ""
+    with zipfile.ZipFile(archive) as zf:
+        for member in zf.namelist():
+            if prefix and not member.startswith(prefix):
+                continue
+            rel = member[len(prefix) :] if prefix else member
+            if not rel or rel.endswith("/"):
+                continue
+            target = dest_dir / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with zf.open(member) as src, target.open("wb") as dst:
+                shutil.copyfileobj(src, dst)
+
+
+def _extract_tar_gz(archive: Path, dest_dir: Path) -> None:
+    with tarfile.open(archive, "r:gz") as tf:
+        tf.extractall(dest_dir, filter="data")
+
+
+def _install_release_tree(staging_dir: Path, dest_dir: Path, *, merge: bool = False) -> None:
+    if not merge and dest_dir.exists():
+        shutil.rmtree(dest_dir)
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    children = list(staging_dir.iterdir())
+    if len(children) == 1 and children[0].is_dir():
+        source_root = children[0]
+    else:
+        source_root = staging_dir
+    for item in source_root.iterdir():
+        target = dest_dir / item.name
+        if item.is_dir():
+            shutil.copytree(item, target, dirs_exist_ok=merge)
+        else:
+            shutil.copy2(item, target)
+
+
+def _download_release_asset(
+    *,
+    label: str,
+    tag: str,
+    release_base: str,
+    out_dir: Path,
+    asset: _ReleaseAsset,
+    server_name: str,
+    variant: str,
+    force: bool,
+    resolve_fallback: Callable[[str, str, str], _ReleaseAsset | None] | None = None,
+) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    server_bin = out_dir / server_name
+    marker = out_dir / f".{label}-version"
+    stamp = _marker_stamp(tag, variant, asset)
+
+    if _installed_marker_matches(marker, stamp, server_bin, force=force):
+        print(f"{label} {tag} ({asset.filename}) already present at {server_bin}, skipping.")
         return
 
-    out_dir = project_root / "models" / "kobold"
-    out_dir.mkdir(parents=True, exist_ok=True)
+    candidates = [asset]
+    if resolve_fallback and variant == "cuda":
+        fallback = resolve_fallback(platform.machine(), platform.system(), "cpu")
+        if fallback and fallback.filename != asset.filename:
+            candidates.append(fallback)
 
-    if _maybe_skip_kobold(out_dir, force):
+    last_error: Exception | None = None
+    for candidate in candidates:
+        if candidate is not asset:
+            print(f"  Falling back to {candidate.filename} ...")
+            stamp = _marker_stamp(tag, "cpu", candidate)
+
+        url = f"{release_base}/{candidate.filename}"
+        print(f"Downloading {label} {tag}: {candidate.filename} ...")
+
+        with tempfile.TemporaryDirectory(prefix=f"{label}_") as tmp_s:
+            tmp = Path(tmp_s)
+            archive_path = tmp / candidate.filename
+            try:
+                _download_url(url, archive_path)
+            except requests.HTTPError as e:
+                last_error = e
+                if candidate is not candidates[-1]:
+                    continue
+                raise
+
+            extract_root = tmp / "extract"
+            extract_root.mkdir()
+            if candidate.archive == "zip":
+                _extract_zip(archive_path, extract_root, extract_mode=candidate.extract_mode)
+            else:
+                _extract_tar_gz(archive_path, extract_root)
+
+            _install_release_tree(extract_root, out_dir, merge=out_dir.name == "bin")
+
+        if not server_bin.is_file():
+            raise SystemExit(
+                f"{label} install incomplete: expected {server_bin} after extracting {candidate.filename}"
+            )
+
+        if platform.system() != "Windows":
+            _chmod_executable(server_bin)
+
+        marker.write_text(stamp, encoding="utf-8")
+        print(f"  -> {server_bin}")
+        return
+
+    if last_error:
+        raise last_error
+
+
+def download_whispercpp(*, project_root: Path, force: bool) -> None:
+    if os.environ.get("WHISPERCPP_SKIP") == "1":
+        print("whisper.cpp download skipped (WHISPERCPP_SKIP=1).")
         return
 
     system = platform.system()
-    variant = os.environ.get("KOBOLDCPP_VARIANT", "cuda")
-    asset = _resolve_kobold_asset_name(platform.machine(), system, variant)
+    machine = platform.machine()
+    variant = os.environ.get("WHISPERCPP_VARIANT", "cuda")
+    asset = _resolve_whisper_asset(machine, system, variant)
     if asset is None:
         raise SystemExit(1)
 
-    url = f"{RELEASE_BASE}/{asset}"
-    dest_bin = _kobold_destination_name(system)
-    staging = out_dir / asset
-    final = out_dir / dest_bin
+    out_dir = project_root / "bin"
+    server_name = _server_binary_name(system, "whisper-server")
 
-    print(f"Downloading KoboldCPP {KOBOLDCPP_TAG}: {asset} ...")
-    _download_url(url, staging)
+    def _cpu_fallback(m: str, s: str, _v: str) -> _ReleaseAsset | None:
+        return _resolve_whisper_asset(m, s, "cpu")
 
-    if final != staging:
-        if final.exists():
-            final.unlink()
+    _download_release_asset(
+        label="whispercpp",
+        tag=WHISPERCPP_TAG,
+        release_base=WHISPERCPP_RELEASE_BASE,
+        out_dir=out_dir,
+        asset=asset,
+        server_name=server_name,
+        variant=variant,
+        force=force,
+        resolve_fallback=_cpu_fallback if variant == "cuda" else None,
+    )
 
-        shutil.move(staging, final)
 
-    if system != "Windows":
-        mode = final.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
-        final.chmod(mode)
+def download_llamacpp(*, project_root: Path, force: bool) -> None:
+    if os.environ.get("LLAMACPP_SKIP") == "1":
+        print("llama.cpp download skipped (LLAMACPP_SKIP=1).")
+        return
 
-    (out_dir / ".koboldcpp-version").write_text(KOBOLDCPP_TAG + "\n", encoding="utf-8")
+    system = platform.system()
+    machine = platform.machine()
+    variant = os.environ.get("LLAMACPP_VARIANT", "cuda")
+    asset = _resolve_llama_asset(machine, system, variant)
+    if asset is None:
+        raise SystemExit(1)
 
-    print(f"  -> {final}")
+    out_dir = project_root / "bin"
+    server_name = _server_binary_name(system, "llama-server")
+
+    def _cpu_fallback(m: str, s: str, _v: str) -> _ReleaseAsset | None:
+        return _resolve_llama_asset(m, s, "cpu")
+
+    _download_release_asset(
+        label="llamacpp",
+        tag=LLAMACPP_TAG,
+        release_base=LLAMACPP_RELEASE_BASE,
+        out_dir=out_dir,
+        asset=asset,
+        server_name=server_name,
+        variant=variant,
+        force=force,
+        resolve_fallback=_cpu_fallback if variant == "cuda" else None,
+    )
 
 
 def _ffmpeg_static_asset_names(system: str, machine: str) -> tuple[str, str] | None:
@@ -219,7 +424,9 @@ def _ffmpeg_static_asset_names(system: str, machine: str) -> tuple[str, str] | N
             return ("ffmpeg-linux-arm", "ffprobe-linux-arm")
         if m in {"i386", "i686"}:
             return ("ffmpeg-linux-ia32", "ffprobe-linux-ia32")
-        print(f"ERROR: Unsupported Linux machine type for ffmpeg-static: {machine!r}", file=sys.stderr)
+        print(
+            f"ERROR: Unsupported Linux machine type for ffmpeg-static: {machine!r}", file=sys.stderr
+        )
         return None
 
     if sys_norm == "Darwin":
@@ -227,7 +434,9 @@ def _ffmpeg_static_asset_names(system: str, machine: str) -> tuple[str, str] | N
             return ("ffmpeg-darwin-arm64", "ffprobe-darwin-arm64")
         if m in {"x86_64"}:
             return ("ffmpeg-darwin-x64", "ffprobe-darwin-x64")
-        print(f"ERROR: Unsupported macOS machine type for ffmpeg-static: {machine!r}", file=sys.stderr)
+        print(
+            f"ERROR: Unsupported macOS machine type for ffmpeg-static: {machine!r}", file=sys.stderr
+        )
         return None
 
     print(f"ERROR: Unsupported OS for ffmpeg-static bootstrap: {system!r}", file=sys.stderr)
@@ -305,9 +514,7 @@ def download_ffmpeg_and_ffprobe(*, project_root: Path, force: bool) -> None:
             mode = final.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
             final.chmod(mode)
 
-    (bin_dir / ".ffmpeg-static-version").write_text(
-        FFMPEG_STATIC_TAG + "\n", encoding="utf-8"
-    )
+    (bin_dir / ".ffmpeg-static-version").write_text(FFMPEG_STATIC_TAG + "\n", encoding="utf-8")
 
     print(f"  ffmpeg -> {ffmpeg_final}")
     print(f"  ffprobe -> {ffprobe_final}")
@@ -406,14 +613,15 @@ def download_rvc_assets(*, project_root: Path, force: bool, revision: str | None
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="Download KoboldCPP, ffmpeg/ffprobe, and RVC runtime assets."
+        description="Download whisper.cpp, llama.cpp, ffmpeg/ffprobe, and RVC runtime assets."
     )
     p.add_argument(
         "--force",
         action="store_true",
         help="Re-download even if version markers indicate an existing install.",
     )
-    p.add_argument("--skip-kobold", action="store_true", help="Skip KoboldCPP.")
+    p.add_argument("--skip-whispercpp", action="store_true", help="Skip whisper.cpp server.")
+    p.add_argument("--skip-llamacpp", action="store_true", help="Skip llama.cpp server.")
     p.add_argument(
         "--skip-ffmpeg",
         action="store_true",
@@ -430,13 +638,15 @@ def main(argv: list[str] | None = None) -> None:
     args = parse_args(sys.argv[1:] if argv is None else argv)
     root = _project_root()
 
-    if args.skip_kobold:
-        os.environ["KOBOLDCPP_SKIP"] = "1"
-
+    if args.skip_whispercpp:
+        os.environ["WHISPERCPP_SKIP"] = "1"
+    if args.skip_llamacpp:
+        os.environ["LLAMACPP_SKIP"] = "1"
     if args.skip_rvc:
         os.environ["RVC_SKIP"] = "1"
 
-    download_koboldcpp(project_root=root, force=args.force)
+    download_whispercpp(project_root=root, force=args.force)
+    download_llamacpp(project_root=root, force=args.force)
     if not args.skip_ffmpeg:
         download_ffmpeg_and_ffprobe(project_root=root, force=args.force)
     download_rvc_assets(project_root=root, force=args.force, revision=args.rvc_revision)

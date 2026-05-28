@@ -11,7 +11,7 @@
     - [Operations Pipeline](#operations-pipeline)
   - [Service Providers](#service-providers)
     - [Local Services](#local-services)
-      - [KoboldCPP Setup](#koboldcpp-setup)
+      - [whisper.cpp and llama.cpp Setup](#whispercpp-and-llamacpp-setup)
       - [MeloTTS Setup](#melotts-setup)
       - [RVC (Voice Conversion)](#rvc-voice-conversion)
     - [Cloud Services](#cloud-services)
@@ -22,16 +22,15 @@
     - [Speech-to-Text (STT)](#speech-to-text-stt)
       - [Azure](#azure)
       - [Fish](#fish)
-      - [Kobold (using Whisper)](#kobold-using-whisper)
+      - [whisper.cpp](#whispercpp)
       - [OpenAI](#openai-1)
     - [Text-to-Text (T2T)](#text-to-text-t2t)
-      - [Kobold](#kobold)
+      - [llama.cpp](#llamacpp)
       - [OpenAI](#openai-2)
     - [Text-to-Speech (TTS)](#text-to-speech-tts)
       - [MeloTTS (Recommended)](#melotts-recommended)
       - [Azure](#azure-1)
       - [Fish](#fish-1)
-      - [Kobold](#kobold-1)
       - [OpenAI](#openai-3)
       - [pytts](#pytts)
     - [Audio Filters](#audio-filters)
@@ -74,10 +73,7 @@
     - [Making Operations](#making-operations)
       - [Implementing an Operation](#implementing-an-operation)
       - [Connecting an Operation for Use](#connecting-an-operation-for-use)
-    - [Adding Managed Processes](#adding-managed-processes)
-      - [Implementing a Process](#implementing-a-process)
-      - [Connecting a Process for Use](#connecting-a-process-for-use)
-      - [Connecting with Operations for Management](#connecting-with-operations-for-management)
+    - [Local Server Subprocesses](#local-server-subprocesses)
     - [Adding MCP Servers](#adding-mcp-servers)
     - [Making Applications](#making-applications)
     - [Extending Configuration](#extending-configuration)
@@ -164,51 +160,38 @@ operations:
 
 Run everything on your own hardware without external API calls.
 
-#### KoboldCPP Setup
+#### whisper.cpp and llama.cpp Setup
 
-**Compatibility:** Limited (depends on model)  
+**Compatibility:** Depends on model and hardware  
 **Cost:** Free (local)  
-**Supports:** STT, T2T, TTS
+**Supports:** STT (whisper.cpp), T2T (llama.cpp)
 
 **Installation:**
 
-Installation should already be handled by Make. However if you want to use a specific varient, follow the instructions below.
+`make bootstrap` downloads pinned [whisper.cpp](https://github.com/ggml-org/whisper.cpp/releases/tag/v1.8.4) and [llama.cpp](https://github.com/ggml-org/llama.cpp/releases/tag/b9381) server binaries into `bin/` (alongside ffmpeg). On Windows x64 the default is a CUDA build when available, with automatic CPU fallback.
 
-1. **Download KoboldCPP** from [releases](https://github.com/LostRuins/koboldcpp/releases):
-   - **NVIDIA GPU (e.g. RTX series):** `koboldcpp.exe` for Windows or `koboldcpp-linux-x64` for Linux
-   - **Older NVIDIA GPU (CUDA 11):** `koboldcpp-oldpc.exe` for Windows or `koboldcpp-linux-x64-oldpc` for Linux
-   - **Non-NVIDIA (No CUDA):** `koboldcpp-nocuda.exe` for Windows or `koboldcpp-linux-x64-nocuda` for Linux
+Override variants with environment variables before bootstrap:
 
-    Place the KoboldCPP executable in the `models/kobold/` directory.
+- `WHISPERCPP_VARIANT=cuda|cpu` (default: `cuda` on Windows x64)
+- `LLAMACPP_VARIANT=cuda|cpu|rocm|vulkan` (default: `cuda` on Windows x64)
 
-2. **Download models:**
-   - **For T2T (LLM):** Download GGUF models as described [here](https://github.com/LostRuins/koboldcpp?tab=readme-ov-file#Obtaining-a-GGUF-model). Generally, any text-generation GGUF model from HuggingFace will work as long as your hardware meets its requirements. 
-   - **For STT (Whisper):** Download the desired `.bin` file from [koboldcpp/whisper](https://huggingface.co/koboldcpp/whisper/tree/main)
-     - Recommended: `base.en` or `tiny.en` for balanced performance (English only), or `small` for multilingual support.
-   
-   Place all models in `models/kobold/`
+Linux and macOS use OS-specific llama.cpp release archives; whisper.cpp server binaries are only published for Windows in the current upstream release (set `WHISPERCPP_SKIP=1` and install manually on other OSes if needed).
 
-3. **Configure KoboldCPP:**
-   - Run the KoboldCPP executable to open the configuration interface
-   - **Under Quick Launch:**
-     - Select the correct GPU ID from the dropdown
-     - Disable "Launch Browser"
-     - Enable "Quiet Mode" (optional, reduces console spam)
-     - Enable "Use FlashAttention" (improves performance)
-     - Set Context Size based on your available VRAM (2048-8192+ tokens)
-     - Click "Browse" and load your GGUF LLM model
-   - **Under Context (optional):**
-     - Enable "Quantize KV Cache" and set to 8-bit or 4-bit to reduce VRAM usage with minimal quality impact
-   - **Under Audio (for STT):**
-     - Click "Browse" and load your Whisper model (`.bin` file)
-   - **IMPORTANT:** Click "Save" and save the configuration as a `.kcpps` file in `models/kobold/`
+1. **Download models** (not included in bootstrap):
+   - **STT:** ggml Whisper `.bin` from [ggerganov/whisper.cpp on Hugging Face](https://huggingface.co/ggerganov/whisper.cpp/tree/main) (e.g. `ggml-base.en.bin`)
+   - **T2T:** any compatible [GGUF](https://github.com/ggml-org/llama.cpp) chat model
 
-4. **Update JAIson configuration:**
+2. **Reference models on each operation** in `operations` (paths must be absolute on Windows use `\\`):
    ```yaml
-   kobold_filepath: "C:\\path\\to\\models\\kobold\\koboldcpp.exe"
-   kcpps_filepath: "C:\\path\\to\\models\\kobold\\myconfig.kcpps"
+   - role: stt
+     id: whispercpp
+     model_filepath: "C:\\path\\to\\models\\whispercpp\\ggml-base.en.bin"
+     language: en
+   - role: t2t
+     id: llamacpp
+     model_filepath: "C:\\path\\to\\models\\llamacpp\\your-model.gguf"
    ```
-   **Note:** On Windows, use double backslashes (`\\`) in file paths
+   Server executables are always `bin/whisper-server` and `bin/llama-server` after bootstrap.
 
 #### MeloTTS Setup
 
@@ -355,15 +338,17 @@ Convert spoken audio into text.
     id: fish
   ```
 
-#### Kobold (using Whisper)
-- **Service:** KoboldCPP (Local)
+#### whisper.cpp
+- **Service:** whisper.cpp server (local)
 - **Cost:** Free
 - **Config:**
   ```yaml
   - role: stt
-    id: kobold
-    suppress_non_speech: true
-    langcode: "en"
+    id: whispercpp
+    model_filepath: "C:\\path\\to\\ggml-base.en.bin"
+    language: en
+    temperature: 0.0
+    response_format: json
   ```
 
 #### OpenAI
@@ -384,23 +369,30 @@ Convert spoken audio into text.
 
 Process and generate conversational responses using LLMs.
 
-#### Kobold
-- **Service:** KoboldCPP (Local)
+#### llama.cpp
+- **Service:** llama-server (local)
 - **Cost:** Free
-- **Features:** Advanced sampler controls
 - **Config:**
   ```yaml
   - role: t2t
-    id: kobold
-    max_context_length: 4096    # Context length set during Kobold config
-    max_length: 200             # Max response length
-    quiet: true                 # Quiet mode
-    rep_pen: 1.1                # Repetition penalty - depends on model, but 1.1 is common
-    rep_pen_range: 1024         # Depends on model
-    temperature: 0.7            # Controls randomness: higher is more creative, lower is more deterministic
-    top_k: 40                   # Limits the next word selection to the top X most likely candidates
-    top_p: 0.95                 # Nucleus sampling: only considers tokens that make up the top X% probability mass
-    typical: 1                  # Typical sampling threshold; 1 = disabled
+    id: llamacpp
+    model_filepath: "C:\\path\\to\\models\\llamacpp\\your-model.gguf"  # GGUF loaded by llama-server (-m); required
+    n_predict: 256              # Max tokens to generate (aliases: max_tokens, max_length)
+    temperature: 0.8            # Sampling temperature (>= 0)
+    top_p: 0.95                 # Nucleus sampling (0–1)
+    top_k: 40                   # Top-k sampling (0 = disabled on server)
+    min_p: 0.05                 # Min-p sampling relative to best token (0–1)
+    typical_p: 1.0              # Locally typical sampling (1.0 = disabled)
+    repeat_penalty: 1.1         # Penalty for repeated token sequences
+    repeat_last_n: 64            # Recent tokens to consider for repetition (0 off, -1 = full ctx)
+    presence_penalty: 0.0       # Presence penalty (0.0 = disabled)
+    frequency_penalty: 0.0      # Frequency penalty (0.0 = disabled)
+    dry_multiplier: 0.0         # DRY strength (> 0 enables; include "dry" in samplers)
+    dry_base: 1.75              # DRY exponential base
+    dry_allowed_length: 2       # Repeat length allowed before DRY penalty ramps
+    dry_penalty_last_n: -1      # Tokens scanned for DRY (0 off, -1 = full context)
+    dry_sequence_breakers: ["\n", ":", "\"", "*"]  # Strings that break DRY sequences
+    samplers: [dry, top_k, typ_p, top_p, min_p, temperature]  # Sampler chain order; also: xtc, penalties, top_n_sigma
   ```
 
 #### OpenAI
@@ -466,17 +458,6 @@ Convert text responses into spoken audio.
     backend: "default"
     normalize: true
     latency: "normal"  # "normal" or "balanced"
-  ```
-
-#### Kobold
-- **Service:** KoboldCPP (Local)
-- **Cost:** Free
-- **Note:** Basic quality, included for completeness
-- **Config:**
-  ```yaml
-  - role: tts
-    id: kobold
-    voice: "default"
   ```
 
 #### OpenAI
@@ -601,6 +582,18 @@ Generate text embeddings for semantic operations.
     id: openai
     base_url: "https://api.openai.com/v1"
     model: "text-embedding-3-small"
+  ```
+
+#### llama.cpp
+- **Service:** llama-server (local)
+- **Cost:** Free
+- **Config:** Uses a dedicated embedding GGUF model. Server starts with `--embeddings`; vectors come from native `POST /embedding` (not `/v1/embeddings`).
+  ```yaml
+  - role: embedding
+    id: llamacpp
+    model_filepath: "C:\\path\\to\\models\\llamacpp\\your-embedding-model.gguf"  # Embedding GGUF; required
+    pooling: mean              # mean, cls, last, rank, or none (none = per-token vectors, mean-pooled here)
+    embd_normalize: 2           # -1 none, 0 max-abs, 1 taxicab, 2 Euclidean/L2, >2 p-norm
   ```
 
 ---
@@ -992,10 +985,7 @@ In case you really want to use an unsupported service, directly implement a mode
 - [Making Operations](#making-operations)
     - [Implementing an Operation](#implementing-an-operation)
     - [Connecting an Operation for Use](#connecting-an-operation-for-use)
-- [Adding Managed Processes](#adding-managed-processes)
-    - [Implementing a Process](#implementing-a-process)
-    - [Connecting a Process for Use](#connecting-a-process-for-use)
-    - [Connecting with Operations for Management](#connecting-with-operations-for-management)
+- [Local Server Subprocesses](#local-server-subprocesses)
 - [Adding MCP Servers](#adding-mcp-servers)
 - [Making Applications](#making-applications)
 - [Extending Configuration](#extending-configuration)
@@ -1035,7 +1025,7 @@ There are 2 inherited attributes:
 
 There are 6 functions to note:
 
-`__init__(self)`: must be implemented with no additional arguments. In here, you must also call `super().__init__(op_id)` where `op_id` will be the id of this operation, unique to the one's of the same type (there are multiple `kobold`, but each `kobold` operation is in a different type). You can initialize attributes in here, but this is only ran once and is synchronous.
+`__init__(self)`: must be implemented with no additional arguments. In here, you must also call `super().__init__(op_id)` where `op_id` will be the id of this operation, unique to the one's of the same type (e.g. `whispercpp` for STT and `llamacpp` for T2T). You can initialize attributes in here, but this is only ran once and is synchronous.
 
 `__call__`: **DO NOT IMPLEMENT**
 
@@ -1060,48 +1050,9 @@ All operations are accessed from the `OperationManager` located in `utils/operat
 
 You can now use your custom operation.
 
-### Adding Managed Processes
+### Local Server Subprocesses
 
-#### Implementing a Process
-
-If you have an operation that depends on another running application, you can have jaison-core automatically start and stop that application whenever that operation is in use or not. This is done for KoboldCPP, and can be done for your application as well as long as you can start and get an instance of that process in Python (see `utils/processes/processes/koboldcpp.py` for example).
-
-Code for managing processes can be found in `utils/processes`. Process specific code is in `utils/processes/processes`. You will need to implement `BaseProcess` found in `utils/processes/base.py`.
-
-You only need to implement 2 functions. All else should not be modified. Check the base implementation to know which these are.
-
-`__init__`: Be sure to call `super().__init__(process_id)` where `process_id` is the a unique name chose purely for logging purposes.
-
-`async reload(self)`: Starting logic. You will need to start the process and save it to the `process` attribute. You can also save the `port` is applicable for use in your operations.
-
-#### Connecting a Process for Use
-
-All processes are accessed through the `ProcessManager` found in `utils/processes/manager.py`. We need to add it here so it's exposed for use.
-
-1. Open `utils/processes/manager.py`
-2. Add an entry to the `ProcessType` enum for your process.
-3. Create a new case in function `load`
-    - Import your process in there
-    - Add a new instance with the enum as the key
-    - asynchronously call `reload` on that instance
-
-#### Connecting with Operations for Management
-
-The process does not start until an operation demands it. Likewise, it does not stop until there are no more operations that use it. To setup this relationship, we need to know 2 functions from the `ProcessManager`:
-
-`link(link_id, process_type)`: Link an operation to that process. This lets the process know it's being used by that operation. `link_id` is an ID unique across all operations for that specific operation. `process_type` is the enum you created for your process.
-
-`unlink(link_id, process_type)`: Unlink an operation to that process. This lets the process know the operation no longer needs it (because its closing or just doesn't need it). `link_id` is an ID unique across all operations for that specific operation. `process_type` is the enum you created for your process.
-
-When all links are gone, a process will unload itself. Once an operation links up again, the process will start up again. For examples of how this is used, see any `kobold` operation.
-
-There are additional helper functions you may find useful:
-
-`get_process(process_type)`: Get the instance of that process. Useful if you need direct access to its attributes such as `port`.
-
-`signal_reload(process_type)`: Have the process restart on the next clock cycle. Typically not needed for an operation and moreso for restarting a process with modified configuration.
-
-`signal_unload(process_type)`: Have the process foribly unload on the next clock cycle. Ignores existing links and just shuts down the process. Typically not needed for an operation and moreso for jaison-core shutdown.
+Operations that need a local HTTP server (e.g. `whispercpp`, `llamacpp`) start and stop their own subprocess in `async start()` / `async close()`. Each loaded operation instance owns one server process and an ephemeral port. Shared helpers live in `utils/helpers/subprocess_server.py`; see `utils/operations/stt/whispercpp.py` and `utils/operations/t2t/llamacpp.py`.
 
 ### Adding MCP Servers
 
@@ -1129,7 +1080,7 @@ Majority of interactions are job-based. It will most likely be necessary to crea
 
 ### Extending Configuration
 
-All configuration lives in `utils/config.py`. They are accessible all throughout the code by importing this module and fetching the singleton via `Config()`. Extending this configuration is as simple as adding a new attribute. **This attribute must have a type hint and a default value**. Now you can configure this value from your config files using the same name as the attribute.
+All configuration lives in `utils/config.py`. They are accessible throughout the code via the module-level `config` instance (`from utils.config import config`). Extending this configuration is as simple as adding a new attribute. **This attribute must have a type hint and a default value**. Now you can configure this value from your config files using the same name as the attribute.
 
 ### Extending API
 
