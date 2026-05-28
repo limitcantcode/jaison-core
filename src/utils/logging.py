@@ -55,7 +55,8 @@ def setup_logger():
     log_path = os.path.join(args.log_dir, _log_filename())
     log_file = open(log_path, "a", encoding="utf-8")
     file_handler = _create_rich_handler(
-        Console(file=log_file, width=200, force_terminal=True, color_system="standard"),
+        Console(file=log_file, width=200, no_color=True, highlight=False),
+        enable_link_path=False,
     )
     file_handler._log_file = log_file  # keep handle open for process lifetime
     logger.addHandler(file_handler)
