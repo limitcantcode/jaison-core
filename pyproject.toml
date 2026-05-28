@@ -60,18 +60,11 @@ dev = [
 
 [tool.uv.sources]
 en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }
-rvc = { git = "https://github.com/limitcantcode/Retrieval-based-Voice-Conversion.git" }
-melotts = { git = "https://github.com/myshell-ai/MeloTTS", rev = "209145371cff8fc3bd60d7be902ea69cbdb7965a" }
+rvc = { git = "https://github.com/limitcantcode/Retrieval-based-Voice-Conversion.git", rev = "8f010c0f9873a13d3dddd88881e25594af2561a9" }
+melotts = { git = "https://github.com/limitcantcode/MeloTTS", rev = "3a60df458cd7abb907af7f2d78fc6e2681c6d640" }
 
 [tool.uv]
 override-dependencies = [
-    "python-multipart>=0.0.9",
-    "av>=17.0.1",
-    "transformers==4.52.4",
-    "librosa>=0.10.1,<0.11.0",
-    "numba>=0.59.1",
-    "llvmlite>=0.42.0",
-    "fugashi>=1.4.0",
 ]
 
 [tool.black]
