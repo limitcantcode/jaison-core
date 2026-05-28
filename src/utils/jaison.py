@@ -101,7 +101,7 @@ class JAIson(metaclass=Singleton):
         self.prompter.add_mcp_usage_prompt(
             self.mcp_manager.get_tooling_prompt(), self.mcp_manager.get_response_prompt()
         )
-        await self.op_manager.load_operations_from_config()
+        await self._reload_operations_from_config()
         await self.process_manager.reload()
         logging.info("JAIson application layer has started.")
 
@@ -566,13 +566,24 @@ class JAIson(metaclass=Singleton):
             )
         await self._handle_broadcast_success(job_id, job_type)
 
+    async def _reload_operations_from_config(self) -> None:
+        """Load, start, and save all operations listed in the active config."""
+        Config()
+        await self.op_manager.close_operation_all()
+        for op_details in Config().operations:
+            await self.op_manager.load_operation(
+                OpRoles(op_details["role"]),
+                op_details["id"],
+                op_details,
+            )
+
     async def load_operations_from_config(
         self,
         job_id: str,
         job_type: JobType,
     ):
         await self._handle_broadcast_start(job_id, job_type, {})
-        await self.op_manager.load_operations_from_config()
+        await self._reload_operations_from_config()
         await self._handle_broadcast_success(job_id, job_type)
 
     async def unload_operations(
