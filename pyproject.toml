@@ -46,6 +46,7 @@ dependencies = [
     "torchaudio==2.5.1",
     "fastapi>=0.136.3",
     "uvicorn>=0.48.0",
+    "rich>=13.9.4",
 ]
 
 [dependency-groups]

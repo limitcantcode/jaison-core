@@ -21,4 +21,10 @@ import uvicorn  # noqa: E402
 
 from utils.server import app  # noqa: E402
 
-uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level.lower())
+uvicorn.run(
+    app,
+    host=args.host,
+    port=args.port,
+    log_level=args.log_level.lower(),
+    log_config=None,
+)
