@@ -23,6 +23,7 @@ operations:
 # - role: t2t
 #   id: llamacpp
 #   model_filepath: E:\\jaison-core\\models\\llamacpp\\your-model.gguf
+#   ctx_size: 2048
 #   n_predict: 256
 #   temperature: 0.8
 #   top_p: 0.95
@@ -39,14 +40,14 @@ operations:
   frequency_penalty: 1
 
   # Text filters
-# - role: filter_text
-#   id: filter_clean
-# - role: filter_text
-#   id: emotion_roberta
-# - role: filter_text
-#   id: mod_koala
-# - role: filter_text
-#   id: chunker_sentence
+- role: filter_text
+  id: filter_clean
+- role: filter_text
+  id: emotion_roberta
+- role: filter_text
+  id: mod_koala
+- role: filter_text
+  id: chunker_sentence
 
   # TTS
 # - role: tts
@@ -88,8 +89,8 @@ operations:
 #   voice: my-voice-model
 #   f0_up_key: 0
 #   f0_method: rmvpe
-#   f0_file: null
-#   index_file: null
+#   f0_filepath: null
+#   index_filepath: null
 #   index_rate: 0.0
 #   filter_radius: 3
 #   resample_sr: 0
