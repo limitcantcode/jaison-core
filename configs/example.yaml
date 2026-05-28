@@ -1,0 +1,144 @@
+# Enabled operations
+# Uncomment the ones you want to use by default
+operations:
+# STT
+# - role: stt
+#   id: azure
+#   language: en-US # https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support?tabs=stt
+# - role: stt
+#   id: fish
+# - role: stt
+#   id: kobold
+#   suppress_non_speech: true
+#   langcode: en
+- role: stt
+  id: openai # Openai STT https://platform.openai.com/docs/guides/speech-to-text
+  base_url: https://api.openai.com/v1/
+  model: gpt-4o-transcribe
+  language: en # https://github.com/openai/whisper/blob/main/whisper/tokenizer.py
+  
+  # T2T
+# - role: t2t
+#   id: kobold
+#   max_context_length: 2048
+#   max_length: 100
+#   quiet: true
+#   rep_pen: 1.1
+#   rep_pen_range: 256
+#   rep_pen_slope: 1
+#   temperature: 0.5
+#   tfs: 1
+#   top_a: 0
+#   top_k: 100
+#   top_p: 0.9
+#   typical: 1
+- role: t2t
+  id: openai
+  base_url: https://api.openai.com/v1/
+  model: gpt-4o
+  temperature: 1
+  top_p: 0.9
+  presence_penalty: 1
+  frequency_penalty: 1
+
+  # Text filters
+# - role: filter_text
+#   id: filter_clean
+# - role: filter_text
+#   id: emotion_roberta
+# - role: filter_text
+#   id: mod_koala
+# - role: filter_text
+#   id: chunker_sentence
+
+  # TTS
+# - role: tts
+#   id: azure
+#   voice: "en-US-AshleyNeural" # https://speech.microsoft.com/portal/voicegallery
+# - role: tts
+#   id: fish
+#   model_id: c9198512a4164a18b11a3bf96e5c668f
+#   backend: speech-1.6
+#   normalize: true
+#   latency: normal
+# - role: tts
+#   id: kobold
+#   voice: kobo
+- role: tts
+  id: openai # OpenAI TTSG https://platform.openai.com/docs/guides/text-to-speech
+  base_url: https://api.openai.com/v1/
+  voice: nova
+  model: tts-1
+# - role: tts
+#   id: pytts
+#   voice: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_MS_EN-US_ZIRA_11.0'
+#   gender: female
+# - role: tts
+#   id: melo
+#   config_filepath: null
+#   model_filepath: null
+#   speaker_id: EN-Default
+#   device: cuda
+#   language: EN
+#   sdp_ratio: 0.8
+#   noise_scale: 0.6
+#   noise_scale_w: 0.8
+#   speed: 1.0
+
+  # Audio filters
+# - role: filter_audio
+#   id: pitch
+#   pitch_amount: 0
+# - role: filter_audio
+#   id: rvc
+#   voice: my-voice-model
+#   f0_up_key: 0
+#   f0_method: rmvpe
+#   f0_file: null
+#   index_file: null
+#   index_rate: 0.0
+#   filter_radius: 3
+#   resample_sr: 0
+#   rms_mix_rate: 0
+#   protect: 0.5
+
+  # MCP LLM (can use any from T2T)
+# - role: mcp
+#   id: openai
+#   base_url: https://api.openai.com/v1/
+#   model: gpt-4o
+#   temperature: 0.25
+#   top_p: 0.9
+#   presence_penalty: 0.2
+#   frequency_penalty: 0.2
+
+  # Embedding model
+- role: embedding
+  id: openai
+  base_url: https://api.openai.com/v1/
+  model: text-embedding-3-small
+
+# Connect MCP servers, example commented
+mcp: [] # Remove "[]" if adding servers
+# - id: example_server
+#   command: python
+#   args: ["example_mcp_server.py"]
+#   cwd: "path/to/server/directory"
+
+# Prompter
+prompter:
+  instruction_prompt_filename: 'example.txt'
+  character_prompt_filename: 'example.txt'
+  scene_prompt_filename: 'example.txt'
+
+  character_name: "J.A.I.son"
+  name_translations:
+    "old name": "new name"
+  history_length: 20
+
+# Kobold
+kobold_filepath: E:\\jaison-core\\models\\kobold\\koboldcpp_cu12.exe # must be absolute
+kcpps_filepath: E:\\jaison-core\\models\\kobold\\save.kcpps # must be absolute
+
+# Spacy NLP
+spacy_model: en_core_web_sm
