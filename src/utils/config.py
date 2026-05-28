@@ -5,7 +5,6 @@ import yaml
 
 from .args import args
 from .helpers.path import portable_path
-from .helpers.singleton import Singleton
 
 
 class UnknownField(Exception):
@@ -18,7 +17,7 @@ class UnknownFile(Exception):
         super().__init__(f"Config file {filepath} does not exist")
 
 
-class Config(metaclass=Singleton):
+class Config:
     # Every attribute must be typed for validation
     CONFIG_DIR: str = portable_path(os.path.join(os.getcwd(), "configs"))
     WORKING_DIR: str = portable_path(os.path.join(os.getcwd(), "output", "temp"))
@@ -98,3 +97,6 @@ class Config(metaclass=Singleton):
 
     def get_config_dict(self):
         return vars(self)
+
+
+config = Config()

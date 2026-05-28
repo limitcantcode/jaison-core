@@ -69,7 +69,7 @@ class LoadedOperationsResponse(BaseModel):
 
 
 class ConfigResponse(BaseModel):
-    """Snapshot of the active ``Config`` singleton (``vars(Config())``)."""
+    """Snapshot of the active application config (``vars(config)``)."""
 
     model_config = ConfigDict(extra="allow")
 

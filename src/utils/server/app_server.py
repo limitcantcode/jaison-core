@@ -9,8 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from utils.helpers.observer import BaseObserverClient
-from utils.helpers.singleton import Singleton
-from utils.jaison import JAIson, JobType, NonexistantJobException
+from utils.jaison import JobType, NonexistantJobException, jaison
 
 from .common import api_response
 from .data import (
@@ -45,14 +44,14 @@ from .middleware import RequestMetricsTrackingMiddleware
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    await JAIson().start()
-    event_broadcaster = WebSocketEventBroadcaster()
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    await jaison.start()
+    app.state.event_broadcaster = WebSocketEventBroadcaster(jaison.event_server)
     try:
         yield
     finally:
-        await event_broadcaster.shutdown()
-        await JAIson().stop()
+        await app.state.event_broadcaster.shutdown()
+        await jaison.stop()
 
 
 app = FastAPI(
@@ -83,11 +82,11 @@ JOB_DESCRIPTION = (
 ## Websocket Event Broadcasting Server ##
 
 
-class WebSocketEventBroadcaster(BaseObserverClient, metaclass=Singleton):
+class WebSocketEventBroadcaster(BaseObserverClient):
     """Subscribes to JAIson job events and pushes them to connected WebSocket clients."""
 
-    def __init__(self):
-        super().__init__(server=JAIson().event_server)
+    def __init__(self, event_server):
+        super().__init__(server=event_server)
         self._connections: set[WebSocket] = set()
 
     async def connect(self, websocket: WebSocket) -> None:
@@ -126,7 +125,7 @@ class WebSocketEventBroadcaster(BaseObserverClient, metaclass=Singleton):
 @app.websocket("/")
 async def websocket_events(websocket: WebSocket) -> None:
     """Receive job events as JSON matching ``WebSocketEventMessage`` (see ``GET /api/events/schema``)."""
-    broadcaster = WebSocketEventBroadcaster()
+    broadcaster = websocket.app.state.event_broadcaster
     await broadcaster.connect(websocket)
     try:
         while True:
@@ -166,13 +165,13 @@ async def websocket_event_schema() -> WebSocketEventApiResponse:
 
 @app.get("/api/operations", response_model=LoadedOperationsApiResponse)
 async def get_loaded_operations() -> LoadedOperationsApiResponse:
-    ops = LoadedOperationsResponse.model_validate(JAIson().get_loaded_operations())
+    ops = LoadedOperationsResponse.model_validate(jaison.get_loaded_operations())
     return api_response(200, "Loaded operations gotten", ops)
 
 
 @app.get("/api/config", response_model=ConfigApiResponse)
 async def get_current_config() -> ConfigApiResponse:
-    config = ConfigResponse.model_validate(JAIson().get_current_config())
+    config = ConfigResponse.model_validate(jaison.get_current_config())
     return api_response(200, "Current config gotten", config)
 
 
@@ -182,7 +181,7 @@ async def get_current_config() -> ConfigApiResponse:
 @app.delete("/api/job", response_model=EmptyApiResponse, responses=API_ERROR_RESPONSES)
 async def cancel_job(body: CancelJobRequest, http_response: Response) -> EmptyApiResponse:
     try:
-        await JAIson().cancel_job(body.job_id, body.reason)
+        await jaison.cancel_job(body.job_id, body.reason)
         return api_response(
             200, "Job flagged for cancellation", EmptyResponse(), http_response=http_response
         )
@@ -218,7 +217,7 @@ async def _request_job(
     job_name = job_type.value
     job_id = request.state.request_id
     try:
-        job_id = await JAIson().create_job(job_type, job_id, **_job_kwargs(job_type, body))
+        job_id = await jaison.create_job(job_type, job_id, **_job_kwargs(job_type, body))
         return api_response(
             200,
             f"{job_name} job created",

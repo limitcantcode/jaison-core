@@ -4,7 +4,7 @@ import fairseq
 import torch
 from rvc.modules.vc.modules import VC
 
-from utils.config import Config
+from utils.config import config
 
 from .base import FilterAudioOperation
 
@@ -80,7 +80,7 @@ class RVCFilter(FilterAudioOperation):
     async def _generate(
         self, audio_bytes: bytes = None, sr: int = None, sw: int = None, ch: int = None, **kwargs
     ):
-        with wave.open(Config().ffmpeg_working_src, "wb") as f:
+        with wave.open(config.ffmpeg_working_src, "wb") as f:
             f.setframerate(sr)
             f.setsampwidth(sw)
             f.setnchannels(ch)
@@ -88,7 +88,7 @@ class RVCFilter(FilterAudioOperation):
 
         tgt_sr, audio_opt, times, _ = self.vc.vc_single(
             1,
-            Config().ffmpeg_working_src,
+            config.ffmpeg_working_src,
             f0_up_key=self.f0_up_key,
             f0_method=self.f0_method,
             f0_file=self.f0_file,

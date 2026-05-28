@@ -11,7 +11,7 @@ import wave
 
 import pyttsx3
 
-from utils.config import Config
+from utils.config import config
 from utils.helpers.path import portable_path
 
 from .base import TTSOperation
@@ -25,7 +25,7 @@ class PyttsTTS(TTSOperation):
         self.voice: str = None
         self.gender: str = "female"
         self.working_file: str = portable_path(
-            os.path.join(Config().WORKING_DIR, "ttsg-synth-out.wav")
+            os.path.join(config.WORKING_DIR, "ttsg-synth-out.wav")
         )
 
     async def start(self):

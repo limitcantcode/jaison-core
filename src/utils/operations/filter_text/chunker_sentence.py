@@ -1,6 +1,6 @@
 import spacy
 
-from utils.config import Config
+from utils.config import config
 
 from .base import FilterTextOperation
 
@@ -12,7 +12,7 @@ class SentenceChunkerFilter(FilterTextOperation):
 
     async def start(self):
         await super().start()
-        self.nlp = spacy.load(Config().spacy_model)
+        self.nlp = spacy.load(config.spacy_model)
 
     async def close(self):
         await super().close()

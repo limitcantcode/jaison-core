@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import time
 from collections.abc import AsyncGenerator
@@ -12,6 +14,15 @@ class Operation:
         self.op_id = op_id
 
         self.active = False
+        self.process_manager: ProcessManager | None = None
+        self.prompter: Prompter | None = None
+
+    def bind_runtime(
+        self, process_manager: ProcessManager | None = None, prompter: Prompter | None = None
+    ) -> Operation:
+        self.process_manager = process_manager
+        self.prompter = prompter
+        return self
 
     async def __call__(self, chunk_in: dict[str, Any]) -> AsyncGenerator[dict[str, Any], None]:
         """Generates a stream of chunks similar to chunk_in but augmented with new data"""

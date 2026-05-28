@@ -3,13 +3,12 @@ import socket
 import subprocess
 from subprocess import DEVNULL
 
-from utils.config import Config
-from utils.helpers.singleton import Singleton
+from utils.config import config
 
 from ..base import BaseProcess
 
 
-class KoboldCPPProcess(BaseProcess, metaclass=Singleton):
+class KoboldCPPProcess(BaseProcess):
     def __init__(self):
         super().__init__("koboldcpp")
         self.reload_signal = True
@@ -22,7 +21,6 @@ class KoboldCPPProcess(BaseProcess, metaclass=Singleton):
         await super().reload()
 
         # Find open port
-        config = Config()
         sock = socket.socket()
         sock.bind(("", 0))
         self.port = sock.getsockname()[1]

@@ -3,16 +3,15 @@ import os
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from utils.config import Config
+from utils.config import config
 from utils.helpers.path import portable_path
-from utils.helpers.singleton import Singleton
 from utils.helpers.time import get_current_time
 
 from .context import ContextMetadata
 from .message import ChatMessage, CustomMessage, MCPMessage, Message, RequestMessage
 
 
-class Prompter(metaclass=Singleton):
+class Prompter:
     def __init__(self):
         self.context_metadata: dict[str, ContextMetadata] = {}
         self.history: list[Message] = []
@@ -48,8 +47,8 @@ class Prompter(metaclass=Singleton):
             and os.path.isfile(
                 portable_path(
                     os.path.join(
-                        Config().PROMPT_DIR,
-                        Config().PROMPT_INSTRUCTION_SUBDIR,
+                        config.PROMPT_DIR,
+                        config.PROMPT_INSTRUCTION_SUBDIR,
                         self.instruction_prompt_filename,
                     )
                 )
@@ -61,8 +60,8 @@ class Prompter(metaclass=Singleton):
             and os.path.isfile(
                 portable_path(
                     os.path.join(
-                        Config().PROMPT_DIR,
-                        Config().PROMPT_CHARACTER_SUBDIR,
+                        config.PROMPT_DIR,
+                        config.PROMPT_CHARACTER_SUBDIR,
                         self.character_prompt_filename,
                     )
                 )
@@ -74,8 +73,8 @@ class Prompter(metaclass=Singleton):
             and os.path.isfile(
                 portable_path(
                     os.path.join(
-                        Config().PROMPT_DIR,
-                        Config().PROMPT_SCENE_SUBDIR,
+                        config.PROMPT_DIR,
+                        config.PROMPT_SCENE_SUBDIR,
                         self.scene_prompt_filename,
                     )
                 )
@@ -91,7 +90,7 @@ class Prompter(metaclass=Singleton):
         self.history.append(message)
         self.history = self.history[-(self.history_length) :]
 
-        with open(Config().history_filepath, "a", encoding="utf-8") as f:
+        with open(config.history_filepath, "a", encoding="utf-8") as f:
             f.write(message.to_line())
             f.write("\n")
 
@@ -155,8 +154,8 @@ class Prompter(metaclass=Singleton):
         with open(
             portable_path(
                 os.path.join(
-                    Config().PROMPT_DIR,
-                    Config().PROMPT_INSTRUCTION_SUBDIR,
+                    config.PROMPT_DIR,
+                    config.PROMPT_INSTRUCTION_SUBDIR,
                     self.instruction_prompt_filename,
                 )
             ),
@@ -175,8 +174,8 @@ class Prompter(metaclass=Singleton):
         with open(
             portable_path(
                 os.path.join(
-                    Config().PROMPT_DIR,
-                    Config().PROMPT_CHARACTER_SUBDIR,
+                    config.PROMPT_DIR,
+                    config.PROMPT_CHARACTER_SUBDIR,
                     self.character_prompt_filename,
                 )
             ),
@@ -188,7 +187,7 @@ class Prompter(metaclass=Singleton):
         with open(
             portable_path(
                 os.path.join(
-                    Config().PROMPT_DIR, Config().PROMPT_SCENE_SUBDIR, self.scene_prompt_filename
+                    config.PROMPT_DIR, config.PROMPT_SCENE_SUBDIR, self.scene_prompt_filename
                 )
             ),
             encoding="utf-8",

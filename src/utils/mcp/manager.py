@@ -14,7 +14,7 @@ from mcp.types import (
     TextContent,
     TextResourceContents,
 )
-from utils.config import Config
+from utils.config import config
 from utils.operations import OperationManager, OpRoles
 from utils.prompter.message import RawMessage
 
@@ -89,9 +89,12 @@ def details_to_tool_prompt(details):
 class MCPClient:
     """Managing of a single server instance"""
 
-    def __init__(self, mcp_id: str, params: StdioServerParameters):
+    def __init__(
+        self, mcp_id: str, params: StdioServerParameters, op_manager: OperationManager
+    ):
         self.mcp_id = mcp_id
         self.params = params
+        self.op_manager = op_manager
         self.server_generator = None
         self.server_read = None
         self.server_write = None
@@ -163,7 +166,7 @@ class MCPClient:
             metadata = message.metadata or {}
             sample_type = metadata.get("sample_type", "t2t")
             if sample_type == "t2t":
-                response_stream = OperationManager().use_operation(
+                response_stream = self.op_manager.use_operation(
                     OpRoles.MCP,
                     {
                         "instruction_prompt": message.systemPrompt,
@@ -185,7 +188,7 @@ class MCPClient:
                     stopReason="endTurn",
                 )
             elif sample_type == "embedding":
-                response_stream = OperationManager().use_operation(
+                response_stream = self.op_manager.use_operation(
                     OpRoles.EMBEDDING,
                     {
                         "content": message.systemPrompt[:10000],
@@ -233,13 +236,11 @@ Below is a list of descriptions for all available tool:\n
 
     pattern = re.compile(r"^<[\S]*>")
 
-    def __init__(self):
-        # servers are loaded at start and at no other point
-        # self.client_params: List[StdioServerParameters] = list()
+    def __init__(self, op_manager: OperationManager):
+        self.op_manager = op_manager
         self.clients: dict[str, MCPClient] = {}
 
     async def start(self):
-        config = Config()
         for mcp_detail in config.mcp:
             await self.load_mcp(mcp_detail)
 
@@ -252,7 +253,7 @@ Below is a list of descriptions for all available tool:\n
             env=os.environ,  # Optional environment variables
             cwd=mcp_detail["cwd"],
         )
-        client = MCPClient(mcp_detail["id"], params)
+        client = MCPClient(mcp_detail["id"], params, self.op_manager)
         await client.start()
         self.clients[mcp_detail["id"]] = client
 

@@ -1129,7 +1129,7 @@ Majority of interactions are job-based. It will most likely be necessary to crea
 
 ### Extending Configuration
 
-All configuration lives in `utils/config.py`. They are accessible all throughout the code by importing this module and fetching the singleton via `Config()`. Extending this configuration is as simple as adding a new attribute. **This attribute must have a type hint and a default value**. Now you can configure this value from your config files using the same name as the attribute.
+All configuration lives in `utils/config.py`. They are accessible throughout the code via the module-level `config` instance (`from utils.config import config`). Extending this configuration is as simple as adding a new attribute. **This attribute must have a type hint and a default value**. Now you can configure this value from your config files using the same name as the attribute.
 
 ### Extending API
 

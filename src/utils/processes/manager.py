@@ -8,8 +8,6 @@ For example: Kobold server shared between STT and T2T operation implementation
 import logging
 from enum import Enum
 
-from utils.helpers.singleton import Singleton
-
 from .error import UnknownProcessError, UnloadedProcessError
 
 
@@ -17,8 +15,9 @@ class ProcessType(Enum):
     KOBOLD = "kobold"
 
 
-class ProcessManager(metaclass=Singleton):
-    loaded_processes = {}
+class ProcessManager:
+    def __init__(self):
+        self.loaded_processes: dict = {}
 
     """Perform initial load"""
 

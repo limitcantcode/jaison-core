@@ -6,10 +6,9 @@ from collections.abc import Coroutine
 from enum import Enum
 from typing import Any
 
-from utils.config import Config, UnknownField, UnknownFile
+from utils.config import UnknownField, UnknownFile, config
 from utils.helpers.iterable import chunk_buffer
 from utils.helpers.observer import ObserverServer
-from utils.helpers.singleton import Singleton
 from utils.mcp import MCPManager
 from utils.operations import (
     CloseInactiveError,
@@ -63,7 +62,7 @@ class JobType(Enum):
     CONFIG_SAVE = "config_save"
 
 
-class JAIson(metaclass=Singleton):
+class JAIson:
     def __init__(self):  # attribute stubs
         self.job_loop: asyncio.Task = None
         self.job_queue: asyncio.Queue = None
@@ -92,11 +91,12 @@ class JAIson(metaclass=Singleton):
         self.event_server = ObserverServer()
 
         self.prompter = Prompter()
-        await self.prompter.configure(Config().prompter)
+        await self.prompter.configure(config.prompter)
 
         self.process_manager = ProcessManager()
-        self.op_manager = OperationManager()
-        self.mcp_manager = MCPManager()
+        self.op_manager = OperationManager(self.process_manager, self.prompter)
+
+        self.mcp_manager = MCPManager(self.op_manager)
         await self.mcp_manager.start()
         self.prompter.add_mcp_usage_prompt(
             self.mcp_manager.get_tooling_prompt(), self.mcp_manager.get_response_prompt()
@@ -240,7 +240,7 @@ class JAIson(metaclass=Singleton):
         return op_d
 
     def get_current_config(self):
-        return Config().get_config_dict()
+        return config.get_config_dict()
 
     ## Async Job Handlers #########################
 
@@ -568,9 +568,8 @@ class JAIson(metaclass=Singleton):
 
     async def _reload_operations_from_config(self) -> None:
         """Load, start, and save all operations listed in the active config."""
-        Config()
         await self.op_manager.close_operation_all()
-        for op_details in Config().operations:
+        for op_details in config.operations:
             await self.op_manager.load_operation(
                 OpRoles(op_details["role"]),
                 op_details["id"],
@@ -682,17 +681,17 @@ class JAIson(metaclass=Singleton):
     # Configuration
     async def load_config(self, job_id: str, job_type: JobType, config_name: str):
         await self._handle_broadcast_start(job_id, job_type, {"config_name": config_name})
-        Config().load_from_name(config_name)
+        config.load_from_name(config_name)
         await self._handle_broadcast_success(job_id, job_type)
 
     async def update_config(self, job_id: str, job_type: JobType, config_d: str):
         await self._handle_broadcast_start(job_id, job_type, {"config_d": config_d})
-        Config().load_from_dict(config_d)
+        config.load_from_dict(config_d)
         await self._handle_broadcast_success(job_id, job_type)
 
     async def save_config(self, job_id: str, job_type: JobType, config_name: str):
         await self._handle_broadcast_start(job_id, job_type, {"config_name": config_name})
-        Config().save(config_name)
+        config.save(config_name)
         await self._handle_broadcast_success(job_id, job_type)
 
     ## General helpers ###############################
@@ -748,3 +747,6 @@ class JAIson(metaclass=Singleton):
 
         logging.debug(f"Broadcasting error ({job_id}) {job_type.value} {str(to_broadcast)}")
         await self.event_server.broadcast_event(job_type.value, to_broadcast)
+
+
+jaison = JAIson()

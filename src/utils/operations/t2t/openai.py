@@ -1,6 +1,5 @@
 from openai import AsyncOpenAI
 
-from utils.prompter import Prompter
 from utils.prompter.message import ChatMessage
 
 from .base import T2TOperation
@@ -62,10 +61,12 @@ class OpenAIT2T(T2TOperation):
         }
 
     async def _generate(self, instruction_prompt: str = None, messages: list = None, **kwargs):
+        if self.prompter is None:
+            raise RuntimeError("OpenAIT2T missing runtime dependency: prompter")
         history = [{"role": "system", "content": instruction_prompt}]
         for msg in messages:
             next_hist = None
-            if isinstance(msg, ChatMessage) and msg.user == Prompter().character_name:
+            if isinstance(msg, ChatMessage) and msg.user == self.prompter.character_name:
                 next_hist = {"role": "assistant", "content": msg.message}
             else:
                 next_hist = {"role": "user", "content": msg.to_line()}

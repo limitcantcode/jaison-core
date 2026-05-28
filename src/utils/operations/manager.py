@@ -1,9 +1,9 @@
+from __future__ import annotations
+
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, TypeVar
-
-from utils.helpers.singleton import Singleton
 
 from .base import Operation
 from .embedding.base import EmbeddingOperation
@@ -140,8 +140,10 @@ ROLE_SLOTS: dict[OpRoles, OpRoleSlot] = {
 }
 
 
-class OperationManager(metaclass=Singleton):
-    def __init__(self):
+class OperationManager:
+    def __init__(self, process_manager: "ProcessManager", prompter: "Prompter"):
+        self.process_manager = process_manager
+        self.prompter = prompter
         self.stt: STTOperation | None = None
         self.mcp: T2TOperation | None = None
         self.t2t: T2TOperation | None = None
@@ -201,8 +203,11 @@ class OperationManager(metaclass=Singleton):
             op_role, op_id, lambda op: op.get_configuration()
         )
 
+    def _bind_runtime(self, op: Operation) -> Operation:
+        return op.bind_runtime(process_manager=self.process_manager, prompter=self.prompter)
+
     def loose_load_operation(self, op_role: OpRoles, op_id: str) -> Operation:
-        return load_op(role_to_type(op_role), op_id)
+        return self._bind_runtime(load_op(role_to_type(op_role), op_id))
 
     async def load_operation(
         self, op_role: OpRoles, op_id: str, op_details: dict[str, Any]
@@ -214,7 +219,7 @@ class OperationManager(metaclass=Singleton):
                 if op.op_id == op_id:
                     raise DuplicateFilter(op_role.name, op_id)
 
-        new_op = load_op(role_to_type(op_role), op_id)
+        new_op = self._bind_runtime(load_op(role_to_type(op_role), op_id))
         await new_op.configure(op_details)
         await new_op.start()
 

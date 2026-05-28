@@ -1,7 +1,6 @@
 import requests
 
-from utils.processes import ProcessManager, ProcessType
-from utils.prompter import Prompter
+from utils.processes import ProcessType
 from utils.prompter.message import ChatMessage
 
 from .base import T2TOperation
@@ -29,13 +28,17 @@ class KoboldT2T(T2TOperation):
     async def start(self) -> None:
         """General setup needed to start generated"""
         await super().start()
-        await ProcessManager().link(self.KOBOLD_LINK_ID, ProcessType.KOBOLD)
-        self.uri = f"http://127.0.0.1:{ProcessManager().get_process(ProcessType.KOBOLD).port}"
+        if self.process_manager is None:
+            raise RuntimeError("KoboldT2T missing runtime dependency: process_manager")
+        await self.process_manager.link(self.KOBOLD_LINK_ID, ProcessType.KOBOLD)
+        self.uri = f"http://127.0.0.1:{self.process_manager.get_process(ProcessType.KOBOLD).port}"
 
     async def close(self) -> None:
         """Clean up resources before unloading"""
         await super().close()
-        await ProcessManager().unlink(self.KOBOLD_LINK_ID, ProcessType.KOBOLD)
+        if self.process_manager is None:
+            return
+        await self.process_manager.unlink(self.KOBOLD_LINK_ID, ProcessType.KOBOLD)
 
     async def configure(self, config_d):
         """Configure and validate operation-specific configuration"""
@@ -91,10 +94,12 @@ class KoboldT2T(T2TOperation):
         }
 
     async def _generate(self, instruction_prompt: str = None, messages: list = None, **kwargs):
+        if self.prompter is None:
+            raise RuntimeError("KoboldT2T missing runtime dependency: prompter")
         history = [{"role": "system", "content": instruction_prompt}]
         for msg in messages:
             next_hist = None
-            if isinstance(msg, ChatMessage) and msg.user == Prompter().character_name:
+            if isinstance(msg, ChatMessage) and msg.user == self.prompter.character_name:
                 next_hist = {"role": "assistant", "content": msg.message}
             else:
                 next_hist = {"role": "user", "content": msg.to_line()}

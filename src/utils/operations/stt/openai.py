@@ -3,7 +3,7 @@ from pathlib import Path
 
 from openai import AsyncOpenAI
 
-from utils.config import Config
+from utils.config import config
 
 from .base import STTOperation
 
@@ -55,14 +55,14 @@ class OpenAISTT(STTOperation):
         **kwargs,
     ):
         """Generate a output stream"""
-        with wave.open(Config().stt_working_src, "w") as f:
+        with wave.open(config.stt_working_src, "w") as f:
             f.setframerate(sr)
             f.setsampwidth(sw)
             f.setnchannels(ch)
             f.writeframes(audio_bytes)
 
         transcription = await self.client.audio.transcriptions.create(
-            file=Path(Config().stt_working_src),
+            file=Path(config.stt_working_src),
             model=self.model,
             response_format="text",
             language=self.language,

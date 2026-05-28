@@ -6,7 +6,7 @@ import psutil
 from .error import DuplicateLink, MissingLink
 
 
-class BaseProcess:  # Be sure to make it a singleton (metaclass=Singleton)
+class BaseProcess:
     id: str = None
     process: subprocess.Popen = None
     port: int = None

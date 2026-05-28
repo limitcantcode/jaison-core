@@ -4,7 +4,7 @@ from io import BytesIO
 
 import requests
 
-from utils.processes import ProcessManager, ProcessType
+from utils.processes import ProcessType
 
 from .base import STTOperation
 
@@ -22,13 +22,17 @@ class KoboldSTT(STTOperation):
     async def start(self) -> None:
         """General setup needed to start generated"""
         await super().start()
-        await ProcessManager().link(self.KOBOLD_LINK_ID, ProcessType.KOBOLD)
-        self.uri = f"http://127.0.0.1:{ProcessManager().get_process(ProcessType.KOBOLD).port}"
+        if self.process_manager is None:
+            raise RuntimeError("KoboldSTT missing runtime dependency: process_manager")
+        await self.process_manager.link(self.KOBOLD_LINK_ID, ProcessType.KOBOLD)
+        self.uri = f"http://127.0.0.1:{self.process_manager.get_process(ProcessType.KOBOLD).port}"
 
     async def close(self) -> None:
         """Clean up resources before unloading"""
         await super().close()
-        await ProcessManager().unlink(self.KOBOLD_LINK_ID, ProcessType.KOBOLD)
+        if self.process_manager is None:
+            return
+        await self.process_manager.unlink(self.KOBOLD_LINK_ID, ProcessType.KOBOLD)
 
     async def configure(self, config_d):
         """Configure and validate operation-specific configuration"""
